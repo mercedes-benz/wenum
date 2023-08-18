@@ -1,3 +1,5 @@
+import logging
+
 from .exception import FuzzExceptNoPluginError, FuzzExceptBadOptions
 from .facade import Facade
 from .filters.ppfilter import FuzzResFilterSlice, FuzzResFilter
@@ -20,6 +22,10 @@ class BaseIterator:
 
 
 class BaseDictionary:
+
+    def __init__(self):
+        self.logger = logging.getLogger("runtime_log")
+
     def count(self):
         raise NotImplementedError
 
@@ -38,6 +44,7 @@ class BaseDictionary:
 
 class EncodeIt(BaseDictionary):
     def __init__(self, parent, encoders_list):
+        super().__init__()
         self.parent = parent
         self.encoders = encoders_list
         self.__generator = self._gen()
@@ -57,7 +64,7 @@ class EncodeIt(BaseDictionary):
         if not plugin_list:
             raise FuzzExceptNoPluginError(
                 encoder_name
-                + " encoder does not exists (-e encodings for a list of available encoders)"
+                + " encoder does not exists (-e encodings for a list of available encoders)", self.logger
             )
 
         for plugin_class in plugin_list:
@@ -88,6 +95,7 @@ class EncodeIt(BaseDictionary):
 
 class TupleIt(BaseDictionary, BaseIterator):
     def __init__(self, parent):
+        super().__init__()
         self.parent = parent
 
     def count(self):
@@ -105,6 +113,7 @@ class TupleIt(BaseDictionary, BaseIterator):
 
 class WrapperIt(BaseDictionary):
     def __init__(self, iterator):
+        super().__init__()
         self._it = iter(iterator)
 
     def count(self):
@@ -119,6 +128,7 @@ class WrapperIt(BaseDictionary):
 
 class SliceIt(BaseDictionary):
     def __init__(self, payload, slicestr):
+        super().__init__()
         self.ffilter = FuzzResFilter(filter_string=slicestr)
         self.ffilter_slice = FuzzResFilterSlice(filter_string=slicestr)
         self.payload = payload
@@ -144,7 +154,7 @@ class SliceIt(BaseDictionary):
 
         if not isinstance(filter_ret, bool) and item.type == FuzzWordType.FUZZRES:
             raise FuzzExceptBadOptions(
-                "The payload type cannot be modified from FuzzResult to word."
+                "The payload type cannot be modified from FuzzResult to word.", self.logger
             )
 
         while isinstance(filter_ret, bool) and not filter_ret:
@@ -159,6 +169,7 @@ class SliceIt(BaseDictionary):
 
 class AllVarDictio(BaseDictionary, BaseIterator):
     def __init__(self, iterator, allvar_len):
+        super().__init__()
         self._it = iter(iterator)
         self._count = allvar_len
 
@@ -173,4 +184,4 @@ class AllVarDictio(BaseDictionary, BaseIterator):
 
     def next_word(self):
         var_name, fuzz_word = next(self._it)
-        return (FuzzWord(var_name, FuzzWordType.WORD), fuzz_word)
+        return FuzzWord(var_name, FuzzWordType.WORD), fuzz_word

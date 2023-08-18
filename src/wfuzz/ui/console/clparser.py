@@ -1,3 +1,4 @@
+import logging
 import re
 import sys
 import getopt
@@ -6,10 +7,9 @@ from collections import defaultdict
 
 from wfuzz.helpers.file_func import get_filter_help_file
 from wfuzz.helpers.obj_dyn import allowed_fields
-from wfuzz.filters.ppfilter import PYPARSING
 from wfuzz.facade import Facade
 from wfuzz.options import FuzzSession
-from wfuzz.exception import FuzzException, FuzzExceptBadOptions, FuzzExceptBadInstall
+from wfuzz.exception import FuzzException, FuzzExceptBadOptions
 from .common import help_banner, exec_banner
 from .common import usage
 from .common import brief_usage
@@ -17,21 +17,17 @@ from .common import verbose_usage
 from wfuzz import __version__ as version
 from .output import table_print
 
-short_opts = "hLAZX:vcb:e:R:D:d:z:r:f:t:w:V:H:m:f:o:s:p:w:u:"
+short_opts = "hLAFZX:vcab:e:R:D:d:z:r:f:t:w:V:H:m:f:s:p:w:u:q:o"
 long_opts = [
     "efield=",
-    "no-cache",
     "ee=",
     "zE=",
     "zD=",
     "field=",
     "ip=",
     "filter-help",
-    "AAA",
-    "AA",
     "slice=",
     "zP=",
-    "oF=",
     "recipe=",
     "dump-recipe=",
     "req-delay=",
@@ -49,17 +45,21 @@ long_opts = [
     "ntlm=",
     "basic=",
     "digest=",
-    "follow",
     "script-help=",
     "script=",
     "script-args=",
     "prefilter=",
     "filter=",
     "interact",
+    "hard-filter",
+    "auto-filter",
+    "runtime-log",
     "help",
     "version",
     "dry-run",
     "prev",
+    "cachefile=",
+    "limit-requests"
 ]
 REPEATABLE_OPTS = [
     "--efield",
@@ -79,16 +79,14 @@ REPEATABLE_OPTS = [
 
 
 class CLParser:
-    def __init__(
-        self,
-        argv,
-        short_opts=short_opts,
-        long_opts=long_opts,
-        help_banner=help_banner,
-        brief_usage=brief_usage,
-        verbose_usage=verbose_usage,
-        usage=usage,
-    ):
+    def __init__(self,
+                 argv,
+                 short_opts=short_opts,
+                 long_opts=long_opts,
+                 help_banner=help_banner,
+                 brief_usage=brief_usage,
+                 verbose_usage=verbose_usage,
+                 usage=usage,):
         self.argv = argv
         self.short_opts = short_opts
         self.long_opts = long_opts
@@ -109,17 +107,20 @@ class CLParser:
         print(self.help_banner)
         print(self.usage)
 
-    def show_plugins_help(self, registrant, cols=3, category="$all$"):
+    @staticmethod
+    def show_plugins_help(registrant, cols=3, category="$all$"):
         print("\nAvailable %s:\n" % registrant)
         table_print(
             [x[cols:] for x in Facade().proxy(registrant).get_plugins_ext(category)]
         )
         sys.exit(0)
 
-    def show_plugins_names(self, registrant):
+    @staticmethod
+    def show_plugins_names(registrant):
         print("\n".join(Facade().proxy(registrant).get_plugins_names("$all$")))
 
-    def show_plugin_ext_help(self, registrant, category="$all$"):
+    @staticmethod
+    def show_plugin_ext_help(registrant, category="$all$"):
         for plugin in Facade().proxy(registrant).get_plugins(category):
             print("Name: %s %s" % (plugin.name, plugin.version))
             print("Categories: %s" % ",".join(plugin.category))
@@ -144,22 +145,44 @@ class CLParser:
 
         sys.exit(0)
 
-    def parse_cl(self):
+    def parse_cl(self) -> FuzzSession:
         # Usage and command line help
         try:
             opts, args = getopt.getopt(self.argv[1:], self.short_opts, self.long_opts)
             optsd = defaultdict(list)
 
             payload_cache = {}
-            for i, j in opts:
-                if i in ["-z", "--zP", "--slice", "-w", "--zD", "--zE"]:
-                    if i in ["-z", "-w"]:
+            for option, value in opts:
+                if option in ["-z", "--zP", "--slice", "-w", "--zD", "--zE"]:
+                    if option in ["-z", "-w"]:
                         if payload_cache:
                             optsd["payload"].append(payload_cache)
                             payload_cache = {}
 
-                    payload_cache[i] = j
-                optsd[i].append(j)
+                    payload_cache[option] = value
+                optsd[option].append(value)
+
+            # Setting the runtime log as early as possible
+            if "--runtime-log" in optsd:
+                # If an output file is specified, base the name and path on it
+                if "-f" in optsd:
+                    logger_filename = optsd["-f"][0] + ".log"
+                else:
+                    logger_filename = "wfuzz_runtime.log"
+                logger = logging.getLogger("runtime_log")
+                logger.propagate = False
+                logger.setLevel(logging.DEBUG)
+                formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s", datefmt="%d.%m.%Y %H:%M:%S")
+                handler = logging.FileHandler(filename=logger_filename)
+                handler.setLevel(logging.DEBUG)
+                handler.setFormatter(formatter)
+                logger.addHandler(handler)
+            else:
+                # This is a logger configuration that doesn't log anywhere. It will effectively be used if --runtime-log
+                # is not specified
+                null_logger = logging.getLogger("runtime_log")
+                null_logger.addHandler(logging.NullHandler())
+                null_logger.propagate = False
 
             if not args and not optsd:
                 self.show_brief_usage()
@@ -167,7 +190,7 @@ class CLParser:
 
             if payload_cache:
                 optsd["payload"].append(payload_cache)
-                payload_cache = {}
+                # payload_cache = {}
 
             self._parse_help_opt(optsd)
 
@@ -183,7 +206,8 @@ class CLParser:
             if "-u" in optsd:
                 if (url is not None and url != "FUZZ") or url == optsd["-u"][0]:
                     raise FuzzExceptBadOptions(
-                        "Specify the URL either with -u or last argument. If you want to use a full payload, it can only be specified with FUZZ."
+                        "Specify the URL either with -u or last argument. If you want to use a full payload, "
+                        "it can only be specified with FUZZ. "
                     )
 
                 cli_url = optsd["-u"][0]
@@ -207,6 +231,8 @@ class CLParser:
             self._parse_payload(optsd, options)
             self._parse_scripts(optsd, options)
 
+            if "--cachefile" in optsd:
+                options.cache.load_cache_from_file(options.data["cachefile"])
             if "--dump-recipe" in optsd:
                 print(exec_banner)
 
@@ -223,7 +249,7 @@ class CLParser:
         except FuzzException as e:
             self.show_brief_usage()
             raise e
-        except ValueError:
+        except ValueError as e:
             self.show_brief_usage()
             raise FuzzExceptBadOptions("Incorrect options, please check help.")
         except getopt.GetoptError as qw:
@@ -277,7 +303,7 @@ class CLParser:
             elif "fields" in optsd["--ee"]:
                 print("\n".join(allowed_fields))
             elif "files" in optsd["--ee"]:
-                print("\n".join(Facade().sett.get("general", "lookup_dirs").split(",")))
+                print("\n".join(Facade().settings.get("general", "lookup_dirs").split(",")))
             elif "registrants" in optsd["--ee"]:
                 print("\n".join(Facade().get_registrants()))
             elif "options" in optsd["--ee"]:
@@ -327,7 +353,8 @@ class CLParser:
                 filt = optsd["--slice"][0] if "--slice" in optsd else "$all$"
                 self.show_plugin_ext_help("payloads", category=filt)
 
-    def _check_options(self, optsd):
+    @staticmethod
+    def _check_options(optsd):
         # Check for repeated flags
         opt_list = [i for i in optsd if i not in REPEATABLE_OPTS and len(optsd[i]) > 1]
         if opt_list:
@@ -338,19 +365,16 @@ class CLParser:
 
         # -A and script not allowed at the same time
         if "--script" in list(optsd.keys()) and [
-            key for key in optsd.keys() if key in ["-A", "--AA", "--AAA"]
+            key for key in optsd.keys() if key in ["-A"]
         ]:
             raise FuzzExceptBadOptions(
-                "Bad usage: --scripts and -A, --AA, --AAA are incompatible options."
+                "Bad usage: --scripts and -A are incompatible options."
             )
 
-        if "-s" in list(optsd.keys()) and "-t" in list(optsd.keys()):
-            warnings.warn(
-                "When using delayed requests concurrent requests are limited to 1, therefore the -t switch will be ignored."
-            )
-
-    def _parse_filters(self, optsd, filter_params):
+    @staticmethod
+    def _parse_filters(optsd, options: FuzzSession) -> None:
         """
+        Populates the options with the filter parameters
         filter_params = dict(
             hs = None,
             hc = [],
@@ -368,45 +392,41 @@ class CLParser:
         """
 
         if "--prefilter" in optsd:
-            if not PYPARSING:
-                raise FuzzExceptBadInstall("--prefilter switch needs pyparsing module.")
-
             for prefilter_opt in optsd["--prefilter"]:
-                filter_params["prefilter"].append(prefilter_opt)
+                options["prefilter"].append(prefilter_opt)
 
         if "--filter" in optsd:
-            if not PYPARSING:
-                raise FuzzExceptBadInstall("--filter switch needs pyparsing module.")
-            filter_params["filter"] = optsd["--filter"][0]
+            options["filter"] = optsd["--filter"][0]
 
         if "--hc" in optsd:
-            filter_params["hc"] = optsd["--hc"][0].split(",")
+            options["hc"] = optsd["--hc"][0].split(",")
         if "--hw" in optsd:
-            filter_params["hw"] = optsd["--hw"][0].split(",")
+            options["hw"] = optsd["--hw"][0].split(",")
         if "--hl" in optsd:
-            filter_params["hl"] = optsd["--hl"][0].split(",")
+            options["hl"] = optsd["--hl"][0].split(",")
         if "--hh" in optsd:
-            filter_params["hh"] = optsd["--hh"][0].split(",")
+            options["hh"] = optsd["--hh"][0].split(",")
         if "--hs" in optsd:
-            filter_params["hs"] = optsd["--hs"][0]
+            options["hs"] = optsd["--hs"][0]
         if "--sc" in optsd:
-            filter_params["sc"] = optsd["--sc"][0].split(",")
+            options["sc"] = optsd["--sc"][0].split(",")
         if "--sw" in optsd:
-            filter_params["sw"] = optsd["--sw"][0].split(",")
+            options["sw"] = optsd["--sw"][0].split(",")
         if "--sl" in optsd:
-            filter_params["sl"] = optsd["--sl"][0].split(",")
+            options["sl"] = optsd["--sl"][0].split(",")
         if "--sh" in optsd:
-            filter_params["sh"] = optsd["--sh"][0].split(",")
+            options["sh"] = optsd["--sh"][0].split(",")
         if "--ss" in optsd:
-            filter_params["ss"] = optsd["--ss"][0]
+            options["ss"] = optsd["--ss"][0]
 
-    def _parse_payload(self, optsd, options):
-        """
-        options = dict(
-            payloads = [],
-            iterator = None,
-        )
-        """
+        if "--auto-filter" in optsd:
+            options["auto_filter"] = True
+
+        if "--hard-filter" in optsd:
+            options["hard_filter"] = True
+
+    @staticmethod
+    def _parse_payload(optsd, options: FuzzSession):
 
         payloads_list = []
 
@@ -463,7 +483,8 @@ class CLParser:
         if payloads_list:
             options["payloads"] = payloads_list
 
-    def _parse_seed(self, url, optsd, options):
+    @staticmethod
+    def _parse_seed(url, optsd, options):
         if url:
             options["url"] = url
 
@@ -479,9 +500,6 @@ class CLParser:
         if "--ntlm" in optsd:
             options["auth"] = {"method": "ntlm", "credentials": optsd["--ntlm"][0]}
 
-        if "--follow" in optsd or "-L" in optsd:
-            options["follow"] = True
-
         if "--field" in optsd:
             for field in optsd["--field"]:
                 options["fields"].append(field)
@@ -491,8 +509,6 @@ class CLParser:
                 options["fields"].append(field)
 
             options["show_field"] = False
-        else:
-            options["show_field"] = None
 
         if "--ip" in optsd:
             splitted = optsd["--ip"][0].partition(":")
@@ -521,7 +537,20 @@ class CLParser:
         if "-V" in optsd:
             options["allvars"] = str(optsd["-V"][0])
 
-    def _parse_conn_options(self, optsd, conn_options):
+        if "-R" in optsd:
+            options["rlevel"] = int(optsd["-R"][0])
+            # By default, set the plugin_rlevel to the ordinary rlevel
+            options["plugin_rlevel"] = int(optsd["-R"][0])
+
+        # Optionally overwrite default value
+        if "-q" in optsd:
+            options["plugin_rlevel"] = int(optsd["-q"][0])
+
+        if "-F" in optsd:
+            options["follow_redirects"] = True
+
+    @staticmethod
+    def _parse_conn_options(optsd, conn_options: FuzzSession):
         if "-p" in optsd:
             proxy = []
 
@@ -543,14 +572,15 @@ class CLParser:
         if "--req-delay" in optsd:
             conn_options["req_delay"] = int(optsd["--req-delay"][0])
 
-        if "-R" in optsd:
-            conn_options["rlevel"] = int(optsd["-R"][0])
+        if "--limit-requests" in optsd:
+            conn_options["limitrequests"] = True
 
-        if "-D" in optsd:
-            conn_options["dlevel"] = int(optsd["-D"][0])
-
+        # "-Z" option disables scanmode. Scanmode disabled exits the script on an unsuccessful request
         if "-Z" in optsd:
-            conn_options["scanmode"] = True
+            conn_options["scanmode"] = False
+
+        if "-o" in optsd:
+            conn_options["domain_scope"] = True
 
         if "-s" in optsd:
             conn_options["delay"] = float(optsd["-s"][0])
@@ -558,9 +588,8 @@ class CLParser:
         if "-t" in optsd:
             conn_options["concurrent"] = int(optsd["-t"][0])
 
-    def _parse_options(self, optsd, options):
-        if "--oF" in optsd:
-            options["save"] = optsd["--oF"][0]
+    @staticmethod
+    def _parse_options(optsd, options):
 
         if "-v" in optsd:
             options["verbose"] = True
@@ -568,15 +597,14 @@ class CLParser:
         if "--prev" in optsd:
             options["previous"] = True
 
-        if "--no-cache" in optsd:
-            options["no_cache"] = True
-
         if "-c" in optsd:
-            options["colour"] = True
+            options["colour"] = False
 
-        if [key for key in optsd.keys() if key in ["-A", "--AA", "--AAA"]]:
+        if "-a" in optsd:
+            options["progress_bar"] = False
+
+        if [key for key in optsd.keys() if key in ["-A"]]:
             options["verbose"] = True
-            options["colour"] = True
 
         if "-f" in optsd:
             vals = optsd["-f"][0].split(",", 1)
@@ -585,9 +613,6 @@ class CLParser:
                 options["printer"] = (vals[0], None)
             else:
                 options["printer"] = vals
-
-        if "-o" in optsd:
-            options["console_printer"] = optsd["-o"][0]
 
         if "--recipe" in optsd:
             options["recipe"] = optsd["--recipe"]
@@ -598,7 +623,11 @@ class CLParser:
         if "--interact" in optsd:
             options["interactive"] = True
 
-    def _parse_scripts(self, optsd, options):
+        if "--cachefile" in optsd:
+            options["cachefile"] = optsd['--cachefile'][0]
+
+    @staticmethod
+    def _parse_scripts(optsd, options):
         """
         options = dict(
             script = "",
@@ -609,16 +638,8 @@ class CLParser:
         if "-A" in optsd:
             options["script"] = "default"
 
-        if "--AA" in optsd:
-            options["script"] = "default,verbose"
-
-        if "--AAA" in optsd:
-            options["script"] = "default,verbose,discovery"
-
         if "--script" in optsd:
-            options["script"] = (
-                "default" if optsd["--script"][0] == "" else optsd["--script"][0]
-            )
+            options["script"] = "" if optsd["--script"][0] == "" else optsd["--script"][0]
 
         if "--script-args" in optsd:
             try:

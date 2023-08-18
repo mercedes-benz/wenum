@@ -6,7 +6,7 @@ from wfuzz.externals.moduleman.plugin import moduleman_plugin
 
 
 @moduleman_plugin
-class grep(BasePlugin):
+class Grep(BasePlugin):
     name = "grep"
     author = ("Xavi Mendez (@xmendez)",)
     version = "0.1"
@@ -20,8 +20,8 @@ class grep(BasePlugin):
 
     parameters = (("regex", "", True, "Regex to perform the grep against."),)
 
-    def __init__(self):
-        BasePlugin.__init__(self)
+    def __init__(self, options):
+        BasePlugin.__init__(self, options)
         try:
             print(self.kbase["grep.regex"])
             self.regex = re.compile(
@@ -32,9 +32,9 @@ class grep(BasePlugin):
                 "Incorrect regex or missing regex parameter."
             )
 
-    def validate(self, fuzzresult):
+    def validate(self, fuzz_result):
         return True
 
-    def process(self, fuzzresult):
-        for r in self.regex.findall(fuzzresult.history.content):
-            self.add_result("match", "Pattern match", r)
+    def process(self, fuzz_result):
+        for r in self.regex.findall(fuzz_result.history.content):
+            self.add_information(f"Pattern match {r}")

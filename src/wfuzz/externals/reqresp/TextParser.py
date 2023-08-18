@@ -4,11 +4,8 @@
 import sys
 import re
 
-# python 2 and 3: iterator
-from builtins import object
 
-
-class TextParser(object):
+class TextParser:
     def __init__(self):
         self.string = ""
         self.oldindex = 0
@@ -38,7 +35,7 @@ class TextParser(object):
         except Exception:
             raise StopIteration
 
-    def setSource(self, t, *args):
+    def set_source(self, t, *args):
         """Se especifica el tipo de entrada. Puede ser fichero o entrada estandard
 
         Ejemplos: setSource("file","/tmp/file")
@@ -66,21 +63,21 @@ class TextParser(object):
         self.oldindex = 0
         self.newindex = 0
 
-    def readUntil(self, pattern, caseSens=True):
-        "Lee lineas hasta que el patron (pattern) conincide en alguna linea"
+    def read_until(self, pattern, case_sensitive=True):
+        """Lee lineas hasta que el patron (pattern) conincide en alguna linea"""
 
         while True:
-            if self.readLine() == 0:
+            if self.read_line() == 0:
                 return False
-            if self.search(pattern, caseSens) is True:
+            if self.search(pattern, case_sensitive) is True:
                 break
 
         return True
 
-    def search(self, pattern, caseSens=True, debug=0):
-        "Intenta hacer Matching entre el pattern pasado por parametro y la ultima linea leida"
+    def search(self, pattern, case_sens=True, debug=0):
+        """Intenta hacer Matching entre el pattern pasado por parametro y la ultima linea leida"""
 
-        if not caseSens:
+        if not case_sens:
             self.regexp = re.compile(pattern, re.IGNORECASE)
         else:
             self.regexp = re.compile(pattern)
@@ -95,7 +92,7 @@ class TextParser(object):
         if debug == 1:
             print(("[", self.lastline, "-", pattern, "]"))
             print((len(self.matches)))
-            print((self.matches))
+            print(self.matches)
 
         if len(self.matches) == 0:
             return False
@@ -103,21 +100,22 @@ class TextParser(object):
             return True
 
     def __getitem__(self, key):
-        "Para acceder a cada uno de los patrones que coinciden, esta preparado paragrupos de patrones, no para solo un patron"
+        """Para acceder a cada uno de los patrones que coinciden,
+        esta preparado paragrupos de patrones, no para solo un patron"""
 
         return self.matches[key]
 
     def skip(self, lines):
-        "Salta las lines que se indiquen en el parametro"
+        """Salta las lines que se indiquen en el parametro"""
 
         for i in range(lines):
-            if self.readLine() == 0:
+            if self.read_line() == 0:
                 return False
 
         return True
 
-    def readLine(self):
-        "Lee la siguiente linea eliminando retornos de carro"
+    def read_line(self):
+        """Lee la siguiente linea eliminando retornos de carro"""
 
         if self.type == "file":
             self.lastFull_line = self.fd.readline()

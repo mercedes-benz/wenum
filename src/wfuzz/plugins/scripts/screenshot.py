@@ -9,7 +9,7 @@ import re
 
 
 @moduleman_plugin
-class screenshot(BasePlugin):
+class Screenshot(BasePlugin):
     name = "screenshot"
     author = ("Xavi Mendez (@xmendez)",)
     version = "0.1"
@@ -23,29 +23,29 @@ class screenshot(BasePlugin):
 
     parameters = ()
 
-    def __init__(self):
-        BasePlugin.__init__(self)
+    def __init__(self, options):
+        BasePlugin.__init__(self, options)
 
-    def validate(self, fuzzresult):
-        return fuzzresult.code not in [404]
+    def validate(self, fuzz_result):
+        return fuzz_result.code not in [404]
 
-    def process(self, fuzzresult):
+    def process(self, fuzz_result):
         temp_name = next(tempfile._get_candidate_names())
         defult_tmp_dir = tempfile._get_default_tempdir()
 
         filename = os.path.join(
             defult_tmp_dir,
-            (temp_name + "_" + re.sub(r"[^a-zA-Z0-9_-]", "_", fuzzresult.url))[:200]
+            (temp_name + "_" + re.sub(r"[^a-zA-Z0-9_-]", "_", fuzz_result.url))[:200]
             + ".jpg",
         )
 
         subprocess.call(
             [
                 "cutycapt",
-                "--url=%s" % pipes.quote(fuzzresult.url),
+                "--url=%s" % pipes.quote(fuzz_result.url),
                 "--out=%s" % filename,
                 "--insecure",
                 "--print-backgrounds=on",
             ]
         )
-        self.add_result("file", "Screnshot taken", filename)
+        self.add_information(f"Screenshot taken, output at {filename}")

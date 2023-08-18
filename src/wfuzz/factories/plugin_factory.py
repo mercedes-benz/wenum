@@ -1,6 +1,6 @@
 from ..helpers.obj_factory import ObjectFactory
 
-from ..fuzzobjects import FuzzPlugin, FuzzError
+from ..fuzzobjects import FuzzPlugin, FuzzError, FuzzResult
 from ..factories.fuzzresfactory import resfactory
 
 
@@ -9,59 +9,66 @@ class PluginFactory(ObjectFactory):
         ObjectFactory.__init__(
             self,
             {
-                "plugin_from_recursion": PluginRecursiveBuilder(),
+                "backfeed_plugin": PluginBackfeedBuilder(),
+                "seed_plugin": PluginSeedBuilder(),
                 "plugin_from_error": PluginErrorBuilder(),
                 "plugin_from_finding": PluginFindingBuilder(),
-                "plugin_from_summary": PluginFindingSummaryBuilder(),
             },
         )
 
 
-class PluginRecursiveBuilder:
-    def __call__(self, name, seed, url):
+class PluginBackfeedBuilder:
+    """
+    When a plugin is built here, the seed attribute becomes set
+    by resfactory to BACKFEED, adding a request to the queue
+    """
+    def __call__(self, name, originating_fuzzres, url, method) -> FuzzPlugin:
         plugin = FuzzPlugin()
-        plugin.source = name
-        plugin._exception = None
-        plugin._seed = resfactory.create("fuzzres_from_recursion", seed, url)
+        plugin.name = name
+        plugin.exception = None
+        from_plugin = True
+        plugin.seed = resfactory.create("fuzzres_from_fuzzres", originating_fuzzres, url, method, from_plugin)
+
+        return plugin
+
+
+class PluginSeedBuilder:
+    """
+    When a plugin is built here, the seed attribute becomes set
+    by resfactory to SEED, adding a new seed (full recursion) to the queue
+    """
+    def __call__(self, name, seed, seeding_url) -> FuzzPlugin:
+        plugin = FuzzPlugin()
+        plugin.name = name
+        plugin.exception = None
+        plugin.seed = resfactory.create("seed_from_plugin", seed, seeding_url)
 
         return plugin
 
 
 class PluginErrorBuilder:
-    def __call__(self, name, exception):
+    def __call__(self, name, exception) -> FuzzPlugin:
         plugin = FuzzPlugin()
-        plugin.source = name
-        plugin.issue = "Exception within plugin %s: %s" % (name, str(exception))
-        plugin._exception = FuzzError(exception)
-        plugin._seed = None
+        plugin.name = name
+        plugin.message = "Exception within plugin %s: %s" % (name, str(exception))
+        plugin.exception = FuzzError(exception)
+        plugin.severity = FuzzPlugin.HIGH
+        plugin.seed = None
 
         return plugin
 
 
 class PluginFindingBuilder:
-    def __call__(self, name, itype, message, data, severity):
+    """
+    Creates a Plugin object dedicated to storing message information linked to the fuzzresult for logging purposes
+    """
+    def __call__(self, name, message, severity) -> FuzzPlugin:
         plugin = FuzzPlugin()
-        plugin.source = name
-        plugin.issue = message
-        plugin.itype = itype
-        plugin.data = data
-        plugin._exception = None
-        plugin._seed = None
+        plugin.name = name
+        plugin.message = message
         plugin.severity = severity
-
-        return plugin
-
-
-class PluginFindingSummaryBuilder:
-    def __call__(self, message):
-        plugin = FuzzPlugin()
-        plugin.source = FuzzPlugin.OUTPUT_SOURCE
-        plugin.itype = FuzzPlugin.SUMMARY_ITYPE
-        plugin.severity = FuzzPlugin.NONE
-        plugin._exception = None
-        plugin.data = None
-        plugin._seed = None
-        plugin.issue = message
+        plugin.exception = None
+        plugin.seed = None
 
         return plugin
 

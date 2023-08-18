@@ -1,5 +1,11 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from wfuzz.fuzzrequest import FuzzRequest
+    from wfuzz.fuzzobjects import FPayloadManager
 import re
-import abc
 
 from ..helpers.obj_dyn import (
     rgetattr,
@@ -30,27 +36,21 @@ class Singleton(type):
         return hasattr(class_, "instance")
 
 
+# #TODO it is pain for IDEs to cross reference create()functions that are taken through kwargs in the parent class.
+#   It would be reasonable to make the create()function abstract here and let the inherited classes implement them
 class ObjectFactory:
-    def __init__(self, builders):
-        self._builders = builders
+    def __init__(self, builders: dict):
+        # Store all builders in a str:builderclass fashion, e.g. "seed_from_options":SeedResultBuilder
+        self._builders: dict = builders
 
-    def create(self, key, *args, **kwargs):
+    def create(self, key: str, *args, **kwargs):
+        """ The factories are called by the create()-method.
+            Depending on the combination of key and arguments passed,
+            appropriate builders are called to then create objects such as FuzzPlugin"""
         builder = self._builders.get(key)
         if not builder:
             raise ValueError(key)
         return builder(*args, **kwargs)
-
-
-class HttpRequestFactory(abc.ABC):
-    @staticmethod
-    @abc.abstractmethod
-    def to_http_object(options, to_http, from_req):
-        pass
-
-    @staticmethod
-    @abc.abstractmethod
-    def from_http_object(options, from_http, raw_header, raw_body):
-        pass
 
 
 class SeedBuilderHelper:
@@ -66,10 +66,10 @@ class SeedBuilderHelper:
         ]
 
     @staticmethod
-    def get_marker_dict(freq):
+    def get_marker_dict(fuzz_request: FuzzRequest):
         marker_dict_list = []
 
-        for text in [rgetattr(freq, field) for field in SeedBuilderHelper.REQ_ATTR]:
+        for text in [rgetattr(fuzz_request, field) for field in SeedBuilderHelper.REQ_ATTR]:
             marker_dict_list += SeedBuilderHelper._get_markers(text)
 
         # validate
@@ -77,7 +77,6 @@ class SeedBuilderHelper:
             raise FuzzExceptBadOptions(
                 "You must supply a baseline value per FUZZ word."
             )
-
         return marker_dict_list
 
     @staticmethod
@@ -114,9 +113,9 @@ class SeedBuilderHelper:
     #             rsetattr(seed, field, new_value , None)
 
     @staticmethod
-    def replace_markers(freq, fpm):
+    def replace_markers(freq: FuzzRequest, fpm: FPayloadManager):
         rawReq = str(freq)
-        rawUrl = freq.redirect_url
+        rawUrl = freq.url
         scheme = freq.scheme
         old_auth = freq.auth
 

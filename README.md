@@ -1,49 +1,53 @@
-<img src="https://github.com/xmendez/wfuzz/blob/master/docs/_static/logo/wfuzz_letters.svg" width="500">
+# wfuzz
 
-[![Build Status](https://travis-ci.org/xmendez/wfuzz.svg?branch=master)](https://travis-ci.org/xmendez/wfuzz)
-<a href="https://pypi.python.org/pypi/wfuzz"><img src="https://img.shields.io/pypi/v/wfuzz.svg"></a>
-<a href="https://pypi.python.org/pypi/wfuzz"><img src="https://img.shields.io/pypi/dm/wfuzz"></a>
-<a href="https://pypi.python.org/pypi/wfuzz"><img src="https://img.shields.io/pypi/pyversions/wfuzz.svg"></a>
-<a href="https://codecov.io/github/xmendez/wfuzz"><img src="https://codecov.io/github/xmendez/wfuzz/coverage.svg?branch=master"></a>
+Maintained for Debian 10 and Kali, Python3.9+
 
+## Installation
 
-# Wfuzz - The Web Fuzzer
+Poetry is the most recently tested way to install our wfuzz fork. A typical workflow for installing could be:
 
-Wfuzz has been created to facilitate the task in web applications assessments and it is based on a simple concept: it replaces any reference to the FUZZ keyword by the value of a given payload.
-
-A payload in Wfuzz is a source of data.
-
-This simple concept allows any input to be injected in any field of an HTTP request, allowing to perform complex web security attacks in different web application components such as: parameters, authentication, forms, directories/files, headers, etc.
-
-Wfuzz is more than a web content scanner:
-
-* Wfuzz could help you to secure your web applications by finding and exploiting web application vulnerabilities. Wfuzz’s web application vulnerability scanner is supported by plugins.
-
-* Wfuzz is a completely modular framework and makes it easy for even the newest of Python developers to contribute. Building plugins is simple and takes little more than a few minutes.
-
-* Wfuzz exposes a simple language interface to the previous HTTP requests/responses performed using Wfuzz or other tools, such as Burp. This allows you to perform manual and semi-automatic tests with full context and understanding of your actions, without relying on a web application scanner underlying implementation.
-
-
-It was created to facilitate the task in web applications assessments, it's a tool by pentesters for pentesters ;)
-
-## Installation 
-
-To install WFuzz, simply use pip:
-
+First, it is recommended to create a [virtualenv](https://docs.python.org/3/library/venv.html) to avoid installing the project dependencies into the system packages:
 ```
-pip install wfuzz
+# If unsure, go for sth like '/opt/wfuzz_venv'
+mkdir $PATH_TO_VENV_FOLDER_OF_CHOICE
+python3 -m venv $PATH_TO_VENV_FOLDER_OF_CHOICE
+# Once created, only the source command is necessary to activate the venv in the future
+# This works with bash. If 'fish' is used, use bin/activate.fish instead
+source $PATH_TO_VENV_FOLDER_OF_CHOICE/bin/activate
 ```
 
-To run Wfuzz from a docker image, run:
+Poetry probably won't be installed in the venv yet, therefore run:
+`pip install poetry`
 
+Debian-based distros may need the apt-packages `libssl-dev` and `libcurl4-openssl-dev`
+
+Afterwards, the submodule commands will initialize linkfinder as the submodule, and lastly the project with its dependencies installed by poetry:
 ```
-$ docker run -v $(pwd)/wordlist:/wordlist/ -it ghcr.io/xmendez/wfuzz wfuzz
+git clone $LINK_TO_REPO
+cd wfuzz/
+git submodule update --init --remote
+poetry install
 ```
 
-## Documentation
 
-Documentation is available at http://wfuzz.readthedocs.io
+## Pulling changes ("Updating")
+Since this repo contains linkfinder as a submodule, it is recommended to adjust the pulling command to include changes of it as well. Execute
+`git pull --recurse-submodules` to pull those changes, too.
 
-## Download 
+To ensure being in the newest commit of submodules (here: linkfinder), execute `git submodule update --remote`
 
-Check github releases. Latest is available at https://github.com/xmendez/wfuzz/releases/latest
+## Usage
+
+`wwwfuzz --help`
+
+An example command utilizing a lot of the added functionality:
+```
+host="127.0.0.1:8081"
+wwwfuzz --interact --hard-filter --script=default,gau,links,sourcemap,robots,sitemap,linkparser,domainpath -p 127.0.0.1:9999:SOCKS5 -R 2 -H 'User-Agent: SOMETHING' -w /usr/share/seclists/Discovery/Web-Content/common.txt --auto-filter --runtime-log -f wfuzz_out.json --hc 404 -F "https://$host/FUZZ"`
+```
+
+## Plugins
+
+All the plugin files reside at `src/wfuzz/plugins/scripts`. Feel free to take a look at what kinds exist, adjust existing logic or write your own plugins. Should their use be generic, we can add them to the repo.
+
+To utilize `gau`, you will need to install it first (it needs to be in your path): <https://github.com/lc/gau>

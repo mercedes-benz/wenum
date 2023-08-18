@@ -7,18 +7,11 @@ from wfuzz.facade import Facade
 from wfuzz.helpers.utils import MyCounter
 
 
-# Python 2 and 3: alternative 4
-try:
-    from urllib.request import Request
-    from urllib.request import build_opener
-except ImportError:
-    from urllib2 import Request
-    from urllib2 import build_opener
+from urllib.request import Request
+from urllib.request import build_opener
 
 import json
 
-# python 2 and 3: iterator
-from builtins import object
 from threading import Thread
 from queue import Queue
 
@@ -138,10 +131,10 @@ m = {
 }
 
 
-class BingIter(object):
+class BingIter:
     def __init__(self, dork, offset=0, limit=0, key=None):
         if key is None:
-            key = Facade().sett.get("plugins", "bing_apikey")
+            key = Facade().settings.get("plugins", "bing_apikey")
 
         if not key:
             raise FuzzExceptMissingAPIKey(
@@ -264,7 +257,7 @@ class ShodanIter:
                 "shodan module not imported. Please, install shodan using pip"
             )
 
-        key = Facade().sett.get("plugins", "shodan_apikey")
+        key = Facade().settings.get("plugins", "shodan_apikey")
         if not key:
             raise FuzzExceptMissingAPIKey(
                 "A Shodan api key is needed. Please check ~/.wfuzz/wfuzz.ini"
@@ -324,7 +317,7 @@ class ShodanIter:
     def _start(self):
         for th_n in range(self.NUM_OF_WORKERS):
             worker = Thread(target=self._do_search)
-            worker.setName("_do_search_{}".format(str(th_n)))
+            worker.name = "_do_search_{}".format(str(th_n))
             self._threads.append(worker)
             worker.start()
 

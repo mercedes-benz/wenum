@@ -4,11 +4,7 @@ from wfuzz.fuzzobjects import FuzzWordType
 
 import os
 
-# Python 2 and 3: alternative 4
-try:
-    from urllib.parse import quote
-except ImportError:
-    from urllib import quote
+from urllib.parse import quote
 
 
 @moduleman_plugin

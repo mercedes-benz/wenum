@@ -1,13 +1,12 @@
 from wfuzz.plugin_api.mixins import DiscoveryPluginMixin
 from wfuzz.plugin_api.base import BasePlugin
-from wfuzz.exception import FuzzExceptResourceParseError
 from wfuzz.externals.moduleman.plugin import moduleman_plugin
 
 import xml.dom.minidom
 
 
 @moduleman_plugin
-class sitemap(BasePlugin, DiscoveryPluginMixin):
+class Sitemap(BasePlugin, DiscoveryPluginMixin):
     name = "sitemap"
     author = ("Xavi Mendez (@xmendez)",)
     version = "0.1"
@@ -18,25 +17,23 @@ class sitemap(BasePlugin, DiscoveryPluginMixin):
 
     parameters = ()
 
-    def __init__(self):
-        BasePlugin.__init__(self)
+    def __init__(self, options):
+        BasePlugin.__init__(self, options)
 
-    def validate(self, fuzzresult):
+    def validate(self, fuzz_result):
         return (
-            fuzzresult.history.urlparse.ffname == "sitemap.xml"
-            and fuzzresult.code == 200
+                fuzz_result.history.urlparse.ffname == "sitemap.xml"
+                and fuzz_result.code == 200
         )
 
-    def process(self, fuzzresult):
+    def process(self, fuzz_result):
         try:
-            dom = xml.dom.minidom.parseString(fuzzresult.history.content)
+            dom = xml.dom.minidom.parseString(fuzz_result.history.content)
         except Exception:
-            raise FuzzExceptResourceParseError(
-                "Error while parsing %s." % fuzzresult.url
-            )
+            self.add_exception_information(f"Error while parsing {fuzz_result.url}")
 
-        urlList = dom.getElementsByTagName("loc")
-        for url in urlList:
+        url_list = dom.getElementsByTagName("loc")
+        for url in url_list:
             u = url.childNodes[0].data
 
             self.queue_url(u)

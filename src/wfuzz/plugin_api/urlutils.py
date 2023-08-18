@@ -1,19 +1,13 @@
+from __future__ import annotations
 import os
 
+from typing import TYPE_CHECKING
 
-# Python 2 and 3
-import sys
+if TYPE_CHECKING:
+    from wfuzz.facade import Facade
 
-if sys.version_info >= (3, 0):
-    from urllib.parse import ParseResult
-    from urllib.parse import urlparse
-    from urllib.parse import parse_qs
-else:
-    from urlparse import ParseResult
-    from urlparse import urlparse
-    from urlparse import parse_qs
+from urllib.parse import ParseResult, urlparse, parse_qs
 
-from wfuzz.facade import Facade
 from wfuzz.exception import FuzzExceptBadAPI
 
 
@@ -47,7 +41,7 @@ class FuzzRequestParse(ParseResult):
     @property
     def isbllist(self):
         fext = self.fext
-        return fext != "." and fext in Facade().sett.get(
+        return fext != "." and fext in Facade().settings.get(
             "kbase", "discovery.blacklist"
         ).split("-")
 
@@ -82,10 +76,10 @@ def parse_url(url):
     return FuzzRequestParse(scheme, netloc, path, params, query, fragment)
 
 
-def check_content_type(fuzzresult, which):
+def check_content_type(fuzz_result, which):
     ctype = None
-    if "Content-Type" in fuzzresult.history.headers.response:
-        ctype = fuzzresult.history.headers.response["Content-Type"]
+    if "Content-Type" in fuzz_result.history.headers.response:
+        ctype = fuzz_result.history.headers.response["Content-Type"]
 
     if which == "text":
         return not ctype or (

@@ -40,11 +40,6 @@ try:
             "Pycurl and/or libcurl version is old. CONNECT_TO option is missing. Wfuzz --ip option will not be available."
         )
 
-    if not hasattr(pycurl, "PATH_AS_IS"):
-        warnings.warn(
-            "Pycurl and/or libcurl version is old. PATH_AS_IS option is missing. Wfuzz might not correctly fuzz URLS with '..'."
-        )
-
 except ImportError:
     warnings.warn(
         "fuzz needs pycurl to run. Pycurl could be installed using the following command: $ pip install pycurl"

@@ -1,0 +1,4 @@
+[submodule "src/linkfinder"]
+	path = src/linkfinder
+	url = ../linkfinder.git
+	branch = master

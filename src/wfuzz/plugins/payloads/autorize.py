@@ -51,7 +51,6 @@ class autorize(BasePayload):
 
     def _gen_wfuzz(self, output_fn):
         try:
-
             with open(self.find_file(output_fn), "r") as f:
                 for (
                     url1,

@@ -1,8 +1,4 @@
-# Python 2 and 3: zip_longest
-try:
-    from itertools import zip_longest
-except ImportError:
-    from itertools import izip_longest as zip_longest
+from itertools import zip_longest
 
 from ..helpers.obj_factory import ObjectFactory
 from ..exception import FuzzExceptBadOptions

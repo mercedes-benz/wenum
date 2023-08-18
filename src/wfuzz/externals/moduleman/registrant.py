@@ -1,10 +1,7 @@
 from .modulefilter import Filter
 from collections import defaultdict
 
-try:
-    from collections.abc import MutableMapping
-except ImportError:
-    from collections import MutableMapping
+from collections.abc import MutableMapping
 from threading import Lock
 
 
@@ -135,8 +132,6 @@ class BRegistrant(IRegistrant):
                     "Multiple plugins found: %s"
                     % ",".join([plg.name for plg in plugin_list])
                 )
-
-        raise KeyError("No plugins found!")
 
     def get_plugins(self, category="$all$", sorting="true"):
         return [plg for plg_id, plg in self.__get_plugins(category, sorting)]

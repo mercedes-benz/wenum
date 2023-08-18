@@ -40,15 +40,15 @@ class OnePayloadManBuilder:
 
 
 class BaselinePayloadManBuilder:
-    def __call__(self, freq):
+    def __call__(self, fuzz_request):
         fpm = FPayloadManager()
 
-        for pdict in [
+        for payload_dict in [
             pdict
-            for pdict in SeedBuilderHelper.get_marker_dict(freq)
+            for pdict in SeedBuilderHelper.get_marker_dict(fuzz_request)
             if pdict["bl_value"] is not None
         ]:
-            fpm.add(pdict, FuzzWord(pdict["bl_value"], FuzzWordType.WORD), True)
+            fpm.add(payload_dict, FuzzWord(payload_dict["bl_value"], FuzzWordType.WORD), True)
 
         return fpm
 

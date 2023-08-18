@@ -1,7 +1,5 @@
 import re
-import sys
 import six
-
 
 from .obj_dic import DotDict
 
@@ -61,20 +59,6 @@ def json_minify(string, strip_space=True):
 
     new_str.append(string[index:])
     return "".join(new_str)
-
-
-def python2_3_convert_from_unicode(text):
-    if sys.version_info >= (3, 0):
-        return text
-    else:
-        return convert_to_unicode(text)
-
-
-def python2_3_convert_to_unicode(text):
-    if sys.version_info >= (3, 0):
-        return convert_to_unicode(text)
-    else:
-        return text
 
 
 def convert_to_unicode(text):

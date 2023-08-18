@@ -1,8 +1,4 @@
-# Python 2 and 3 (after ``pip install configparser``):
-try:
-    from configparser import ConfigParser
-except ImportError:
-    import ConfigParser
+from configparser import ConfigParser
 import os
 import sys
 
@@ -22,7 +18,7 @@ class SettingsBase:
         self.cparser.read(self.filename)
 
     # Base members should implement
-
+    # TODO Mark abstract
     def get_config_file(self):
         """Returns the name of the file where the config is saved."""
         raise NotImplementedError

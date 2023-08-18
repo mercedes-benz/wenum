@@ -1,5 +1,11 @@
+import logging
+
+
 class FuzzException(Exception):
-    pass
+    def __init__(self, message):
+        super().__init__(message)
+        logger = logging.getLogger("runtime_log")
+        logger.error(message)
 
 
 class FuzzExceptBadOptions(FuzzException):

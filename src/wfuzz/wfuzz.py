@@ -1,6 +1,16 @@
 #!/usr/bin/env python
+from __future__ import annotations
+
+import datetime
+import time
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from wfuzz.options import FuzzSession
 import sys
 import warnings
+import traceback
+import logging
 
 from .core import Fuzzer
 from .facade import Facade
@@ -8,95 +18,127 @@ from .exception import FuzzException, FuzzExceptBadInstall
 from .ui.console.mvc import Controller, KeyPress
 from .ui.console.common import (
     help_banner2,
-    wfpayload_usage,
+    wfpayload_usage, Term, UncolouredTerm,
 )
 from .ui.console.clparser import CLParser
 
-from .fuzzobjects import FuzzWordType
-
-
-PROFILING = False
-
-
-def print_profiling(profiling_list, profiling_header):
-    avg = [float(sum(col)) / len(col) for col in list(zip(*profiling_list))]
-    maxx = [max(col) for col in list(zip(*profiling_list))]
-
-    print(
-        ", ".join(
-            ["{}={}".format(pair[0], pair[1]) for pair in zip(profiling_header, avg)]
-        )
-    )
-    print(
-        ", ".join(
-            ["{}={}".format(pair[0], pair[1]) for pair in zip(profiling_header, maxx)]
-        )
-    )
+from .fuzzobjects import FuzzWordType, FuzzStats
 
 
 def main():
-    kb = None
-    fz = None
-    session_options = None
+    """
+    Executing core wfuzz
+    """
+    keypress: Optional[KeyPress] = None
+    fuzzer: Optional[Fuzzer] = None
+    session_options: Optional[FuzzSession] = None
+    logger = None
+    term = None
 
     try:
         # parse command line
-        session_options = CLParser(sys.argv).parse_cl().compile()
-        session_options["exec_mode"] = "cli"
+        session_options: FuzzSession = CLParser(sys.argv).parse_cl().compile()
 
-        # Create fuzzer's engine
-        fz = Fuzzer(session_options)
+        fuzzer = Fuzzer(session_options)
 
         if session_options["interactive"]:
             # initialise controller
             try:
-                kb = KeyPress()
+                keypress = KeyPress()
             except ImportError as e:
                 raise FuzzExceptBadInstall(
                     "Error importing necessary modules for interactive mode: %s"
                     % str(e)
                 )
             else:
-                Controller(fz, kb)
-                kb.start()
+                Controller(fuzzer, keypress)
+                keypress.start()
 
-        if PROFILING:
-            profiling_header = list(fz.qmanager._queues.keys())
-            profiling_list = []
+        if session_options["colour"]:
+            term = Term()
+        else:
+            term = UncolouredTerm()
 
-        for res in fz:
-            if PROFILING:
-                profiling = list(fz.qmanager.get_stats().items())
-                profiling_list.append([pair[1] for pair in profiling])
-            else:
-                pass
+        logger = logging.getLogger("runtime_log")
+        # Logging startup options on startup
+        logger.info(f"""Runtime options:
+{session_options.export_active_options_dict()}""")
 
-        if PROFILING:
-            print_profiling(profiling_list, profiling_header)
+        # This loop causes the main loop of wfuzz to execute
+        for res in fuzzer:
+            pass
+
     except FuzzException as e:
         warnings.warn("Fatal exception: {}".format(str(e)))
     except KeyboardInterrupt:
-        warnings.warn("Finishing pending requests...")
-        if fz:
-            fz.cancel_job()
+        if term:
+            text = term.colour_string(term.fgYellow, "Finishing pending requests...")
+            (term.colour_string(term.fgYellow, "Finishing pending requests..."))
+        else:
+            text = "Finishing pending requests..."
+        warnings.warn(text)
+        if fuzzer:
+            fuzzer.cancel_job()
     except NotImplementedError as e:
-        warnings.warn(
-            "Fatal exception: Error importing wfuzz extensions: {}".format(str(e))
-        )
+        exception_message = "Fatal exception: Error importing wfuzz extensions: {}".format(str(e))
+        if logger:
+            logger.exception(exception_message)
+        warnings.warn(exception_message)
     except Exception as e:
-        warnings.warn("Unhandled exception: {}".format(str(e)))
+        exception_message = "Unhandled exception: {}".format(str(e))
+        if logger:
+            logger.exception(exception_message)
+        warnings.warn(exception_message)
+        traceback.print_exc()
     finally:
         if session_options:
+            if logger:
+                _log_runtime_stats(logger, session_options["compiled_stats"])
             session_options.close()
-        if kb:
-            kb.cancel_job()
-        Facade().sett.save()
+        if keypress:
+            keypress.cancel_job()
+        Facade().settings.save()
+
+
+def _log_runtime_stats(logger: logging.Logger, stats: FuzzStats):
+    total_time = time.time() - stats.starttime
+    time_formatted = datetime.timedelta(seconds=int(total_time))
+    frequent_hits = _filter_subdirectory_hits(stats)
+    runtime_info = f"""
+# Processed Requests: {stats.processed()}
+# Generated Plugin Requests: {stats.backfeed()}
+# Filtered Requests: {stats.filtered()}
+# Amount of Seeds: {len(stats.seed_list)}
+
+# Seed List:
+{stats.seed_list}
+
+# Big subdirectories:
+{frequent_hits}
+# Total Time: {str(time_formatted)}"""
+    logger.info(runtime_info)
+
+
+def _filter_subdirectory_hits(stats: FuzzStats) -> str:
+    """
+    stats keeps a record of the hit count within each subdirectory. This function is called to do some processing.
+    It's only considered relevant for the user to know if there are at least x amount of hits within a subdir
+    """
+    # Order alphabetically
+    sorted_hits = dict(sorted(stats.subdir_hits.items()))
+    line_separated_dirs = ""
+    # Only count those that have a minimum amount of hits
+    for subdir, hits in sorted_hits.items():
+        if hits > 50:
+            line_separated_dirs += subdir + ": " + str(hits) + "\n"
+
+    return line_separated_dirs
 
 
 def main_filter():
-    def usage():
-        print(help_banner2)
-        print(wfpayload_usage)
+    """
+    (Probably) executing wfpayload
+    """
 
     from .api import fuzz
 
@@ -148,12 +190,6 @@ def main_filter():
         session_options.compile_dictio()
         payload_type = session_options["compiled_dictio"].payloads()[0].get_type()
 
-        if (
-            payload_type == FuzzWordType.FUZZRES
-            and session_options["show_field"] is not True
-        ):
-            session_options["exec_mode"] = "cli"
-
         for res in fuzz(**session_options):
             if payload_type == FuzzWordType.WORD:
                 print(res.description)
@@ -171,6 +207,9 @@ def main_filter():
 
 
 def main_encoder():
+    """
+    (Probably) executing wfencode
+    """
     def usage():
         print(help_banner2)
         print("Usage:")
@@ -229,17 +268,3 @@ def main_encoder():
         warnings.warn(("\nFatal exception: %s" % str(e)))
     except Exception as e:
         warnings.warn(("Unhandled exception: %s" % str(e)))
-
-
-def main_gui():
-    import wx
-    from .ui.gui.guicontrols import WfuzzFrame
-    from .ui.gui.controller import GUIController
-
-    app = wx.App(False)
-
-    frame = WfuzzFrame(None, wx.ID_ANY, "WFuzz wxPython Console", size=(750, 590))
-    GUIController(frame)
-
-    frame.Show()
-    app.MainLoop()

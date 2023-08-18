@@ -1,11 +1,21 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from wfuzz.options import FuzzSession
 import pycurl
 from io import BytesIO
 from threading import Thread, Lock
 import itertools
 from queue import Queue
-import collections
+import copy
+import datetime
+import pytz as pytz
 
 from .exception import FuzzExceptBadOptions, FuzzExceptNetError
+from .fuzzobjects import FuzzResult
+from dateutil.parser import parse
 
 from .factories.reqresp_factory import ReqRespRequestFactory
 
@@ -21,6 +31,8 @@ UNRECOVERABLE_PYCURL_EXCEPTIONS = [
 # Exception in perform (35, 'error:0B07C065:x509 certificate routines:X509_STORE_add_cert:cert already in hash table')
 # Exception in perform (18, 'SSL read: error:0B07C065:x509 certificate routines:X509_STORE_add_cert:cert already in hash table, errno 11')
 
+MAX_AGE = datetime.datetime.now(pytz.utc) - datetime.timedelta(days=30)
+
 
 class HttpPool:
     HTTPAUTH_BASIC, HTTPAUTH_NTLM, HTTPAUTH_DIGEST = ("basic", "ntlm", "digest")
@@ -32,22 +44,32 @@ class HttpPool:
         self.exit_job = False
         self.mutex_stats = Lock()
 
-        self.m = None
-        self.curlh_freelist = []
-        self._request_list = collections.deque()
-        self.handles = []
+        # CurlMulti object to which active curl handles will be added to (and removed once done)
+        self.curl_multi: Optional[pycurl.CurlMulti] = None
+        # List of all the handle objects instances used during runtime (can be adjusted by -t option)
+        self.handles: list[pycurl.Curl] = []
+        # List of all the curl handles that are not actively used at the moment
+        self.curlh_freelist: list[pycurl.Curl] = []
+        # Queue object storing all the requests available for sending out. Maxsize avoids buffering tens of thousands of
+        # requests beforehand, which would result in gigabytes of reserved memory
+        self.request_queue: Queue = Queue(maxsize=options.get("concurrent"))
 
-        self.ths = None
+        # List containing the threads
+        # TODO This list seems to only contain a single thread. Refactor into a single thread attribute?
+        self.threads = None
 
         self.pool_map = {}
 
-        self.options = options
+        self.options: FuzzSession = options
+        self.cache = self.options.cache
 
         self._registered = 0
+        # Amount of total requests that have been queued. This is not a "remaining" requests counter
+        self.queued_requests = 0
 
     def _initialize(self):
         # pycurl Connection pool
-        self.m = pycurl.CurlMulti()
+        self.curl_multi = pycurl.CurlMulti()
         self.handles = []
 
         for i in range(self.options.get("concurrent")):
@@ -56,35 +78,41 @@ class HttpPool:
             self.curlh_freelist.append(curl_h)
 
         # create threads
-        self.ths = []
+        self.threads = []
 
-        for fn in ("_read_multi_stack",):
-            th = Thread(target=getattr(self, fn))
-            th.setName(fn)
-            self.ths.append(th)
-            th.start()
+        function_name = "_read_multi_stack"
+        th = Thread(target=getattr(self, function_name))
+        th.name = function_name
+        self.threads.append(th)
+        th.start()
 
     def job_stats(self):
+        """
+        Return stats
+        """
         with self.mutex_stats:
             dic = {
-                "http_processed": self.processed,
-                "http_registered": self._registered,
+                "Requests enqueued": self.queued_requests,
+                "Responses received": self.processed,
             }
         return dic
 
-    # internal http pool control
-
     def iter_results(self, poolid):
-        item = self.pool_map[poolid]["queue"].get()
-
-        if not item:
+        """
+        Method to receive the next item in the queue storing the results of all the requests sent
+        """
+        queue_output = self.pool_map[poolid]["queue"].get()
+        if not queue_output:
             return
+        item = queue_output[0]
+        requeue = queue_output[1]
 
-        yield item
+        yield item, requeue
 
     def _new_pool(self):
         poolid = next(self.newid)
         self.pool_map[poolid] = {}
+        # This queue stores the results of the requests sent
         self.pool_map[poolid]["queue"] = Queue()
         self.pool_map[poolid]["proxy"] = None
 
@@ -96,9 +124,10 @@ class HttpPool:
         return poolid
 
     def _prepare_curl_h(self, curl_h, fuzzres, poolid):
-        new_curl_h = ReqRespRequestFactory.to_http_object(
-            self.options, fuzzres.history, curl_h
-        )
+        """
+        Set up curl handle again for another request
+        """
+        new_curl_h = ReqRespRequestFactory.to_http_object(fuzzres.history, curl_h)
         new_curl_h = self._set_extra_options(new_curl_h, fuzzres, poolid)
 
         new_curl_h.response_queue = (BytesIO(), BytesIO(), fuzzres, poolid)
@@ -107,11 +136,60 @@ class HttpPool:
 
         return new_curl_h
 
-    def enqueue(self, fuzzres, poolid):
+    def enqueue(self, fuzz_result: FuzzResult, poolid):
+        """
+        This method is called by HttpQueue. Puts a request object into request_queue, which is processed by a
+        separate thread actually sending and receiving the requests.
+        It is important that enqueue is not called by the thread handling the requests, because it can deadlock if
+        the queue is full while trying to append more.
+        """
         if self.exit_job:
             return
+        # Bool indicating whether the request should be queued for request again. Useful for exceptions
+        requeue = False
 
-        self._request_list.append((fuzzres, poolid))
+        if "cachefile" in self.options.data:
+            cached = self.cache.get_object_from_object_cache(fuzz_result)
+            if cached:
+                cached_fuzzres = cached[0]
+                action = self._discard_cached(cached_fuzzres)
+                if action == 'discard':
+                    fuzz_result.discarded = True
+                    self.pool_map[poolid]["queue"].put((fuzz_result, requeue))
+                elif action == 'queue':
+                    with self.mutex_stats:
+                        self.queued_requests += 1
+                    self.request_queue.put((fuzz_result, poolid))
+                else:
+                    fuzz_result = cached[0]
+                    fuzz_result.plugins_res.clear()
+                    res_copy = copy.deepcopy(fuzz_result)
+                    self.pool_map[poolid]["queue"].put((res_copy, requeue))
+                return
+
+            with self.mutex_stats:
+                self.queued_requests += 1
+            self.request_queue.put((fuzz_result, poolid))
+        else:
+            with self.mutex_stats:
+                self.queued_requests += 1
+            self.request_queue.put((fuzz_result, poolid))
+
+    @staticmethod
+    def _discard_cached(fuzzres: FuzzResult) -> str:
+        """
+        Method to evaluate detected endpoints. Returns string describing how to proceed with it
+        """
+        if fuzzres.history.code in [403, 404]:
+            return 'discard'
+        if fuzzres.history.code == 200:
+            if fuzzres.history.date:
+                date = parse(fuzzres.history.date)
+                if date > MAX_AGE:
+                    return "discard"
+            return "queue"
+
+        return "cache"
 
     def _stop_to_pools(self):
         for p in list(self.pool_map.keys()):
@@ -119,7 +197,7 @@ class HttpPool:
 
     def cleanup(self):
         self.exit_job = True
-        for th in self.ths:
+        for th in self.threads:
             th.join()
 
     def register(self):
@@ -135,10 +213,11 @@ class HttpPool:
         with self.mutex_stats:
             self._registered -= 1
 
-            if self._registered <= 0:
-                self.cleanup()
+        if self._registered <= 0:
+            self.cleanup()
 
-    def _get_next_proxy(self, proxy_list):
+    @staticmethod
+    def _get_next_proxy(proxy_list):
         i = 0
         while 1:
             yield proxy_list[i]
@@ -176,72 +255,91 @@ class HttpPool:
 
         return c
 
-    def _process_curl_handle(self, curl_h):
+    def _process_curl_handle(self, curl_h: pycurl.Curl):
         buff_body, buff_header, res, poolid = curl_h.response_queue
+        # Bool indicating whether the request should be queued for request again. Useful for exceptions
+        requeue = False
 
         try:
             ReqRespRequestFactory.from_http_object(
-                self.options,
                 res.history,
                 curl_h,
                 buff_header.getvalue(),
                 buff_body.getvalue(),
             )
         except Exception as e:
-            self.pool_map[poolid]["queue"].put(res.update(exception=e))
+            self.pool_map[poolid]["queue"].put((res.update(exception=e), requeue))
         else:
             # reset type to result otherwise backfeed items will enter an infinite loop
-            self.pool_map[poolid]["queue"].put(res.update())
+            self.pool_map[poolid]["queue"].put((res.update(), requeue))
 
         with self.mutex_stats:
             self.processed += 1
 
-    def _process_curl_should_retry(self, res, errno, poolid):
-        if errno not in UNRECOVERABLE_PYCURL_EXCEPTIONS:
-            res.history.wf_retries += 1
+    def _process_curl_should_retry(self, fuzz_result: FuzzResult, errno: int, poolid: int):
+        """
+        Queue failed request another time if it is not considered unrecoverable
+        and has not exceeded the maximum retry amount
+        """
+        if errno in UNRECOVERABLE_PYCURL_EXCEPTIONS or fuzz_result.history.wf_retries >= self.options.get("retries"):
+            return False
+        # Bool indicating whether the request should be queued for request again. Useful for exceptions
+        requeue = True
 
-            if res.history.wf_retries < self.options.get("retries"):
-                self._request_list.append((res, poolid))
-                return True
+        fuzz_result.history.wf_retries += 1
 
-        return False
+        self.pool_map[poolid]["queue"].put((fuzz_result, requeue))
+        return True
 
-    def _process_curl_handle_error(self, res, errno, errmsg, poolid):
+    def _process_curl_handle_error(self, fuzz_result: FuzzResult, errno, errmsg, poolid):
+        """
+        Handle unrecoverable failed request
+        """
+        # Bool indicating whether the request should be queued for request again. Useful for exceptions
+        requeue = False
         e = FuzzExceptNetError("Pycurl error %d: %s" % (errno, errmsg))
-        res.history.totaltime = 0
-        self.pool_map[poolid]["queue"].put(res.update(exception=e))
-
+        fuzz_result.history.totaltime = 0
+        # Clearing the response. Otherwise, if the failed request is a recursive one, it would retain the response
+        # data from the one before
+        fuzz_result.history._request.response = None
+        self.pool_map[poolid]["queue"].put((fuzz_result.update(exception=e), requeue))
         with self.mutex_stats:
             self.processed += 1
 
     def _read_multi_stack(self):
-        # Check for curl objects which have terminated, and add them to the curlh_freelist
+        """
+        Check for curl objects which have terminated, and add them to the curlh_freelist
+        """
         while not self.exit_job:
             while not self.exit_job:
-                ret, num_handles = self.m.perform()
+                ret, num_handles = self.curl_multi.perform()
                 if ret != pycurl.E_CALL_MULTI_PERFORM:
                     break
 
-            num_q, ok_list, err_list = self.m.info_read()
+            num_q, ok_list, err_list = self.curl_multi.info_read()
+
+            # Deal with curl handles that have returned successfully
             for curl_h in ok_list:
                 self._process_curl_handle(curl_h)
-                self.m.remove_handle(curl_h)
+                self.curl_multi.remove_handle(curl_h)
                 self.curlh_freelist.append(curl_h)
 
+            # Deal with curl handles that returned errors
             for curl_h, errno, errmsg in err_list:
                 buff_body, buff_header, res, poolid = curl_h.response_queue
 
                 if not self._process_curl_should_retry(res, errno, poolid):
                     self._process_curl_handle_error(res, errno, errmsg, poolid)
 
-                self.m.remove_handle(curl_h)
+                self.curl_multi.remove_handle(curl_h)
                 self.curlh_freelist.append(curl_h)
 
-            while self.curlh_freelist and self._request_list:
+            # Put curl handles for sending out requests
+            while self.curlh_freelist and not self.request_queue.empty():
                 curl_h = self.curlh_freelist.pop()
-                fuzzres, poolid = self._request_list.popleft()
+                fuzzres, poolid = self.request_queue.get()
 
-                self.m.add_handle(self._prepare_curl_h(curl_h, fuzzres, poolid))
+                self.curl_multi.add_handle(self._prepare_curl_h(curl_h, fuzzres, poolid))
 
         self._stop_to_pools()
 
@@ -249,4 +347,7 @@ class HttpPool:
         for c in self.handles:
             c.close()
             self.curlh_freelist.append(c)
-        self.m.close()
+        self.curl_multi.close()
+
+        if "cachefile" in self.options.data:
+            self.cache.save_cache_to_file(self.options.data["cachefile"])
