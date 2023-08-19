@@ -217,8 +217,8 @@ class FuzzSession(UserDict):
         json_data = json.loads(json_minify(data))
 
         try:
-            if "wfuzz_recipe" in json_data and json_data["wfuzz_recipe"]["recipe_version"] == "0.3":
-                for key, value in json_data["wfuzz_recipe"].items():
+            if "wenum_recipe" in json_data and json_data["wenum_recipe"]["recipe_version"] == "0.3":
+                for key, value in json_data["wenum_recipe"].items():
                     if key not in self.keys_not_to_dump:
                         if key in self.data and isinstance(self.data[key], list):
                             self.data[key] += value
@@ -233,14 +233,14 @@ class FuzzSession(UserDict):
         """
         Returns active options as a dictionary
         """
-        active_options_dict = dict(wfuzz_recipe=defaultdict(dict))
+        active_options_dict = dict(wenum_recipe=defaultdict(dict))
         defaults = self._defaults()
 
         for key, value in self.data.items():
             # Only dump the non-default options
             if key not in self.keys_not_to_dump and value != defaults[key]:
-                active_options_dict["wfuzz_recipe"][key] = self.data[key]
-        active_options_dict["wfuzz_recipe"]["recipe_version"] = "0.3"
+                active_options_dict["wenum_recipe"][key] = self.data[key]
+        active_options_dict["wenum_recipe"]["recipe_version"] = "0.3"
 
         return active_options_dict
 
