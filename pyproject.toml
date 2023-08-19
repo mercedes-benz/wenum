@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "wfuzz"
+name = "wenum"
 version = "0.1.0"
 description = ""
 authors = ["None"]
@@ -19,7 +19,7 @@ python-dateutil = "^2.8.2"
 pytz = "^2022.6"
 
 [tool.poetry.scripts]
-wwwfuzz = 'wfuzz.wfuzz:main'
+wenum = 'wenum.wenum:main'
 
 [tool.poetry.dev-dependencies]
 
