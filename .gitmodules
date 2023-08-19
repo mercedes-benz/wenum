@@ -1,4 +1,3 @@
 [submodule "src/linkfinder"]
 	path = src/linkfinder
-	url = ../linkfinder.git
-	branch = master
+	url = https://github.com/GerbenJavado/LinkFinder
