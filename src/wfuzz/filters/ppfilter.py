@@ -1,3 +1,13 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from typing import Optional as TypingOptional
+from wfuzz.filters.base_filter import BaseFilter
+
+if TYPE_CHECKING:
+    from wfuzz.facade import Facade, ERROR_CODE
+    from wfuzz.fuzzobjects import FuzzResult
+
 from ..exception import FuzzExceptIncorrectFilter, FuzzExceptBadOptions
 from ..helpers.obj_dyn import (
     rgetattr,
@@ -10,40 +20,30 @@ from ..helpers.utils import diff
 import re
 import collections
 import operator
-
-# Python 2 and 3: alternative 4
-try:
-    from urllib.parse import unquote
-except ImportError:
-    from urllib import unquote
-
-from ..facade import Facade, ERROR_CODE
-
-
-PYPARSING = True
-try:
-    from pyparsing import (
-        Word,
-        Group,
-        oneOf,
-        Optional,
-        Suppress,
-        ZeroOrMore,
-        Literal,
-        QuotedString,
-        ParseException,
-        Regex,
-    )
-except ImportError:
-    PYPARSING = False
+from urllib.parse import unquote
+from pyparsing import (
+    Word,
+    Group,
+    oneOf,
+    Optional,
+    Suppress,
+    ZeroOrMore,
+    Literal,
+    QuotedString,
+    ParseException,
+    Regex,
+)
 
 
-class FuzzResFilter:
+class FuzzResFilter(BaseFilter):
+    """
+    Filter class for more complex filtering, often triggered by the --filter argument
+    """
     FUZZ_MARKER_REGEX = re.compile(r"FUZ\d*Z", re.MULTILINE | re.DOTALL)
 
     def __init__(self, filter_string=None):
         self.filter_string = filter_string
-        self.baseline = None
+        self.baseline: TypingOptional[FuzzResult] = None
 
         quoted_str_value = QuotedString("'", unquoteResults=True, escChar="\\")
         int_values = Word("0123456789").setParseAction(lambda s, l, t: [int(t[0])])
@@ -103,7 +103,7 @@ class FuzzResFilter:
         nested_definition.setParseAction(self.__compute_formula)
         self.finalformula.setParseAction(self.__myreduce)
 
-        self.res = None
+        self.fuzz_result: TypingOptional[FuzzResult] = None
         self.stack = []
         self._cache = collections.defaultdict(set)
 
@@ -111,7 +111,7 @@ class FuzzResFilter:
         self.baseline = res
 
     def _compute_res_symbol(self, tokens):
-        return self._get_field_value(self.res, tokens[0])
+        return self._get_field_value(self.fuzz_result, tokens[0])
 
     def _compute_fuzz_symbol(self, tokens):
         match_dict = tokens[0].groupdict()
@@ -119,7 +119,7 @@ class FuzzResFilter:
         fuzz_val = None
 
         try:
-            fuzz_val = self.res.payload_man.get_payload_content(p_index)
+            fuzz_val = self.fuzz_result.payload_man.get_payload_content(p_index)
         except IndexError:
             raise FuzzExceptIncorrectFilter(
                 "Non existent FUZZ payload! Use a correct index."
@@ -150,7 +150,7 @@ class FuzzResFilter:
 
     def _get_payload_value(self, p_index):
         try:
-            return self.res.payload_man.get_payload_content(p_index)
+            return self.fuzz_result.payload_man.get_payload_content(p_index)
         except IndexError:
             raise FuzzExceptIncorrectFilter(
                 "Non existent FUZZ payload! Use a correct index."
@@ -200,7 +200,7 @@ class FuzzResFilter:
             elif element == "h" or element == "chars":
                 return self.baseline.chars
             elif element == "index" or element == "i":
-                ret = self.baseline.nres
+                ret = self.baseline.result_number
             else:
                 ret = self.baseline.payload_man.get_payload_content(1)
 
@@ -262,7 +262,7 @@ class FuzzResFilter:
     def __compute_expr(self, tokens):
         leftvalue, exp_operator, rightvalue = tokens[0]
 
-        # a bit hacky but we don't care about fields in the right hand side of the expression
+        # a bit hacky but we don't care about fields on the right hand side of the expression
         if len(self.stack) > 1:
             self.stack.pop()
 
@@ -300,14 +300,14 @@ class FuzzResFilter:
 
                 return ret if exp_operator == "~" else not ret
             elif exp_operator == ":=":
-                rsetattr(self.res, field_to_set, rightvalue, None)
+                rsetattr(self.fuzz_result, field_to_set, rightvalue, None)
             elif exp_operator == "=+":
-                rsetattr(self.res, field_to_set, rightvalue, operator.add)
+                rsetattr(self.fuzz_result, field_to_set, rightvalue, operator.add)
             elif exp_operator == "=-":
                 if isinstance(rightvalue, str):
-                    rsetattr(self.res, field_to_set, rightvalue, lambda x, y: y + x)
+                    rsetattr(self.fuzz_result, field_to_set, rightvalue, lambda x, y: y + x)
                 else:
-                    rsetattr(self.res, field_to_set, rightvalue, operator.sub)
+                    rsetattr(self.fuzz_result, field_to_set, rightvalue, operator.sub)
         except re.error as e:
             raise FuzzExceptBadOptions(
                 "Invalid regex expression used in expression: %s" % str(e)
@@ -351,15 +351,15 @@ class FuzzResFilter:
     def is_active(self):
         return self.filter_string
 
-    def is_visible(self, res, filter_string=None):
+    def is_visible(self, fuzz_result, filter_string=None):
         if filter_string is None:
             filter_string = self.filter_string
-        self.res = res
+        self.fuzz_result = fuzz_result
         try:
             return self.finalformula.parseString(filter_string, parseAll=True)[0]
         except ParseException as e:
             raise FuzzExceptIncorrectFilter(
-                "Incorrect filter expression, check documentation. {}".format(str(e))
+                f"Incorrect filter expression \"{filter_string}\", check documentation. \n{str(e)}"
             )
         except AttributeError as e:
             raise FuzzExceptIncorrectFilter(
@@ -385,9 +385,9 @@ class FuzzResFilterSlice(FuzzResFilter):
                 "Non existent FUZZ payload! Use a correct index."
             )
 
-        fuzz_val = self.res
+        fuzz_val = self.fuzz_result
 
         if match_dict["field"]:
-            fuzz_val = self._get_field_value(self.res, match_dict["field"])
+            fuzz_val = self._get_field_value(self.fuzz_result, match_dict["field"])
 
         return fuzz_val

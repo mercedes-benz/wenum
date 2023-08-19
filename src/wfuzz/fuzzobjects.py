@@ -1,3 +1,10 @@
+from __future__ import annotations
+
+import datetime
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from wfuzz.fuzzrequest import FuzzRequest
 import time
 import hashlib
 import re
@@ -9,12 +16,9 @@ from collections import defaultdict, namedtuple
 
 from .filters.ppfilter import FuzzResFilter
 from .facade import ERROR_CODE
-
-from .helpers.str_func import python2_3_convert_to_unicode
+from .helpers.str_func import convert_to_unicode
 from .helpers.obj_dyn import rgetattr
 from .helpers.utils import MyCounter
-from .helpers.obj_dic import DotDict
-
 
 FuzzWord = namedtuple("FuzzWord", ["content", "type"])
 
@@ -24,16 +28,20 @@ class FuzzWordType(Enum):
 
 
 class FuzzType(Enum):
-    (SEED, BACKFEED, RESULT, ERROR, STARTSEED, ENDSEED, CANCEL, PLUGIN,) = range(8)
+    (SEED, BACKFEED, RESULT, ERROR, STARTSEED, ENDSEED, CANCEL, PLUGIN, MESSAGE) = range(9)
 
 
-class FuzzItem(object):
+class FuzzItem:
     newid = itertools.count(0)
 
-    def __init__(self, item_type):
+    def __init__(self, item_type: FuzzType):
         self.item_id = next(FuzzItem.newid)
         self.item_type = item_type
-        self.rlevel = 1
+        self.rlevel = 0
+        self.plugin_rlevel = 0
+        # The default priority the item should be handled by the queues
+        self.priority = 10
+        # Set to True by e.g. FilterQ in case the result should be filtered out
         self.discarded = False
 
     def __str__(self):
@@ -62,18 +70,36 @@ class FuzzStats:
     def __init__(self):
         self.mutex = Lock()
 
+        # Will be set to initial Fuzzing URL
         self.url = ""
         self.seed = None
 
+        # Variable containing the amount of requests read from the wordlist
+        self.wordlist_req = 0
+        # Variable containing the total amount of requests that will be sent
+        # (can be higher than wordlist_req due to recursions)
         self.total_req = 0
+        # Counter for total amount of requests to be processed. Increased once SeedQ has readied the request.
+        # Once 0 with seeds, wfuzz enters the ending routine
         self.pending_fuzz = MyCounter()
+        # Counter for total amount of seeds to be processed. Once 0 fuzzes, wfuzz enters the ending routine
         self.pending_seeds = MyCounter()
+        # Counter for total amount of fully processed requests
         self.processed = MyCounter()
+        # Counter for total amount of backfeed requests
         self.backfeed = MyCounter()
+        # Counter for total amount of filtered requests
         self.filtered = MyCounter()
 
+        # List containing all the seed URLs that have been thrown.
+        # Tracking URLs instead of only paths is better, as schemes, ports, or domains may change
+        self.seed_list = []
+
+        # Tracks how many hits have been found in a subdir.
+        self.subdir_hits = {}
+
         self.totaltime = 0
-        self.__starttime = 0
+        self.starttime: float = 0
 
         self._cancelled = False
 
@@ -81,31 +107,50 @@ class FuzzStats:
     def from_options(options):
         tmp_stats = FuzzStats()
 
-        tmp_stats.url = options["compiled_seed"].history.redirect_url
-        tmp_stats.total_req = options["compiled_dictio"].count()
+        tmp_stats.url = options["compiled_seed"].history.url
+        tmp_stats.wordlist_req = options["compiled_dictio"].count()
         tmp_stats.seed = options["compiled_seed"]
 
         return tmp_stats
 
-    def get_stats(self):
+    def get_runtime_stats(self):
+        """Return stats of current runtime as dict.
+        Data included is tailored towards being used during the runtime, not at the end of it"""
         return {
-            "url": self.url,
-            "total": self.total_req,
-            "backfed": self.backfeed(),
-            "processed": self.processed(),
-            "pending": self.pending_fuzz(),
-            "filtered": self.filtered(),
-            "pending_seeds": self.pending_seeds(),
-            "totaltime": time.time() - self.__starttime,
+            "URL": self.url,
+            "Total": self.total_req,
+            "Backfed": self.backfeed(),
+            "Processed": self.processed(),
+            "Pending": self.pending_fuzz(),
+            "Filtered": self.filtered(),
+            "Pending seeds": self.pending_seeds(),
+            "Total time": time.time() - self.starttime,
         }
+
+    def update_subdirectory_hits(self, fuzz_result: FuzzResult) -> None:
+        """Update the amount of times a valid response has been found within a subdirectory.
+        E.g. /admin/scripts/login.html will trigger a hitcount for /admin/ and /admin/scripts/"""
+        request_path = fuzz_result.history.path
+        # Strip the last slash for paths that end with a slash
+        if fuzz_result.history.path.endswith("/"):
+            request_path = request_path[:-1]
+
+        split_path = request_path.split("/")
+        # Filtering to avoid empty strings caused by e.g. trailing/leading slashes/multiple slashes in a row
+        split_path = (list(filter(None, split_path)))
+        # If the length is only one, it's a request in the root. We are not interested in tracking them.
+        if len(split_path) <= 1:
+            return
+        for i in range(len(split_path[:-1])):
+            subdir = "/" + "/".join(split_path[:i + 1]) + "/FUZZ"
+            try:
+                self.subdir_hits[subdir] += 1
+            except KeyError:
+                self.subdir_hits[subdir] = 1
 
     def mark_start(self):
         with self.mutex:
-            self.__starttime = time.time()
-
-    def mark_end(self):
-        with self.mutex:
-            self.totaltime = time.time() - self.__starttime
+            self.starttime = time.time()
 
     @property
     def cancelled(self):
@@ -119,35 +164,46 @@ class FuzzStats:
 
     def __str__(self):
         string = ""
-
-        string += "Total time: %s\n" % str(self.totaltime)[:8]
+        totaltime = time.time() - self.starttime
+        totaltime_formatted = datetime.timedelta(seconds=int(totaltime))
+        string += "Total time: %s\n" % str(totaltime_formatted)
 
         if self.backfeed() > 0:
-            string += "Processed Requests: %s (%d + %d)\n" % (
-                str(self.processed())[:8],
-                (self.processed() - self.backfeed()),
-                self.backfeed(),
-            )
-        else:
-            string += "Processed Requests: %s\n" % (str(self.processed())[:8])
+            string += "Total Backfed/Plugin Requests: %s\n" % (str(self.backfeed())[:8])
+        string += "Processed Requests: %s\n" % (str(self.processed())[:8])
         string += "Filtered Requests: %s\n" % (str(self.filtered())[:8])
         string += (
             "Requests/sec.: %s\n"
-            % str(self.processed() / self.totaltime if self.totaltime > 0 else 0)[:8]
+            % str(self.processed() / totaltime if totaltime > 0 else 0)[:8]
         )
 
         return string
 
-    def update(self, fuzzstats2):
+    def update(self, fuzzstats2: FuzzStats):
         self.url = fuzzstats2.url
-        self.total_req += fuzzstats2.total_req
-        self.totaltime += fuzzstats2.totaltime
+        self.wordlist_req = fuzzstats2.wordlist_req
+        self.total_req = fuzzstats2.total_req
 
         self.backfeed._operation(fuzzstats2.backfeed())
         self.processed._operation(fuzzstats2.processed())
         self.pending_fuzz._operation(fuzzstats2.pending_fuzz())
         self.filtered._operation(fuzzstats2.filtered())
         self.pending_seeds._operation(fuzzstats2.pending_seeds())
+
+    def new_seed(self):
+        """
+        Called to execute relevant stat updates when a new seed is created
+        """
+        self.pending_seeds.inc()
+        self.total_req += self.wordlist_req
+
+    def new_backfeed(self):
+        """
+        Called to execute relevant stat updates when a new backfeed is created
+        """
+        self.backfeed.inc()
+        self.pending_fuzz.inc()
+        self.total_req += 1
 
 
 class FuzzPayload:
@@ -201,6 +257,9 @@ class FPayloadManager:
         self.payloads = defaultdict(list)
 
     def add(self, payload_dict, fuzzword=None, is_baseline=False):
+        """
+        Add a payload to the manager
+        """
         fp = FuzzPayload()
         fp.marker = payload_dict["full_marker"]
         fp.word = payload_dict["word"]
@@ -228,7 +287,7 @@ class FPayloadManager:
                     dictio_item[index - 1],
                 )
 
-    def get_fuzz_words(self):
+    def get_fuzz_words(self) -> list[str]:
         return [payload.word for payload in self.get_payloads()]
 
     def get_payload(self, index):
@@ -240,7 +299,7 @@ class FPayloadManager:
     def get_payload_content(self, index):
         return self.get_payload(index)[0].content
 
-    def get_payloads(self):
+    def get_payloads(self) -> list[FuzzPayload]:
         for index, elem_list in sorted(self.payloads.items()):
             for elem in elem_list:
                 yield elem
@@ -267,43 +326,36 @@ class FuzzResult(FuzzItem):
 
     def __init__(self, history=None, exception=None, track_id=True):
         FuzzItem.__init__(self, FuzzType.RESULT)
-        self.history = history
+        self.history: FuzzRequest = history
 
         self.exception = exception
-        self.is_baseline = False
-        self.rlevel_desc = ""
-        self.nres = next(FuzzResult.newid) if track_id else 0
+        self.is_baseline: bool = False
+        self.rlevel_desc: str = ""
+        self.result_number: int = next(FuzzResult.newid) if track_id else 0
 
-        self.chars = 0
-        self.lines = 0
-        self.words = 0
-        self.md5 = ""
+        self.chars: int = 0
+        self.lines: int = 0
+        self.words: int = 0
+        self.md5: str = ""
 
         self.update()
 
-        self.plugins_res = []
+        # List containing the (potential) results of plugins that are run for each request
+        self.plugins_res: list[FuzzPlugin] = []
 
-        self.payload_man = None
+        self.payload_man: Optional[FPayloadManager] = None
 
+        # Bool indicating whether this object is initialized by a plugin.
+        self.from_plugin: bool = False
+
+        # Variable to keep track of how often a specific object has been parsed for a new URL and requeued.
+        # In case a plugin interaction with an applications runs into an endless re-queuing-chain, this will help
+        # stop after a limit is reached.
+        self.backfeed_level = 0
+
+        # Contains the language expressions of the "--field" option
         self._fields = None
         self._show_field = False
-
-    @property
-    def plugins(self):
-        dic = defaultdict(lambda: defaultdict(list))
-
-        for pl in self.plugins_res:
-            if pl.source == FuzzPlugin.OUTPUT_SOURCE:
-                continue
-            dic[pl.source][pl.itype].append(pl.data)
-
-        ret = DotDict()
-        for key, first in dic.items():
-            ret[key] = DotDict()
-            for seckey, second in first.items():
-                ret[key][seckey] = second
-
-        return ret
 
     def update(self, exception=None):
         self.item_type = FuzzType.RESULT
@@ -312,38 +364,42 @@ class FuzzResult(FuzzItem):
 
         if self.history and self.history.content:
             m = hashlib.md5()
-            m.update(python2_3_convert_to_unicode(self.history.content))
+            m.update(convert_to_unicode(self.history.content))
             self.md5 = m.hexdigest()
 
             self.chars = len(self.history.content)
             self.lines = self.history.content.count("\n")
             self.words = len(re.findall(r"\S+", self.history.content))
+        # Explicitly resetting these. As recursive requests are copies from the prior FuzzResult object,
+        # this otherwise may retain the data from the previous result
+        else:
+            self.md5 = ""
+            self.chars = 0
+            self.lines = 0
+            self.words = 0
 
         return self
 
     def __str__(self):
-        res = '%05d:  C=%03d   %4d L\t   %5d W\t  %5d Ch\t  "%s"' % (
-            self.nres,
+        fuzz_result = '%05d:  C=%03d   %4d L\t   %5d W\t  %5d Ch\t  "%s"\t "%s"' % (
+            self.result_number,
             self.code,
             self.lines,
             self.words,
             self.chars,
+            self.url,
+            # Description often contains the payload from the wordlist
             self.description,
         )
         for plugin in self.plugins_res:
-            if plugin.itype == FuzzPlugin.SUMMARY_ITYPE:
-                res += "\n  |_ %s" % plugin.issue
+            if plugin.is_visible():
+                fuzz_result += "\n  |_ %s" % plugin.message
 
-        return res
+        return fuzz_result
 
     @property
     def description(self):
         res_description = self.payload_man.description() if self.payload_man else None
-
-        if not res_description:
-            res_description = self.url
-
-        ret_str = None
 
         if self._show_field is True:
             ret_str = self._field()
@@ -355,8 +411,11 @@ class FuzzResult(FuzzItem):
         if self.exception:
             return ret_str + "! " + str(self.exception)
 
-        if self.rlevel > 1:
-            return self.rlevel_desc + " - " + ret_str
+        if self.rlevel_desc:
+            if ret_str:
+                return self.rlevel_desc + " - " + ret_str
+            else:
+                return self.rlevel_desc
 
         return ret_str
 
@@ -364,6 +423,9 @@ class FuzzResult(FuzzItem):
         return self.FUZZRESULT_SHARED_FILTER.is_visible(self, expr)
 
     def _field(self, separator=", "):
+        """
+        Relevant if "--field" option is used
+        """
         list_eval = [self.eval(field) for field in self._fields]
         return " | ".join(
             [
@@ -379,14 +441,18 @@ class FuzzResult(FuzzItem):
 
     @property
     def url(self):
+        """
+        Reference to self.history.url
+        """
         return self.history.url if self.history else ""
 
     @property
     def code(self):
+        """
+        Return HTTP status code
+        """
         if self.history and self.history.code >= 0 and not self.exception:
             return int(self.history.code)
-        # elif not self.history.code:
-        # return 0
         else:
             return ERROR_CODE
 
@@ -394,34 +460,33 @@ class FuzzResult(FuzzItem):
     def timer(self):
         return self.history.reqtime if self.history and self.history.reqtime else 0
 
-    # factory methods
-
     def update_from_options(self, options):
         self._fields = options["fields"]
         self._show_field = options["show_field"]
 
 
 class FuzzPlugin(FuzzItem):
+    """
+    FuzzPlugins usually store result information of script plugins (which inherit from BasePlugin).
+    Therefore, they are created by plugins, rather than representing the plugins themselves
+    """
     OUTPUT_SOURCE = "output"
-    SUMMARY_ITYPE = "summary"
     NONE, INFO, LOW, MEDIUM, HIGH, CRITICAL = range(6)
     MIN_VERBOSE = INFO
 
     def __init__(self):
         FuzzItem.__init__(self, FuzzType.PLUGIN)
         self.source = ""
-        self.issue = ""
-        self.itype = ""
-        self.data = ""
-        self._exception = None
-        self._seed = None
         self.severity = self.INFO
+        self.message = ""
+        self.exception = None
+        self.seed: Optional[FuzzResult] = None
 
-    def is_visible(self, verbose):
-        if verbose and self.itype == self.SUMMARY_ITYPE:
+    def is_visible(self) -> bool:
+        """
+        Return True if severe enough
+        """
+        if self.severity >= self.MIN_VERBOSE:
+            return True
+        else:
             return False
-
-        if not verbose and self.severity >= self.MIN_VERBOSE:
-            return False
-
-        return True

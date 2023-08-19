@@ -5,6 +5,7 @@ from .payman import payman_factory
 
 from ..fuzzobjects import FuzzResult, FuzzType, FuzzWord, FuzzWordType
 from ..helpers.obj_factory import ObjectFactory, SeedBuilderHelper
+import logging
 
 
 class FuzzResultFactory(ObjectFactory):
@@ -14,9 +15,11 @@ class FuzzResultFactory(ObjectFactory):
             {
                 "fuzzres_from_options_and_dict": FuzzResultDictioBuilder(),
                 "fuzzres_from_allvar": FuzzResultAllVarBuilder(),
-                "fuzzres_from_recursion": FuzzResRecursiveBuilder(),
-                "seed_from_recursion": SeedRecursiveBuilder(),
-                "seed_from_options": SeedResultBuilder(),
+                "fuzzres_from_fuzzres": FuzzResBackfeedBuilder(),
+                "fuzzres_from_message": FuzzResMessageBuilder(),
+                "seed_from_recursion": FuzzResSeedBuilder(),
+                "seed_from_plugin": FuzzResPluginSeedBuilder(),
+                "seed_from_options": FuzzResOptionsSeedBuilder(),
                 "seed_from_options_and_dict": FuzzResultDictSeedBuilder(),
                 "baseline_from_options": BaselineResultBuilder(),
             },
@@ -25,28 +28,33 @@ class FuzzResultFactory(ObjectFactory):
 
 class FuzzResultDictioBuilder:
     def __call__(self, options, dictio_item):
-        res = copy.deepcopy(options["compiled_seed"])
-        res.item_type = FuzzType.RESULT
-        res.discarded = False
-        res.payload_man.update_from_dictio(dictio_item)
-        res.update_from_options(options)
+        fuzz_result: FuzzResult = copy.deepcopy(options["compiled_seed"])
+        fuzz_result.item_type = FuzzType.RESULT
+        fuzz_result.payload_man.update_from_dictio(dictio_item)
+        fuzz_result.update_from_options(options)
+        fuzz_result.from_plugin = False
 
-        SeedBuilderHelper.replace_markers(res.history, res.payload_man)
-        res.nres = next(FuzzResult.newid)
+        SeedBuilderHelper.replace_markers(fuzz_result.history, fuzz_result.payload_man)
+        fuzz_result.result_number = next(FuzzResult.newid)
 
-        return res
+        return fuzz_result
 
 
-class SeedResultBuilder:
-    def __call__(self, options):
+class FuzzResOptionsSeedBuilder:
+    def __call__(self, options) -> FuzzResult:
         seed = reqfactory.create("seed_from_options", options)
-        res = FuzzResult(seed)
-        res.payload_man = payman_factory.create("payloadman_from_request", seed)
+        fuzz_result = FuzzResult(seed)
+        fuzz_result.payload_man = payman_factory.create("payloadman_from_request", seed)
+        fuzz_result.from_plugin = False
 
-        return res
+        return fuzz_result
 
 
 class BaselineResultBuilder:
+    """
+    The baseline is a reference response. Usually specified to be used in cli options
+    """
+
     def __call__(self, options):
         raw_seed = reqfactory.create("request_from_options", options)
         baseline_payloadman = payman_factory.create(
@@ -54,76 +62,157 @@ class BaselineResultBuilder:
         )
 
         if baseline_payloadman.payloads:
-            res = FuzzResult(raw_seed)
-            res.payload_man = baseline_payloadman
-            res.update_from_options(options)
-            res.is_baseline = True
+            fuzz_result = FuzzResult(raw_seed)
+            fuzz_result.payload_man = baseline_payloadman
+            fuzz_result.update_from_options(options)
+            fuzz_result.is_baseline = True
+            fuzz_result.from_plugin = False
 
             SeedBuilderHelper.replace_markers(raw_seed, baseline_payloadman)
 
-            return res
+            return fuzz_result
         else:
             return None
 
 
 class FuzzResultAllVarBuilder:
     def __call__(self, options, var_name, payload):
-        fuzzres = copy.deepcopy(options["compiled_seed"])
-        fuzzres.item_type = FuzzType.RESULT
-        fuzzres.discarded = False
-        fuzzres.payload_man = payman_factory.create("empty_payloadman", payload)
-        fuzzres.payload_man.update_from_dictio([payload])
-        fuzzres.history.wf_allvars_set = {var_name: payload.content}
-        fuzzres.nres = next(FuzzResult.newid)
+        fuzz_result = copy.deepcopy(options["compiled_seed"])
+        fuzz_result.item_type = FuzzType.RESULT
+        fuzz_result.payload_man = payman_factory.create("empty_payloadman", payload)
+        fuzz_result.payload_man.update_from_dictio([payload])
+        fuzz_result.history.wf_allvars_set = {var_name: payload.content}
+        fuzz_result.result_number = next(FuzzResult.newid)
+        fuzz_result.from_plugin = False
 
-        return fuzzres
+        return fuzz_result
 
 
 class FuzzResultDictSeedBuilder:
-    def __call__(self, options, dictio):
-        fuzzres = copy.deepcopy(dictio[0].content)
-        fuzzres.history.update_from_options(options)
-        fuzzres.update_from_options(options)
-        fuzzres.payload_man = payman_factory.create("empty_payloadman", dictio[0])
-        fuzzres.payload_man.update_from_dictio(dictio)
+    def __call__(self, options, dictio) -> FuzzResult:
+        fuzz_result = copy.deepcopy(dictio[0].content)
+        fuzz_result.history.update_from_options(options)
+        fuzz_result.update_from_options(options)
+        fuzz_result.payload_man = payman_factory.create("empty_payloadman", dictio[0])
+        fuzz_result.payload_man.update_from_dictio(dictio)
+        fuzz_result.from_plugin = False
 
-        return fuzzres
+        return fuzz_result
 
 
-class SeedRecursiveBuilder:
-    def __call__(self, seed):
-        new_seed = copy.deepcopy(seed)
-        new_seed.history.url = seed.history.recursive_url + "FUZZ"
-        new_seed.rlevel += 1
-        if new_seed.rlevel_desc:
-            new_seed.rlevel_desc += " - "
-        new_seed.rlevel_desc += seed.payload_man.description()
-        new_seed.item_type = FuzzType.SEED
-        new_seed.discarded = False
-        new_seed.payload_man = payman_factory.create(
-            "payloadman_from_request", new_seed.history
-        )
+class FuzzResSeedBuilder:
+    """
+    Create a new seed. Polls the recursion URL from the seed object's response.
+    """
+
+    def __call__(self, originating_fuzzresult: FuzzResult) -> FuzzResult:
+        try:
+            seeding_url = originating_fuzzresult.history.parse_recursion_url() + "FUZZ"
+            new_seed: FuzzResult = copy.deepcopy(originating_fuzzresult)
+            new_seed.history.url = seeding_url
+            # Plugin rlevel should be increased in case the new seed results out of a backfed
+            # (and therefore plugin) object
+            if originating_fuzzresult.from_plugin:
+                new_seed.plugin_rlevel += 1
+            elif not originating_fuzzresult.from_plugin:
+                new_seed.rlevel += 1
+            # The plugin results of the response before are irrelevant for the new request
+            new_seed.plugins_res = []
+            if new_seed.rlevel_desc:
+                new_seed.rlevel_desc += " - "
+            new_seed.rlevel_desc += f"Seed originating from URL {originating_fuzzresult.url}"
+            new_seed.item_type = FuzzType.SEED
+            new_seed.from_plugin = False
+            new_seed.discarded = False
+            new_seed.payload_man = payman_factory.create(
+                "payloadman_from_request", new_seed.history
+            )
+        except RuntimeError as exception:
+            logger = logging.getLogger("runtime_log")
+            logger.exception("An exception occured in FuzzResSeedBuilder")
+            exit()
 
         return new_seed
 
 
-class FuzzResRecursiveBuilder:
-    def __call__(self, seed, url):
-        fr = copy.deepcopy(seed)
-        fr.history.url = str(url)
-        fr.rlevel = seed.rlevel + 1
-        if fr.rlevel_desc:
-            fr.rlevel_desc += " - "
-        fr.rlevel_desc += seed.payload_man.description()
-        fr.item_type = FuzzType.BACKFEED
-        fr.discarded = False
-        fr.is_baseline = False
+class FuzzResPluginSeedBuilder:
+    """
+    Create a new seed. Used by plugins.
+    Takes a seeding_url that will be taken as a FUZZ URL instead of directly polling the recursion URL
+    """
 
-        fr.payload_man = payman_factory.create(
-            "empty_payloadman", FuzzWord(url, FuzzWordType.WORD)
-        )
+    def __call__(self, seed: FuzzResult, seeding_url: str) -> FuzzResult:
+        try:
+            if not seeding_url:
+                seeding_url = seed.history.parse_recursion_url() + "FUZZ"
+            new_seed: FuzzResult = copy.deepcopy(seed)
+            new_seed.history.url = seeding_url
+            new_seed.plugin_rlevel += 1
+            # The plugin results of the response before are irrelevant for the new request
+            new_seed.plugins_res = []
+            if new_seed.rlevel_desc:
+                new_seed.rlevel_desc += " - "
+            new_seed.rlevel_desc += f"Seed originating from URL {seed.url}"
+            new_seed.item_type = FuzzType.SEED
+            new_seed.from_plugin = False
+            new_seed.discarded = False
+            new_seed.payload_man = payman_factory.create(
+                "payloadman_from_request", new_seed.history
+            )
+        except RuntimeError as exception:
+            logger = logging.getLogger("runtime_log")
+            logger.exception("An exception occured in FuzzResPluginSeedBuilder")
+            exit()
+        return new_seed
 
-        return fr
+
+class FuzzResBackfeedBuilder:
+    """
+    Can be called to create a BACKFEED object from fuzzresult object
+    """
+
+    def __call__(self, originating_fuzzres: FuzzResult, url, method: str, from_plugin: bool,
+                 custom_description: str = "") -> FuzzResult:
+        try:
+            backfeed_fuzzresult: FuzzResult = copy.deepcopy(originating_fuzzres)
+            backfeed_fuzzresult.history.url = str(url)
+            backfeed_fuzzresult.history.method = method
+            # The plugin results of the response before are irrelevant for the new request and should be cleared
+            backfeed_fuzzresult.plugins_res = []
+            backfeed_fuzzresult.result_number = next(FuzzResult.newid)
+            if custom_description:
+                backfeed_fuzzresult.rlevel_desc = custom_description
+            else:
+                backfeed_fuzzresult.rlevel_desc = f"Backfeed originating from {originating_fuzzres.url}"
+            backfeed_fuzzresult.item_type = FuzzType.BACKFEED
+            # Bool is set by plugins to True to signal where the backfeed is coming from
+            backfeed_fuzzresult.from_plugin = True if from_plugin else False
+            backfeed_fuzzresult.backfeed_level += 1
+            backfeed_fuzzresult.discarded = False
+            backfeed_fuzzresult.is_baseline = False
+
+            backfeed_fuzzresult.payload_man = payman_factory.create("empty_payloadman",
+                                                                    FuzzWord(url, FuzzWordType.WORD))
+        except RuntimeError as exception:
+            logger = logging.getLogger("runtime_log")
+            logger.exception("An exception occured in FuzzResBackfeedBuilder")
+            exit()
+
+        return backfeed_fuzzresult
+
+
+class FuzzResMessageBuilder:
+    """
+    Can be called to create a message object to be printed out by the PrinterQ.
+    At its core it is not a FuzzResult object, but rather a way of displaying information not related to a specific
+    result in a clean manner.
+    """
+
+    def __call__(self, message: str) -> FuzzResult:
+        message_result = FuzzResult()
+        message_result.item_type = FuzzType.MESSAGE
+        message_result.rlevel_desc = message
+        return message_result
 
 
 resfactory = FuzzResultFactory()

@@ -1,4 +1,5 @@
 from ..exception import FuzzExceptBadOptions
+from wfuzz.filters.base_filter import BaseFilter
 
 import re
 import collections
@@ -6,7 +7,10 @@ import collections
 from ..facade import BASELINE_CODE
 
 
-class FuzzResSimpleFilter:
+class FuzzResSimpleFilter(BaseFilter):
+    """
+    Filter class triggered when options such as --hc 404 are used on the cli.
+    """
     def __init__(self, ffilter=None):
         self.hideparams = dict(
             regex_show=None,

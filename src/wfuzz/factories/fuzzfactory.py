@@ -5,8 +5,7 @@ from ..helpers.obj_factory import ObjectFactory, SeedBuilderHelper
 
 class FuzzRequestFactory(ObjectFactory):
     def __init__(self):
-        ObjectFactory.__init__(
-            self,
+        super(FuzzRequestFactory, self).__init__(
             {
                 "request_from_options": RequestBuilder(),
                 "seed_from_options": SeedBuilder(),
@@ -15,19 +14,19 @@ class FuzzRequestFactory(ObjectFactory):
 
 
 class RequestBuilder:
-    def __call__(self, options):
-        fr = FuzzRequest()
+    def __call__(self, options) -> FuzzRequest:
+        fuzz_request = FuzzRequest()
 
-        fr.url = options["url"]
-        fr.wf_fuzz_methods = options["method"]
-        fr.update_from_options(options)
+        fuzz_request.url = options["url"]
+        fuzz_request.wf_fuzz_methods = options["method"]
+        fuzz_request.update_from_options(options)
 
-        return fr
+        return fuzz_request
 
 
 class SeedBuilder:
-    def __call__(self, options):
-        seed = reqfactory.create("request_from_options", options)
+    def __call__(self, options) -> FuzzRequest:
+        seed: FuzzRequest = reqfactory.create("request_from_options", options)
         marker_dict = SeedBuilderHelper.get_marker_dict(seed)
         SeedBuilderHelper.remove_baseline_markers(seed, marker_dict)
 

@@ -1,12 +1,11 @@
 from wfuzz.plugin_api.base import BasePlugin
 from wfuzz.externals.moduleman.plugin import moduleman_plugin
 
-
 KBASE_NEW_COOKIE = "cookies.cookie"
 
 
 @moduleman_plugin
-class cookies(BasePlugin):
+class Cookies(BasePlugin):
     name = "cookies"
     author = ("Xavi Mendez (@xmendez)",)
     version = "0.1"
@@ -17,14 +16,14 @@ class cookies(BasePlugin):
 
     parameters = ()
 
-    def __init__(self):
-        BasePlugin.__init__(self)
+    def __init__(self, options):
+        BasePlugin.__init__(self, options)
 
-    def validate(self, fuzzresult):
+    def validate(self, fuzz_result):
         return True
 
-    def process(self, fuzzresult):
-        new_cookies = list(fuzzresult.history.cookies.response.items())
+    def process(self, fuzz_result):
+        new_cookies = list(fuzz_result.history.cookies.response.items())
 
         if len(new_cookies) > 0:
             for name, value in new_cookies:
@@ -35,6 +34,6 @@ class cookies(BasePlugin):
                     or name not in self.kbase[KBASE_NEW_COOKIE]
                 ):
                     self.kbase[KBASE_NEW_COOKIE] = name
-                    self.add_result(
-                        "cookie", "Cookie first set", "%s=%s" % (name, value)
-                    )
+                    coloured_key = self.term.colour_string(self.term.fgBlue, name)
+                    coloured_value = self.term.colour_string(self.term.fgYellow, value)
+                    self.add_information(f"Cookie first set: {coloured_key}={coloured_value}")

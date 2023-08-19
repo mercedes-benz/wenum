@@ -50,7 +50,7 @@ class VariablesSet:
                 dicc.append(i)
 
         if len(dicc) > 1:
-            raise Exception("Variable exists more than one time!!! :D" % (name))
+            raise Exception("Variable exists more than one time!!! :D" % name)
 
         if not dicc:
             var = Variable(name)
@@ -110,16 +110,16 @@ class VariablesSet:
         self.boundary = boundary
         dicc = []
         tp = TextParser()
-        tp.setSource("string", cad)
+        tp.set_source("string", cad)
 
         while True:
             headers = []
-            if not tp.readUntil('name="([^"]+)"'):
+            if not tp.read_until('name="([^"]+)"'):
                 break
             var = tp[0][0]
             headers.append(tp.lastFull_line.strip())
             while True:
-                tp.readLine()
+                tp.read_line()
                 if tp.search("^([^:]+): (.*)$"):
                     headers.append(tp.lastFull_line.strip())
                 else:
@@ -127,7 +127,7 @@ class VariablesSet:
 
             value = ""
             while True:
-                tp.readLine()
+                tp.read_line()
                 if not tp.search(boundary):
                     value += tp.lastFull_line
                 else:

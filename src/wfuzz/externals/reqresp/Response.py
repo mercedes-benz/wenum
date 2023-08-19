@@ -7,8 +7,6 @@ import zlib
 
 from .TextParser import TextParser
 
-from wfuzz.helpers.str_func import python2_3_convert_from_unicode
-
 
 def get_encoding_from_headers(headers):
     """Returns encodings from given HTTP Header Dict.
@@ -65,15 +63,15 @@ class Response:
         self.md5 = ""  # hash de los contenidos del resultado
         self.charlen = ""  # Cantidad de caracteres de la respuesta
 
-    def addHeader(self, key, value):
+    def add_header(self, key, value):
         self._headers += [(key, value)]
 
-    def delHeader(self, key):
+    def del_header(self, key):
         for i in self._headers:
             if i[0].lower() == key.lower():
                 self._headers.remove(i)
 
-    def addContent(self, text):
+    def add_content(self, text):
         self.__content = self.__content + text
 
     def __getitem__(self, key):
@@ -82,7 +80,7 @@ class Response:
                 return j
         print("Error al obtener header!!!")
 
-    def getCookie(self):
+    def get_cookie(self):
         str = []
         for i, j in self._headers:
             if i.lower() == "set-cookie":
@@ -95,7 +93,7 @@ class Response:
                 return True
         return False
 
-    def getLocation(self):
+    def get_location(self):
         for i, j in self._headers:
             if i.lower() == "location":
                 return j
@@ -107,13 +105,13 @@ class Response:
                 return True
         return False
 
-    def getHeaders(self):
+    def get_headers(self):
         return self._headers
 
-    def getContent(self):
+    def get_content(self):
         return self.__content
 
-    def getTextHeaders(self):
+    def get_text_headers(self):
         string = (
             str(self.protocol) + " " + str(self.code) + " " + str(self.message) + "\r\n"
         )
@@ -122,16 +120,16 @@ class Response:
 
         return string
 
-    def getAll(self):
-        string = self.getTextHeaders() + "\r\n" + self.getContent()
+    def get_all(self):
+        string = self.get_text_headers() + "\r\n" + self.get_content()
         return string
 
-    def Substitute(self, src, dst):
-        a = self.getAll()
+    def substitute(self, src, dst):
+        a = self.get_all()
         b = a.replace(src, dst)
-        self.parseResponse(b)
+        self.parse_response(b)
 
-    def getAll_wpost(self):
+    def get_all_wpost(self):
         string = (
             str(self.protocol) + " " + str(self.code) + " " + str(self.message) + "\r\n"
         )
@@ -139,61 +137,60 @@ class Response:
             string += i + ": " + j + "\r\n"
         return string
 
-    def parseResponse(self, rawheader, rawbody=None, type="curl"):
+    def parse_response(self, rawheader, rawbody=None):
         self.__content = ""
         self._headers = []
 
-        tp = TextParser()
-        tp.setSource("string", rawheader)
+        text_parser: TextParser = TextParser()
+        text_parser.set_source("string", rawheader)
 
-        tp.readUntil(r"(HTTP/[0-9.]+) ([0-9]+)")
+        text_parser.read_until(r"(HTTP/[0-9.]+) ([0-9]+)")
         while True:
             while True:
                 try:
-                    self.protocol = tp[0][0]
+                    self.protocol = text_parser[0][0]
                 except Exception:
                     self.protocol = "unknown"
 
                 try:
-                    self.code = tp[0][1]
+                    self.code = text_parser[0][1]
                 except Exception:
                     self.code = "0"
 
                 if self.code != "100":
                     break
                 else:
-                    tp.readUntil(r"(HTTP/[0-9.]+) ([0-9]+)")
+                    text_parser.read_until(r"(HTTP/[0-9.]+) ([0-9]+)")
 
             self.code = int(self.code)
 
             while True:
-                tp.readLine()
-                if tp.search("^([^:]+): ?(.*)$"):
-                    self.addHeader(tp[0][0], tp[0][1])
+                text_parser.read_line()
+                if text_parser.search("^([^:]+): ?(.*)$"):
+                    self.add_header(text_parser[0][0], text_parser[0][1])
                 else:
                     break
 
             # curl sometimes sends two headers when using follow, 302 and the final header
             # also when using proxies
-            tp.readLine()
-            if not tp.search(r"(HTTP/[0-9.]+) ([0-9]+)"):
+            text_parser.read_line()
+            if not text_parser.search(r"(HTTP/[0-9.]+) ([0-9]+)"):
                 break
             else:
                 self._headers = []
 
         # ignore CRLFs until request line
-        while tp.lastline == "" and tp.readLine():
+        while text_parser.lastline == "" and text_parser.read_line():
             pass
 
         # TODO: this should be added to rawbody not directly to __content
-        if tp.lastFull_line:
-            self.addContent(tp.lastFull_line)
+        if text_parser.lastFull_line:
+            self.add_content(text_parser.lastFull_line)
 
-        while tp.skip(1):
-            self.addContent(tp.lastFull_line)
+        while text_parser.skip(1):
+            self.add_content(text_parser.lastFull_line)
 
-        if type == "curl":
-            self.delHeader("Transfer-Encoding")
+        self.del_header("Transfer-Encoding")
 
         if self.header_equal("Transfer-Encoding", "chunked"):
             result = ""
@@ -213,9 +210,8 @@ class Response:
             compressedstream = BytesIO(rawbody)
             gzipper = gzip.GzipFile(fileobj=compressedstream)
             rawbody = gzipper.read()
-            self.delHeader("Content-Encoding")
+            self.del_header("Content-Encoding")
         elif self.header_equal("Content-Encoding", "deflate"):
-            deflated_data = None
             try:
                 deflater = zlib.decompressobj()
                 deflated_data = deflater.decompress(rawbody)
@@ -228,16 +224,14 @@ class Response:
                 except zlib.error:
                     deflated_data = ""
             rawbody = deflated_data
-            self.delHeader("Content-Encoding")
+            self.del_header("Content-Encoding")
 
         if rawbody is not None:
             # Try to get charset encoding from headers
-            content_encoding = get_encoding_from_headers(dict(self.getHeaders()))
+            content_encoding = get_encoding_from_headers(dict(self.get_headers()))
 
             # fallback to default encoding
             if content_encoding is None:
                 content_encoding = "utf-8"
 
-            self.__content = python2_3_convert_from_unicode(
-                rawbody.decode(content_encoding, errors="replace")
-            )
+            self.__content = rawbody.decode(content_encoding, errors="replace")

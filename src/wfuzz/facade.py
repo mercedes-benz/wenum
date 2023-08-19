@@ -36,14 +36,14 @@ class Settings(SettingsBase):
                 )
             ],
             connection=[
-                ("concurrent", "10"),
+                ("concurrent", "20"),
                 ("conn_delay", "90"),
                 ("req_delay", "90"),
                 ("retries", "3"),
                 ("User-Agent", "Wfuzz/%s" % version),
             ],
             general=[
-                ("default_printer", "raw"),
+                ("default_printer", "json"),
                 ("cancel_on_plugin_except", "0"),
                 ("concurrent_plugins", "3"),
                 ("lookup_dirs", "."),
@@ -69,7 +69,7 @@ class Facade(metaclass=Singleton):
             printers=None, scripts=None, encoders=None, iterators=None, payloads=None,
         )
 
-        self.sett = Settings()
+        self.settings: Settings = Settings()
 
     def _load(self, cat):
         try:

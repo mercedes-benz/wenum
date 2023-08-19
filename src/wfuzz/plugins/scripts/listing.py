@@ -1,51 +1,35 @@
 import re
 
 from wfuzz.plugin_api.base import BasePlugin
+from wfuzz.plugin_api.static_data import LISTING_dir_indexing_regexes
 from wfuzz.externals.moduleman.plugin import moduleman_plugin
+from wfuzz.ui.console.common import Term
 
 
 @moduleman_plugin
-class listing(BasePlugin):
+class Listing(BasePlugin):
     name = "listing"
     author = ("Xavi Mendez (@xmendez)",)
     version = "0.1"
     summary = "Looks for directory listing vulnerabilities"
     description = ("Looks for directory listing vulnerabilities",)
-    category = ["default", "passive"]
+    category = ["default", "passive", "info"]
     priority = 99
 
     parameters = ()
 
-    def __init__(self):
-        BasePlugin.__init__(self)
-
-        dir_indexing_regexes = []
-
-        dir_indexing_regexes.append("<title>Index of /")
-        dir_indexing_regexes.append('<a href="\\?C=N;O=D">Name</a>')
-        dir_indexing_regexes.append("Last modified</a>")
-        dir_indexing_regexes.append("Parent Directory</a>")
-        dir_indexing_regexes.append("Directory Listing for")
-        dir_indexing_regexes.append("<TITLE>Folder Listing.")
-        dir_indexing_regexes.append("<TITLE>Folder Listing.")
-        dir_indexing_regexes.append('<table summary="Directory Listing" ')
-        dir_indexing_regexes.append("- Browsing directory ")
-        dir_indexing_regexes.append(
-            '">\\[To Parent Directory\\]</a><br><br>'
-        )  # IIS 6.0 and 7.0
-        dir_indexing_regexes.append(
-            '<A HREF=".*?">.*?</A><br></pre><hr></body></html>'
-        )  # IIS 5.0
+    def __init__(self, options):
+        BasePlugin.__init__(self, options)
 
         self.regex = []
-        for i in dir_indexing_regexes:
+        for i in LISTING_dir_indexing_regexes:
             self.regex.append(re.compile(i, re.MULTILINE | re.DOTALL))
 
-    def validate(self, fuzzresult):
-        return fuzzresult.code in [200]
+    def validate(self, fuzz_result):
+        return fuzz_result.code in [200]
 
-    def process(self, fuzzresult):
+    def process(self, fuzz_result):
         for r in self.regex:
-            if len(r.findall(fuzzresult.history.content)) > 0:
-                self.add_result("msg", "Directory listing identified", None)
+            if len(r.findall(fuzz_result.history.content)) > 0:
+                self.add_information(f"{self.term.colour_string(self.term.fgYellow, 'Directory listing')} identified")
                 break

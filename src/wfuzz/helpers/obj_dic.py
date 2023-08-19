@@ -1,5 +1,5 @@
 from collections.abc import MutableMapping
-from itertools import chain
+from collections import OrderedDict
 
 
 class CaseInsensitiveDict(MutableMapping):
@@ -74,3 +74,20 @@ class DotDict(CaseInsensitiveDict):
                 for k, v in self.items()
             ]
         )
+
+
+class FixSizeOrderedDict(OrderedDict):
+    """
+    An OrderedDict with a max length (FIFO when exceeding max). Simply taken over by the nice snippet from
+    https://stackoverflow.com/questions/49274177/need-python-dictionary-to-act-like-deque-have-maximum-length
+    """
+
+    def __init__(self, *args, maximum_length=0, **kwargs):
+        self._max = maximum_length
+        super().__init__(*args, **kwargs)
+
+    def __setitem__(self, key, value):
+        OrderedDict.__setitem__(self, key, value)
+        if self._max > 0:
+            if len(self) > self._max:
+                self.popitem(False)

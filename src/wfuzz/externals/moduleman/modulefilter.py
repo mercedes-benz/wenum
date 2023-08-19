@@ -19,52 +19,39 @@
 #
 # nmap --script "(default or safe or intrusive) and not http-*"
 #     Loads scripts in the default, safe, or intrusive categories, except for those whose names start with http-.
+from pyparsing import (
+    Word,
+    Group,
+    oneOf,
+    Optional,
+    Suppress,
+    ZeroOrMore,
+    Literal,
+    alphas,
+    alphanums,
+)
 
 
-PYPARSING = True
-try:
-    from pyparsing import (
-        Word,
-        Group,
-        oneOf,
-        Optional,
-        Suppress,
-        ZeroOrMore,
-        Literal,
-        alphas,
-        alphanums,
-    )
-except ImportError:
-    PYPARSING = False
-
-
-class IFilter:
-    def is_visible(self, plugin, filter_string):
-        raise NotImplementedError
-
-
-class Filter(IFilter):
+class Filter:
     def __init__(self):
-        if PYPARSING:
-            category = Word(alphas + "_-*", alphanums + "_-*")
-            operator = oneOf("and or ,")
-            neg_operator = "not"
-            elementRef = category
-            definition = elementRef + ZeroOrMore(operator + elementRef)
-            nestedformula = Group(
-                Suppress(Optional(Literal("(")))
-                + definition
-                + Suppress(Optional(Literal(")")))
-            )
-            neg_nestedformula = Optional(neg_operator) + nestedformula
-            self.finalformula = neg_nestedformula + ZeroOrMore(
-                operator + neg_nestedformula
-            )
-
-            elementRef.setParseAction(self.__compute_element)
-            neg_nestedformula.setParseAction(self.__compute_neg_formula)
-            nestedformula.setParseAction(self.__compute_formula)
-            self.finalformula.setParseAction(self.__myreduce)
+        category = Word(alphas + "_-*", alphanums + "_-*")
+        operator = oneOf("and or ,")
+        neg_operator = "not"
+        elementRef = category
+        definition = elementRef + ZeroOrMore(operator + elementRef)
+        nestedformula = Group(
+            Suppress(Optional(Literal("(")))
+            + definition
+            + Suppress(Optional(Literal(")")))
+        )
+        neg_nestedformula = Optional(neg_operator) + nestedformula
+        self.finalformula = neg_nestedformula + ZeroOrMore(
+            operator + neg_nestedformula
+        )
+        elementRef.setParseAction(self.__compute_element)
+        neg_nestedformula.setParseAction(self.__compute_neg_formula)
+        nestedformula.setParseAction(self.__compute_formula)
+        self.finalformula.setParseAction(self.__myreduce)
 
     def __compute_neg_formula(self, tokens):
         if len(tokens) > 1 and tokens[0] == "not":
@@ -126,10 +113,4 @@ class Filter(IFilter):
 
     def is_visible(self, plugin, filter_string):
         self.plugin = plugin
-        if PYPARSING:
-            return self.finalformula.parseString(filter_string)[0]
-        else:
-            if self.simple_filter_banned_keywords(filter_string):
-                raise Exception("Pyparsing missing, complex filters not allowed.")
-            else:
-                return self.simple_filter(plugin, filter_string)
+        return self.finalformula.parseString(filter_string)[0]

@@ -1,6 +1,5 @@
 import os
 import sys
-import re
 import pkg_resources
 
 from chardet.universaldetector import UniversalDetector

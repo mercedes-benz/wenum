@@ -1,20 +1,10 @@
 from wfuzz.externals.moduleman.plugin import moduleman_plugin
 
-# Python 2 and 3
-try:
-    from urllib.parse import quote
-    from urllib.parse import unquote
-except ImportError:
-    from urllib import quote
-    from urllib import unquote
+from urllib.parse import quote
+from urllib.parse import unquote
 
-# Python 2 and 3
-try:
-    from base64 import decodebytes as b64decode
-    from base64 import standard_b64encode
-except ImportError:
-    from base64 import decodestring as b64decode
-    from base64 import standard_b64encode
+from base64 import decodebytes as b64decode
+from base64 import standard_b64encode
 
 import re
 import binascii
