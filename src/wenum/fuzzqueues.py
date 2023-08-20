@@ -786,7 +786,6 @@ class PassPayloadQ(FuzzQueue):
     def process(self, fuzz_result: FuzzResult):
         if fuzz_result.payload_man.get_payload_type(1) == FuzzWordType.FUZZRES:
             fuzz_result = fuzz_result.payload_man.get_payload_content(1)
-            fuzz_result.update_from_options(self.options)
             if not fuzz_result.payload_man:
                 fuzz_result.payload_man = payman_factory.create(
                     "empty_payloadman", FuzzWord(fuzz_result.url, FuzzWordType.WORD)

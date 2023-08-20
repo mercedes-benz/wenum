@@ -6,7 +6,6 @@ import warnings
 from collections import defaultdict
 
 from wenum.helpers.file_func import get_filter_help_file
-from wenum.helpers.obj_dyn import allowed_fields
 from wenum.facade import Facade
 from wenum.options import FuzzSession
 from wenum.exception import FuzzException, FuzzExceptBadOptions
@@ -61,8 +60,6 @@ long_opts = [
     "limit-requests"
 ]
 REPEATABLE_OPTS = [
-    "--efield",
-    "--field",
     "--prefilter",
     "--recipe",
     "-z",
@@ -298,8 +295,6 @@ class CLParser:
                 self.show_plugins_names("printers")
             elif "scripts" in optsd["--ee"]:
                 self.show_plugins_names("scripts")
-            elif "fields" in optsd["--ee"]:
-                print("\n".join(allowed_fields))
             elif "files" in optsd["--ee"]:
                 print("\n".join(Facade().settings.get("general", "lookup_dirs").split(",")))
             elif "registrants" in optsd["--ee"]:
@@ -496,16 +491,6 @@ class CLParser:
         if "--ntlm" in optsd:
             options["auth"] = {"method": "ntlm", "credentials": optsd["--ntlm"][0]}
 
-        if "--field" in optsd:
-            for field in optsd["--field"]:
-                options["fields"].append(field)
-            options["show_field"] = True
-        elif "--efield" in optsd:
-            for field in optsd["--efield"]:
-                options["fields"].append(field)
-
-            options["show_field"] = False
-
         if "--ip" in optsd:
             splitted = optsd["--ip"][0].partition(":")
             if not splitted[0]:
@@ -586,9 +571,6 @@ class CLParser:
 
         if "-v" in optsd:
             options["verbose"] = True
-
-        if "--prev" in optsd:
-            options["previous"] = True
 
         if "-c" in optsd:
             options["colour"] = False

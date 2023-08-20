@@ -211,7 +211,6 @@ class FuzzPayload:
         self.marker = None
         self.word = None
         self.index = None
-        self.field = None
         self.content = None
         self.is_baseline = False
         self.type = None
@@ -220,11 +219,7 @@ class FuzzPayload:
     def value(self):
         if self.content is None:
             return None
-        return (
-            self.content
-            if self.field is None
-            else str(rgetattr(self.content, self.field))
-        )
+        return self.content
 
     def description(self):
         if self.is_baseline:
@@ -234,20 +229,17 @@ class FuzzPayload:
             return ""
 
         # return default value
-        if self.field is None and isinstance(self.content, FuzzResult):
+        if isinstance(self.content, FuzzResult):
             return self.content.url
-        elif self.field is not None and isinstance(self.content, FuzzResult):
-            return str(rgetattr(self.content, self.field))
 
         return self.value
 
     def __str__(self):
-        return "type: {} index: {} marker: {} content: {} field: {} value: {}".format(
+        return "type: {} index: {} marker: {} content: {} value: {}".format(
             self.type,
             self.index,
             self.marker,
             self.content.__class__,
-            self.field,
             self.value,
         )
 
@@ -266,7 +258,6 @@ class FPayloadManager:
         fp.index = (
             int(payload_dict["index"]) if payload_dict["index"] is not None else 1
         )
-        fp.field = payload_dict["field"]
         fp.content = fuzzword.content if fuzzword else None
         fp.type = fuzzword.type if fuzzword else None
         fp.is_baseline = is_baseline
@@ -353,10 +344,6 @@ class FuzzResult(FuzzItem):
         # stop after a limit is reached.
         self.backfeed_level = 0
 
-        # Contains the language expressions of the "--field" option
-        self._fields = None
-        self._show_field = False
-
     def update(self, exception=None):
         self.item_type = FuzzType.RESULT
         if exception:
@@ -401,12 +388,7 @@ class FuzzResult(FuzzItem):
     def description(self):
         res_description = self.payload_man.description() if self.payload_man else None
 
-        if self._show_field is True:
-            ret_str = self._field()
-        elif self._show_field is False and self._fields is not None:
-            ret_str = "{} | {}".format(res_description, self._field())
-        else:
-            ret_str = res_description
+        ret_str = res_description
 
         if self.exception:
             return ret_str + "! " + str(self.exception)
@@ -421,18 +403,6 @@ class FuzzResult(FuzzItem):
 
     def eval(self, expr):
         return self.FUZZRESULT_SHARED_FILTER.is_visible(self, expr)
-
-    def _field(self, separator=", "):
-        """
-        Relevant if "--field" option is used
-        """
-        list_eval = [self.eval(field) for field in self._fields]
-        return " | ".join(
-            [
-                separator.join(el) if isinstance(el, list) else str(el)
-                for el in list_eval
-            ]
-        )
 
     # parameters in common with fuzzrequest
     @property
@@ -459,10 +429,6 @@ class FuzzResult(FuzzItem):
     @property
     def timer(self):
         return self.history.reqtime if self.history and self.history.reqtime else 0
-
-    def update_from_options(self, options):
-        self._fields = options["fields"]
-        self._show_field = options["show_field"]
 
 
 class FuzzPlugin(FuzzItem):

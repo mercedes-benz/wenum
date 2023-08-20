@@ -145,11 +145,9 @@ def main_filter():
     try:
         short_opts = "hvce:z:f:w:o:A"
         long_opts = [
-            "efield=",
             "ee=",
             "zE=",
             "zD=",
-            "field=",
             "zP=",
             "oF=",
             "recipe=",
@@ -192,10 +190,6 @@ def main_filter():
         for res in fuzz(**session_options):
             if payload_type == FuzzWordType.WORD:
                 print(res.description)
-            elif payload_type == FuzzWordType.FUZZRES and session_options["show_field"]:
-                field_to_print = res._field("\n")
-                if field_to_print:
-                    print(field_to_print)
 
     except KeyboardInterrupt:
         pass

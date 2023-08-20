@@ -30,7 +30,6 @@ class FuzzResultDictioBuilder:
         fuzz_result: FuzzResult = copy.deepcopy(options["compiled_seed"])
         fuzz_result.item_type = FuzzType.RESULT
         fuzz_result.payload_man.update_from_dictio(dictio_item)
-        fuzz_result.update_from_options(options)
         fuzz_result.from_plugin = False
 
         SeedBuilderHelper.replace_markers(fuzz_result.history, fuzz_result.payload_man)
@@ -63,7 +62,6 @@ class BaselineResultBuilder:
         if baseline_payloadman.payloads:
             fuzz_result = FuzzResult(raw_seed)
             fuzz_result.payload_man = baseline_payloadman
-            fuzz_result.update_from_options(options)
             fuzz_result.is_baseline = True
             fuzz_result.from_plugin = False
 
@@ -73,11 +71,11 @@ class BaselineResultBuilder:
         else:
             return None
 
+
 class FuzzResultDictSeedBuilder:
     def __call__(self, options, dictio) -> FuzzResult:
         fuzz_result = copy.deepcopy(dictio[0].content)
         fuzz_result.history.update_from_options(options)
-        fuzz_result.update_from_options(options)
         fuzz_result.payload_man = payman_factory.create("empty_payloadman", dictio[0])
         fuzz_result.payload_man.update_from_dictio(dictio)
         fuzz_result.from_plugin = False

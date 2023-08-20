@@ -86,9 +86,6 @@ Advanced options:
 \t--dump-recipe <filename>  : Prints specified options in dedicated format that can later be imported
 \t--recipe <filename>       : Reads options from a recipe. Repeat for various recipes.
 \t--dry-run                 : Test run without actually making any HTTP request.
-\t--prev                    : Print the previous HTTP requests (only when using payloads generating fuzzresults)
-\t--efield <expr>           : Show the specified language expression together with the current payload. Repeat for various fields.
-\t--field <expr>            : Do not show the payload but only the specified language expression. Repeat for various fields.
 \t--limit-requests          : Limit recursions. Once 20000 requests are sent, recursions will be deactivated
 \t--ip host:port            : Specify an IP to connect to instead of the URL's host in the format ip:port
 \t-Z                        : Disable Scan mode (Connection errors will cause the script to exit).
@@ -128,9 +125,6 @@ wfpayload_usage = f"""{header_usage_wfpayload}\n\nOptions:
 \t-c                        : Output without colors
 \t-v                        : Verbose information.
 \t-f filename               : Store results in the output file as JSON.
-\t--prev                    : Print the previous HTTP requests (only when using payloads generating fuzzresults)
-\t--efield <expr>           : Show the specified language expression together with the current payload. Repeat option for various fields.
-\t--field <expr>            : Do not show the payload but only the specified language expression. Repeat option for various fields.
 \t
 \t-A                        : Alias for -v and --script=default
 \t-F                        : When a redirection is detected, follow it by sending an additional request to it
