@@ -134,7 +134,6 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
         self._request: Request = Request()
 
         self._proxy = None
-        self._allvars = None
         self.wf_fuzz_methods = None
         self.wf_retries = 0
         self.wf_ip = None
@@ -263,48 +262,6 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
     def reqtime(self, time):
         self._request.totaltime = time
 
-    # Info extra that wenum needs within an HTTP request
-    @property
-    def wf_allvars_set(self):
-        if self.wf_allvars == "allvars":
-            return self.params.get
-        elif self.wf_allvars == "allpost":
-            return self.params.post
-        elif self.wf_allvars == "allheaders":
-            return self.headers.request
-        else:
-            raise FuzzExceptBadOptions("Unknown variable set: " + self.wf_allvars)
-
-    @wf_allvars_set.setter
-    def wf_allvars_set(self, varset):
-        try:
-            if self.wf_allvars == "allvars":
-                self.params.get = varset
-            elif self.wf_allvars == "allpost":
-                self.params.post = varset
-            elif self.wf_allvars == "allheaders":
-                self._request.headers.request = varset
-            else:
-                raise FuzzExceptBadOptions("Unknown variable set: " + self.wf_allvars)
-        except TypeError:
-            raise FuzzExceptBadOptions(
-                "It is not possible to use all fuzzing with duplicated parameters."
-            )
-
-    @property
-    def wf_allvars(self):
-        return self._allvars
-
-    @wf_allvars.setter
-    def wf_allvars(self, bl):
-        if bl is not None and bl not in ["allvars", "allpost", "allheaders"]:
-            raise FuzzExceptBadOptions(
-                "Incorrect all parameters brute forcing type specified, correct values are allvars, allpost or "
-                "allheaders. "
-            )
-
-        self._allvars = bl
-
     @property
     def wf_proxy(self):
         return self._proxy
@@ -366,6 +323,3 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
 
         if options["cookie"]:
             self.cookies.request = options["cookie"]
-
-        if options["allvars"]:
-            self.wf_allvars = options["allvars"]

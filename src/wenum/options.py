@@ -106,7 +106,6 @@ class FuzzSession(UserDict):
             postdata=None,
             headers=[],
             cookie=[],
-            allvars=None,
             script="",
             script_args={},
             connect_to_ip=None,
@@ -166,11 +165,6 @@ class FuzzSession(UserDict):
             raise FuzzExceptBadOptions(
                 "Bad usage: Recursion level must be a positive int."
             )
-
-        if self.data["allvars"] not in [None, "allvars", "allpost", "allheaders"]:
-            raise FuzzExceptBadOptions(
-                "Bad options: Incorrect all parameters brute forcing type specified, "
-                "correct values are allvars,allpost or allheaders.")
 
         if self.data["proxies"]:
             for ip, port, ttype in self.data["proxies"]:
@@ -305,14 +299,9 @@ class FuzzSession(UserDict):
         return set(fuzz_words)
 
     def compile_dictio(self):
-        if self.data["allvars"]:
-            self.data["compiled_dictio"] = dictionary_factory.create(
-                "dictio_from_allvar", self
-            )
-        else:
-            self.data["compiled_dictio"] = dictionary_factory.create(
-                "dictio_from_options", self
-            )
+        self.data["compiled_dictio"] = dictionary_factory.create(
+            "dictio_from_options", self
+        )
 
     def compile_seeds(self):
         self.data["compiled_seed"] = resfactory.create("seed_from_options", self)
@@ -375,9 +364,6 @@ class FuzzSession(UserDict):
 
         if self.data["compiled_dictio"].width() != len(fuzz_words):
             raise FuzzExceptBadOptions("FUZZ words and number of payloads do not match!")
-
-        if self.data["allvars"] is None and len(fuzz_words) == 0:
-            raise FuzzExceptBadOptions("You must specify at least a FUZZ word!")
 
         if self.data["compiled_baseline"] is None and (
                 BASELINE_CODE in self.data["hc"]

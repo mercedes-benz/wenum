@@ -14,7 +14,6 @@ class FuzzResultFactory(ObjectFactory):
             self,
             {
                 "fuzzres_from_options_and_dict": FuzzResultDictioBuilder(),
-                "fuzzres_from_allvar": FuzzResultAllVarBuilder(),
                 "fuzzres_from_fuzzres": FuzzResBackfeedBuilder(),
                 "fuzzres_from_message": FuzzResMessageBuilder(),
                 "seed_from_recursion": FuzzResSeedBuilder(),
@@ -73,20 +72,6 @@ class BaselineResultBuilder:
             return fuzz_result
         else:
             return None
-
-
-class FuzzResultAllVarBuilder:
-    def __call__(self, options, var_name, payload):
-        fuzz_result = copy.deepcopy(options["compiled_seed"])
-        fuzz_result.item_type = FuzzType.RESULT
-        fuzz_result.payload_man = payman_factory.create("empty_payloadman", payload)
-        fuzz_result.payload_man.update_from_dictio([payload])
-        fuzz_result.history.wf_allvars_set = {var_name: payload.content}
-        fuzz_result.result_number = next(FuzzResult.newid)
-        fuzz_result.from_plugin = False
-
-        return fuzz_result
-
 
 class FuzzResultDictSeedBuilder:
     def __call__(self, options, dictio) -> FuzzResult:

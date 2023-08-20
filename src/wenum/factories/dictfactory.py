@@ -8,7 +8,6 @@ from ..dictionaries import (
     WrapperIt,
     SliceIt,
     EncodeIt,
-    AllVarDictio,
 )
 
 
@@ -19,7 +18,6 @@ class DictionaryFactory(ObjectFactory):
             {
                 "dictio_from_iterable": DictioFromIterableBuilder(),
                 "dictio_from_payload": DictioFromPayloadBuilder(),
-                "dictio_from_allvar": DictioFromAllVarBuilder(),
                 "dictio_from_options": DictioFromOptions(),
             },
         )
@@ -89,28 +87,6 @@ class DictioFromPayloadBuilder(BaseDictioBuilder):
         self.validate(options, selected_dic)
 
         return self.get_dictio(options, selected_dic)
-
-
-class DictioFromAllVarBuilder(BaseDictioBuilder):
-    @staticmethod
-    def from_all_fuzz_request_gen(options, dictio_list):
-        for payload in dictio_list:
-            if len(payload) > 1:
-                raise FuzzExceptBadOptions(
-                    "Only one payload is allowed when fuzzing all parameters!"
-                )
-
-            for var_name in options["compiled_seed"].history.wf_allvars_set.keys():
-                yield (var_name, payload[0])
-
-    def __call__(self, options):
-        dictio_list = DictioFromOptions()(options)
-
-        return AllVarDictio(
-            self.from_all_fuzz_request_gen(options, dictio_list),
-            dictio_list.count() * len(options["compiled_seed"].history.wf_allvars_set),
-        )
-
 
 class DictioFromOptions(BaseDictioBuilder):
     def __call__(self, options):

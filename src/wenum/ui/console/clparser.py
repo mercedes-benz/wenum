@@ -17,7 +17,7 @@ from .common import verbose_usage
 from wenum import __version__ as version
 from .output import table_print
 
-short_opts = "hLAFZX:vcab:e:R:D:d:z:r:f:t:w:V:H:m:f:s:p:w:u:q:o"
+short_opts = "hLAFZX:vcab:e:R:D:d:z:r:f:t:w:H:m:f:s:p:w:u:q:o"
 long_opts = [
     "efield=",
     "ee=",
@@ -533,9 +533,6 @@ class CLParser:
                     'Wrong header specified, it should be in the format "name: value".'
                 )
             options["headers"].append((splitted[0], splitted[2].strip()))
-
-        if "-V" in optsd:
-            options["allvars"] = str(optsd["-V"][0])
 
         if "-R" in optsd:
             options["rlevel"] = int(optsd["-R"][0])

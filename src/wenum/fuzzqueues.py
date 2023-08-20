@@ -38,46 +38,6 @@ import requests
 import re
 
 
-class AllVarQ(FuzzQueue):
-    """
-    This queue is used when the 'allvars' option is used (-V), and is used instead of SeedQ in that case.
-    Brute forces all parameters instead of specific FUZZ markers.
-    Has not been maintained in a long time.
-    """
-
-    def __init__(self, options: FuzzSession):
-        super().__init__(options)
-        self.delay = options.get("delay")
-        self.seed = options["compiled_seed"]
-
-    def get_name(self):
-        return "AllVarQ"
-
-    def cancel(self):
-        self.options["compiled_stats"].cancelled = True
-
-    def items_to_process(self):
-        return [FuzzType.STARTSEED]
-
-    def process(self, fuzz_item: FuzzItem):
-        self.stats.pending_seeds.inc()
-
-        for var_name, payload in self.options["compiled_dictio"]:
-            if self.options["compiled_stats"].cancelled:
-                break
-            self.stats.pending_fuzz.inc()
-            if self.delay:
-                time.sleep(self.delay)
-            self.send(
-                resfactory.create(
-                    "fuzzres_from_allvar", self.options, var_name.content, payload
-                )
-            )
-
-        endseed_item = FuzzItem(item_type=FuzzType.ENDSEED)
-        self.send_last(endseed_item)
-
-
 class SeedQueue(FuzzQueue):
     """
     Queue used by default, handles reading payloads from wordlists
