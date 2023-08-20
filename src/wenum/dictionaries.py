@@ -165,23 +165,3 @@ class SliceIt(BaseDictionary):
             return FuzzWord(filter_ret, item.type)
 
         return item
-
-
-class AllVarDictio(BaseDictionary, BaseIterator):
-    def __init__(self, iterator, allvar_len):
-        super().__init__()
-        self._it = iter(iterator)
-        self._count = allvar_len
-
-    def count(self):
-        return self._count
-
-    def width(self):
-        return 0
-
-    def payloads(self):
-        return []
-
-    def next_word(self):
-        var_name, fuzz_word = next(self._it)
-        return FuzzWord(var_name, FuzzWordType.WORD), fuzz_word

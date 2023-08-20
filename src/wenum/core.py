@@ -18,7 +18,6 @@ from .fuzzqueues import (
     RecursiveQ,
     DryRunQ,
     HttpQueue,
-    AllVarQ,
     CLIPrinterQ,
     PassPayloadQ,
     AutofilterQ,
@@ -40,10 +39,7 @@ class Fuzzer:
         self.results_queue: MyPriorityQueue = MyPriorityQueue()
         self.logger = logging.getLogger("runtime_log")
 
-        if options["allvars"]:
-            self.qmanager.add("seed_queue", AllVarQ(options))
-        else:
-            self.qmanager.add("seed_queue", SeedQueue(options))
+        self.qmanager.add("seed_queue", SeedQueue(options))
 
         for prefilter_idx, prefilter in enumerate(options.get("compiled_prefilter")):
             if prefilter.is_active():

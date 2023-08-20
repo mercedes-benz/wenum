@@ -65,7 +65,6 @@ Options:
 \t                            Encoders category can be used. ie. url
 \t                            Use help as a payload to show payload plugin's details (you can filter using --slice)
 \t-w wordlist               : Specify a wordlist file (alias for -z file,wordlist).
-\t-V alltype                : All parameters bruteforcing (allvars and allpost). No need for FUZZ keyword.
 \t-X method                 : Specify an HTTP method for the request, ie. HEAD or FUZZ
 \t
 \t-b cookie                 : Specify a cookie for the requests
