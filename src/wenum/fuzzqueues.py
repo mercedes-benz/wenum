@@ -377,7 +377,7 @@ class AutofilterQ(FuzzQueue):
                                   f"'{coloured_identifier}'{redirect_string}", FuzzPlugin.INFO))
 
 
-class SliceQ(FuzzQueue):
+class PrefilterQueue(FuzzQueue):
     """
     Queue activated by the 'prefilter' option
     """
@@ -388,7 +388,7 @@ class SliceQ(FuzzQueue):
         self.ffilter = prefilter
 
     def get_name(self):
-        return "SliceQ"
+        return "PrefilterQueue"
 
     def process(self, fuzz_result: FuzzResult):
         if fuzz_result.is_baseline or self.ffilter.is_visible(fuzz_result):

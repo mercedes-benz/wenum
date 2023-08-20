@@ -13,7 +13,7 @@ from .fuzzqueues import (
     FilePrinterQ,
     RoutingQ,
     FilterQ,
-    SliceQ,
+    PrefilterQueue,
     PluginQueue,
     RecursiveQ,
     DryRunQ,
@@ -29,7 +29,7 @@ class Fuzzer:
     def __init__(self, options: FuzzSession):
         """
         Create queues. Usually
-        genReq ---> seed_queue -> [slice_queue] -> http_queue/dryrun -> [round_robin -> plugins_queue] * N
+        genReq ---> seed_queue -> [prefilter_queue] -> http_queue/dryrun -> [round_robin -> plugins_queue] * N
         -> [recursive_queue -> routing_queue] -> [filter_queue] -> [save_queue] -> [printer_queue] ---> results
         The order is dictated simply by the order in which they get added to the qmanager object
         """
@@ -44,7 +44,7 @@ class Fuzzer:
         for prefilter_idx, prefilter in enumerate(options.get("compiled_prefilter")):
             if prefilter.is_active():
                 self.qmanager.add(
-                    "slice_queue_{}".format(prefilter_idx), SliceQ(options, prefilter)
+                    "prefilter_queue_{}".format(prefilter_idx), PrefilterQueue(options, prefilter)
                 )
 
         if options.get("transport") == "dryrun":

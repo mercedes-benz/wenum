@@ -63,7 +63,7 @@ Options:
 \t-z payload                : Specify a payload for each FUZZ keyword used in the form of type,parameters,encoder.
 \t                            A list of encoders can be used, ie. md5-sha1. Encoders can be chained, ie. md5@sha1.
 \t                            Encoders category can be used. ie. url
-\t                            Use help as a payload to show payload plugin's details (you can filter using --slice)
+\t                            Use help as a payload to show payload plugin's details
 \t-w wordlist               : Specify a wordlist file (alias for -z file,wordlist).
 \t-X method                 : Specify an HTTP method for the request, ie. HEAD or FUZZ
 \t
@@ -106,7 +106,6 @@ Advanced options:
 \t--zD <default>            : Default parameter for the specified payload (it must be preceded by -z or -w).
 \t--zE <encoder>            : Encoder for the specified payload (it must be preceded by -z or -w).
 
-\t--slice <filter>          : Filter payload\'s elements using the specified expression. It must be preceded by -z.
 \t--filter <filter>         : Show/hide responses using the specified filter expression (Use BBB for taking values from baseline)
 \t--hard-filter             : Change the filter to not only hide the responses, but also prevent post processing of them.
 \t--prefilter <filter>      : Filter items before fuzzing using the specified expression. Repeat for concatenating filters.
@@ -142,11 +141,10 @@ wfpayload_usage = f"""{header_usage_wfpayload}\n\nOptions:
 \t-z payload                : Specify a payload for each FUZZ keyword used in the form of name[,parameter][,encoder].
 \t                            A list of encoders can be used, ie. md5-sha1. Encoders can be chained, ie. md5@sha1.
 \t                            Encoders category can be used. ie. url
-\t                            Use help as a payload to show payload plugin's details (you can filter using --slice)
+\t                            Use help as a payload to show payload plugin's details
 \t--zP <params>             : Arguments for the specified payload (it must be preceded by -z or -w).
 \t--zD <default>            : Default parameter for the specified payload (it must be preceded by -z or -w).
 \t--zE <encoder>            : Encoder for the specified payload (it must be preceded by -z or -w).
-\t--slice <filter>          : Filter payload\'s elements using the specified expression. It must be preceded by -z.
 \t-w wordlist               : Specify a wordlist file (alias for -z file,wordlist).
 \t
 \t--hc/hl/hw/hh N[,N]+      : Hide responses with the specified code/lines/words/chars (Use BBB for taking values from baseline)

@@ -150,7 +150,6 @@ def main_filter():
             "zE=",
             "zD=",
             "field=",
-            "slice=",
             "zP=",
             "oF=",
             "recipe=",

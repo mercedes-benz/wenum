@@ -6,7 +6,6 @@ from ..facade import Facade
 from ..dictionaries import (
     TupleIt,
     WrapperIt,
-    SliceIt,
     EncodeIt,
 )
 
@@ -63,8 +62,8 @@ class DictioFromPayloadBuilder(BaseDictioBuilder):
 
         for payload in options["payloads"]:
             try:
-                name, params, slicestr = [
-                    x[0] for x in zip_longest(payload, (None, None, None))
+                name, params = [
+                    x[0] for x in zip_longest(payload, (None, None))
                 ]
             except ValueError:
                 raise FuzzExceptBadOptions(
@@ -80,13 +79,12 @@ class DictioFromPayloadBuilder(BaseDictioBuilder):
             if "encoder" in params and params["encoder"] is not None:
                 dictionary = EncodeIt(dictionary, params["encoder"])
 
-            selected_dic.append(
-                SliceIt(dictionary, slicestr) if slicestr else dictionary
-            )
+            selected_dic.append(dictionary)
 
         self.validate(options, selected_dic)
 
         return self.get_dictio(options, selected_dic)
+
 
 class DictioFromOptions(BaseDictioBuilder):
     def __call__(self, options):

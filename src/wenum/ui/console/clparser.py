@@ -26,7 +26,6 @@ long_opts = [
     "field=",
     "ip=",
     "filter-help",
-    "slice=",
     "zP=",
     "recipe=",
     "dump-recipe=",
@@ -69,7 +68,6 @@ REPEATABLE_OPTS = [
     "-z",
     "--zP",
     "--zD",
-    "--slice",
     "payload",
     "-w",
     "-b",
@@ -153,7 +151,7 @@ class CLParser:
 
             payload_cache = {}
             for option, value in opts:
-                if option in ["-z", "--zP", "--slice", "-w", "--zD", "--zE"]:
+                if option in ["-z", "--zP", "-w", "--zD", "--zE"]:
                     if option in ["-z", "-w"]:
                         if payload_cache:
                             optsd["payload"].append(payload_cache)
@@ -350,8 +348,7 @@ class CLParser:
                 self.show_plugins_help("iterators")
         if "-z" in optsd:
             if "help" in optsd["-z"]:
-                filt = optsd["--slice"][0] if "--slice" in optsd else "$all$"
-                self.show_plugin_ext_help("payloads", category=filt)
+                self.show_plugin_ext_help("payloads", category="$all$")
 
     @staticmethod
     def _check_options(optsd):
@@ -433,12 +430,11 @@ class CLParser:
         for payload in optsd["payload"]:
             if "-z" not in payload and "-w" not in payload:
                 raise FuzzExceptBadOptions(
-                    "--zP and --slice must be preceded by a -z or -w switch."
+                    "--zP must be preceded by a -z or -w switch."
                 )
 
             zpayl = payload["-z"] if "-z" in payload else "file,%s" % payload["-w"]
             extraparams = payload["--zP"] if "--zP" in payload else None
-            sliceit = payload["--slice"] if "--slice" in payload else None
 
             vals = zpayl.split(",")
 
@@ -475,7 +471,7 @@ class CLParser:
             else:
                 params["encoder"] = None
 
-            payloads_list.append((name, params, sliceit))
+            payloads_list.append((name, params))
 
         if "-m" in optsd:
             options["iterator"] = optsd["-m"][0]
