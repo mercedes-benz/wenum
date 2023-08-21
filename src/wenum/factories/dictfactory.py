@@ -3,6 +3,7 @@ from itertools import zip_longest
 from ..helpers.obj_factory import ObjectFactory
 from ..exception import FuzzExceptBadOptions
 from ..facade import Facade
+from wenum.wordlist_handler import File
 from ..dictionaries import (
     TupleIt,
     WrapperIt,
@@ -75,14 +76,14 @@ class DictioFromPayloadBuilder(BaseDictioBuilder):
                     "You must supply a list of payloads in the form of [(name, {params}), ... ]"
                 )
 
-            dictionary = Facade().payloads.get_plugin(name)(params)
+            print(params)
+            dictionary = File(params)
             if "encoder" in params and params["encoder"] is not None:
                 dictionary = EncodeIt(dictionary, params["encoder"])
 
             selected_dic.append(dictionary)
 
         self.validate(options, selected_dic)
-
         return self.get_dictio(options, selected_dic)
 
 
