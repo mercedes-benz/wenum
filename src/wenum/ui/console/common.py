@@ -1,9 +1,8 @@
 import sys
 from wenum import __version__ as version
 
-examples_banner = """Examples:\n\twenum -z file,users.txt -z file,pass.txt --sc 200 http://www.site.com/log.asp?user=FUZZ&pass=FUZ2Z
-\twenum -z range,1-10 --hc=BBB http://www.site.com/FUZZ{something not there}
-\twenum --script=robots -z list,robots.txt http://www.webscantest.com/FUZZ"""
+examples_banner = """Examples:\n\twenum -w users.txt -w pass.txt --sc 200 http://www.site.com/log.asp?user=FUZZ&pass=FUZ2Z
+\twenum --script=robots -w robots.txt http://www.webscantest.com/FUZZ"""
 
 exec_banner = """********************************************************\r
 * wenum {version} - A Web Fuzzer {align: <{width1}}*\r
@@ -23,10 +22,7 @@ help_banner2 = """********************************************************
     version=version, align=" ", width1=29 - len(version)
 )
 
-header_usage_wfpayload = """Usage:\twfpayload [options] -z payload --zD params\r\n
-"""
-
-header_usage = """Usage:\twenum [options] -z payload,params <url>\r\n
+header_usage = """Usage:\twenum [options] -w wordlist <url>\r\n
 \tFUZZ, ..., FUZnZ  wherever you put these keywords wenum will replace them with the values of the specified payload.
 \tFUZZ{baseline_value} FUZZ will be replaced by baseline_value. It will be the first request performed and could be used as a base for filtering.
 """
@@ -40,7 +36,7 @@ Options:
 \t-h                        : This help
 \t--help                    : Advanced help
 \t--version                 : wenum version details
-\t-e <type>                 : List of available encoders/payloads/iterators/printers/scripts
+\t-e <type>                 : List of available encoders/iterators/printers/scripts
 \t
 \t-c                        : Output without colors
 \t-a                        : Output without showing progress messages. Useful if the term can not handle them.
@@ -60,11 +56,7 @@ Options:
 \t-u url                    : Specify a URL for the request.
 \t-f filename               : Store results in the output file as JSON.
 \t--runtime-log             : Save runtime information to a file, such as which seeds have been thrown.
-\t-z payload                : Specify a payload for each FUZZ keyword used in the form of type,parameters,encoder.
-\t                            A list of encoders can be used, ie. md5-sha1. Encoders can be chained, ie. md5@sha1.
-\t                            Encoders category can be used. ie. url
-\t                            Use help as a payload to show payload plugin's details (you can filter using --slice)
-\t-w wordlist               : Specify a wordlist file (alias for -z file,wordlist).
+\t-w wordlist               : Specify a wordlist file.
 \t-X method                 : Specify an HTTP method for the request, ie. HEAD or FUZZ
 \t
 \t-b cookie                 : Specify a cookie for the requests
@@ -86,9 +78,6 @@ Advanced options:
 \t--dump-recipe <filename>  : Prints specified options in dedicated format that can later be imported
 \t--recipe <filename>       : Reads options from a recipe. Repeat for various recipes.
 \t--dry-run                 : Test run without actually making any HTTP request.
-\t--prev                    : Print the previous HTTP requests (only when using payloads generating fuzzresults)
-\t--efield <expr>           : Show the specified language expression together with the current payload. Repeat for various fields.
-\t--field <expr>            : Do not show the payload but only the specified language expression. Repeat for various fields.
 \t--limit-requests          : Limit recursions. Once 20000 requests are sent, recursions will be deactivated
 \t--ip host:port            : Specify an IP to connect to instead of the URL's host in the format ip:port
 \t-Z                        : Disable Scan mode (Connection errors will cause the script to exit).
@@ -100,13 +89,9 @@ Advanced options:
 \t--script-help=<plugins>   : Show help about scripts.
 \t--script-args n1=v1,...   : Provide arguments to scripts. ie. --script-args grep.regex=\"<A href=\\\"(.*?)\\\">\"
 \t
-\t-m iterator               : Specify an iterator for combining payloads (product by default)
+\t-m iterator               : Specify an iterator for combining wordlists (product by default)
 
-\t--zP <params>             : Arguments for the specified payload (it must be preceded by -z or -w).
-\t--zD <default>            : Default parameter for the specified payload (it must be preceded by -z or -w).
-\t--zE <encoder>            : Encoder for the specified payload (it must be preceded by -z or -w).
 
-\t--slice <filter>          : Filter payload\'s elements using the specified expression. It must be preceded by -z.
 \t--filter <filter>         : Show/hide responses using the specified filter expression (Use BBB for taking values from baseline)
 \t--hard-filter             : Change the filter to not only hide the responses, but also prevent post processing of them.
 \t--prefilter <filter>      : Filter items before fuzzing using the specified expression. Repeat for concatenating filters.
@@ -116,45 +101,6 @@ Advanced options:
 usage = options
 
 verbose_usage = all_options
-
-wfpayload_usage = f"""{header_usage_wfpayload}\n\nOptions:
-\t-h/--help                 : This help
-\t--help                    : Advanced help
-\t--version                 : wenum version details
-\t-e <type>                 : List of available encoders/payloads/iterators/printers/scripts
-\t
-\t--recipe <filename>       : Reads options from a recipe. Repeat for various recipes.
-\t--dump-recipe <filename>  : Prints current options as a recipe
-\t
-\t-c                        : Output without colors
-\t-v                        : Verbose information.
-\t-f filename               : Store results in the output file as JSON.
-\t--prev                    : Print the previous HTTP requests (only when using payloads generating fuzzresults)
-\t--efield <expr>           : Show the specified language expression together with the current payload. Repeat option for various fields.
-\t--field <expr>            : Do not show the payload but only the specified language expression. Repeat option for various fields.
-\t
-\t-A                        : Alias for -v and --script=default
-\t-F                        : When a redirection is detected, follow it by sending an additional request to it
-\t--script=<plugins>        : Runs script's scan. <plugins> is a comma separated list of plugin-files or plugin-categories
-\t--script-help=<plugins>   : Show help about scripts.
-\t--script-args n1=v1,...   : Provide arguments to scripts. ie. --script-args grep.regex=\"<A href=\\\"(.*?)\\\">\"
-\t
-\t-z payload                : Specify a payload for each FUZZ keyword used in the form of name[,parameter][,encoder].
-\t                            A list of encoders can be used, ie. md5-sha1. Encoders can be chained, ie. md5@sha1.
-\t                            Encoders category can be used. ie. url
-\t                            Use help as a payload to show payload plugin's details (you can filter using --slice)
-\t--zP <params>             : Arguments for the specified payload (it must be preceded by -z or -w).
-\t--zD <default>            : Default parameter for the specified payload (it must be preceded by -z or -w).
-\t--zE <encoder>            : Encoder for the specified payload (it must be preceded by -z or -w).
-\t--slice <filter>          : Filter payload\'s elements using the specified expression. It must be preceded by -z.
-\t-w wordlist               : Specify a wordlist file (alias for -z file,wordlist).
-\t
-\t--hc/hl/hw/hh N[,N]+      : Hide responses with the specified code/lines/words/chars (Use BBB for taking values from baseline)
-\t--sc/sl/sw/sh N[,N]+      : Show responses with the specified code/lines/words/chars (Use BBB for taking values from baseline)
-\t--ss/hs regex             : Show/hide responses with the specified regex within the content
-\t--filter <filter>         : Show/hide responses using the specified filter expression (Use BBB for taking values from baseline)
-\t--prefilter <filter>      : Filter items before fuzzing using the specified expression. Repeat for concatenating filters.
-"""
 
 
 class Term:

@@ -46,7 +46,6 @@ class FuzzSession(UserDict):
             "compiled_prefilter",
             "compiled_printer",
             "description",
-            "show_field",
             "transport",
         ]
 
@@ -84,7 +83,6 @@ class FuzzSession(UserDict):
             printer=(None, None),
             colour=True,
             progress_bar=True,
-            previous=False,
             verbose=False,
             interactive=False,
             hard_filter=False,
@@ -109,8 +107,6 @@ class FuzzSession(UserDict):
             script="",
             script_args={},
             connect_to_ip=None,
-            fields=[],
-            show_field=None,
             # Session keeps track of current prio level to be assigned to requests.
             # Useful to poll which prio level the next seed should receive, and increase by that amount
             current_priority_level=PRIORITY_STEP,

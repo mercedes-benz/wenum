@@ -371,23 +371,3 @@ class FuzzResFilter(BaseFilter):
         fuzz_words = self.FUZZ_MARKER_REGEX.findall(self.filter_string)
 
         return fuzz_words
-
-
-class FuzzResFilterSlice(FuzzResFilter):
-    # When using slice we don't have previous payload context but directly a word from the dictionary
-    def _compute_fuzz_symbol(self, tokens):
-        match_dict = tokens[0].groupdict()
-
-        p_index = match_dict["index"] if match_dict["index"] is not None else 1
-
-        if p_index != 1:
-            raise FuzzExceptIncorrectFilter(
-                "Non existent FUZZ payload! Use a correct index."
-            )
-
-        fuzz_val = self.fuzz_result
-
-        if match_dict["field"]:
-            fuzz_val = self._get_field_value(self.fuzz_result, match_dict["field"])
-
-        return fuzz_val

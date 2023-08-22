@@ -8,19 +8,17 @@ from wenum.ui.console.common import Term, UncolouredTerm
 if TYPE_CHECKING:
     from wenum.options import FuzzSession
     from queue import Queue
-from wenum.fuzzobjects import FuzzWord, FuzzPlugin, FuzzResult, FuzzStats
+from wenum.fuzzobjects import FuzzPlugin, FuzzResult, FuzzStats
+from wenum.facade import Facade
 from wenum.exception import (
     FuzzExceptBadFile,
     FuzzExceptBadOptions,
     FuzzExceptPluginError,
 )
-from wenum.facade import Facade
 from wenum.factories.plugin_factory import plugin_factory
-from wenum.helpers.file_func import find_file_in_paths
 from wenum.externals.reqresp.cache import HttpCache
 
 import sys
-import os
 from abc import abstractmethod
 from distutils import util
 
@@ -174,63 +172,3 @@ class BasePrinter:
         Overwrite file contents with data
         """
         raise FuzzExceptPluginError("Method result not implemented")
-
-
-class BasePayload:
-    def __init__(self, params):
-        self.params = params
-
-        # default params
-        if "default" in self.params:
-            self.params[self.default_parameter] = self.params["default"]
-
-            if not self.default_parameter:
-                raise FuzzExceptBadOptions("Too many plugin parameters specified")
-
-        # Check for allowed parameters
-        if [
-            k
-            for k in list(self.params.keys())
-            if k not in [x[0] for x in self.parameters]
-               and k not in ["encoder", "default"]
-        ]:
-            raise FuzzExceptBadOptions("Plugin %s, unknown parameter specified!" % self.name)
-
-        # check mandatory params, assign default values
-        for name, default_value, required, description in self.parameters:
-            if required and name not in self.params:
-                raise FuzzExceptBadOptions("Plugin %s, missing parameter %s!" % (self.name, name))
-
-            if name not in self.params:
-                self.params[name] = default_value
-
-    def get_type(self):
-        raise FuzzExceptPluginError("Method get_type not implemented")
-
-    def get_next(self):
-        raise FuzzExceptPluginError("Method get_next not implemented")
-
-    def __next__(self):
-        return FuzzWord(self.get_next(), self.get_type())
-
-    def count(self):
-        raise FuzzExceptPluginError("Method count not implemented")
-
-    def __iter__(self):
-        return self
-
-    def close(self):
-        pass
-
-    @staticmethod
-    def find_file(name):
-        if os.path.exists(name):
-            return name
-
-        for pa in Facade().settings.get("general", "lookup_dirs").split(","):
-            fn = find_file_in_paths(name, pa)
-
-            if fn is not None:
-                return fn
-
-        return name

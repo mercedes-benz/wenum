@@ -205,7 +205,6 @@ class View:
     def __init__(self, session_options):
         self.last_discarded_result = None
         self.verbose = session_options["verbose"]
-        self.previous = session_options["previous"]
         self.term = Term() if session_options["colour"] else UncolouredTerm()
         # Keeps track of the line count of the print for discarded responses (to then overwrite these lines with the
         # next print)
@@ -215,8 +214,6 @@ class View:
         txt_colour = (
             self.term.noColour if not fuzz_result.is_baseline else self.term.fgCyan
         )
-        if self.previous and not print_nres:
-            txt_colour = self.term.fgCyan
 
         if fuzz_result.history.redirect_header:
             location = fuzz_result.history.full_redirect_url
@@ -311,8 +308,6 @@ class View:
         txt_colour = (
             self.term.noColour if not fuzz_result.is_baseline else self.term.fgCyan
         )
-        if self.previous and not print_nres:
-            txt_colour = self.term.fgCyan
 
         # Each column consists of a tuple storing both the string and the associated colour of the column
         columns = [
@@ -404,17 +399,6 @@ class View:
     def print_result(self, fuzz_result: FuzzResult):
         """Print the result to CLI"""
         if not fuzz_result.discarded:
-            # Print previous result
-            if (
-                    self.previous
-                    and fuzz_result.payload_man
-                    and fuzz_result.payload_man.get_payload_type(1) == FuzzWordType.FUZZRES
-            ):
-                prev_res = fuzz_result.payload_man.get_payload_content(1)
-                if self.verbose:
-                    self._print_result_verbose(prev_res, print_nres=False)
-                else:
-                    self._print_result(prev_res, print_nres=False)
 
             # Print result
             if self.verbose:

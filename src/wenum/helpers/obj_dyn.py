@@ -2,53 +2,6 @@ import functools
 from .obj_dic import DotDict
 
 
-allowed_fields = [
-    "description",
-    "nres",
-    "code",
-    "chars",
-    "lines",
-    "words",
-    "md5",
-    "l",
-    "h",
-    "w",
-    "c",
-    "history",
-    "plugins",
-    "url",
-    "content",
-    "history.url",
-    "history.method",
-    "history.scheme",
-    "history.host",
-    "history.content",
-    "history.raw_content" "history.is_path",
-    "history.pstrip",
-    "history.cookies",
-    "history.headers",
-    "history.params",
-    "r",
-    "r.reqtime",
-    "r.url",
-    "r.method",
-    "r.scheme",
-    "r.host",
-    "r.content",
-    "r.raw_content" "r.is_path",
-    "r.pstrip",
-    "r.cookies.",
-    "r.headers.",
-    "r.params.",
-]
-
-
-def _check_allowed_field(attr):
-    if [field for field in allowed_fields if attr.startswith(field)]:
-        return True
-    return False
-
-
 def _get_alias(attr):
     attr_alias = {
         "l": "lines",

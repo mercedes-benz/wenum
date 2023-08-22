@@ -377,7 +377,7 @@ class AutofilterQ(FuzzQueue):
                                   f"'{coloured_identifier}'{redirect_string}", FuzzPlugin.INFO))
 
 
-class SliceQ(FuzzQueue):
+class PrefilterQueue(FuzzQueue):
     """
     Queue activated by the 'prefilter' option
     """
@@ -388,7 +388,7 @@ class SliceQ(FuzzQueue):
         self.ffilter = prefilter
 
     def get_name(self):
-        return "SliceQ"
+        return "PrefilterQueue"
 
     def process(self, fuzz_result: FuzzResult):
         if fuzz_result.is_baseline or self.ffilter.is_visible(fuzz_result):
@@ -786,7 +786,6 @@ class PassPayloadQ(FuzzQueue):
     def process(self, fuzz_result: FuzzResult):
         if fuzz_result.payload_man.get_payload_type(1) == FuzzWordType.FUZZRES:
             fuzz_result = fuzz_result.payload_man.get_payload_content(1)
-            fuzz_result.update_from_options(self.options)
             if not fuzz_result.payload_man:
                 fuzz_result.payload_man = payman_factory.create(
                     "empty_payloadman", FuzzWord(fuzz_result.url, FuzzWordType.WORD)
