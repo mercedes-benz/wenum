@@ -62,24 +62,8 @@ class DictioFromPayloadBuilder(BaseDictioBuilder):
         selected_dic = []
 
         for payload in options["payloads"]:
-            try:
-                name, params = [
-                    x[0] for x in zip_longest(payload, (None, None))
-                ]
-            except ValueError:
-                raise FuzzExceptBadOptions(
-                    "You must supply a list of payloads in the form of [(name, {params}), ... ]"
-                )
 
-            if not params:
-                raise FuzzExceptBadOptions(
-                    "You must supply a list of payloads in the form of [(name, {params}), ... ]"
-                )
-
-            print(params)
-            dictionary = File(params)
-            if "encoder" in params and params["encoder"] is not None:
-                dictionary = EncodeIt(dictionary, params["encoder"])
+            dictionary = File(payload)
 
             selected_dic.append(dictionary)
 

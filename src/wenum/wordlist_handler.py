@@ -11,35 +11,13 @@ from wenum.exception import (
 
 
 class File:
-    """Class responsible for reading the supplied wordlist in the commandline.
-    #TODO some methods may be unnecessarily complex, as this partially stems from
-      times where these parsers were plugins, and they can be refactored at some point.
-      """
+    """Class responsible for reading the supplied wordlist in the commandline."""
 
-    parameters = (
-        ("fn", "", True, "Filename of a valid dictionary"),
-        (
-            "count",
-            "True",
-            False,
-            "Indicates if the number of words in the file should be counted.",
-        ),
-        ("encoding", "Auto", False, "Indicates the file encoding."),
-    )
-
-    def __init__(self, params):
-        self.params = params
-        self.file_path = ""
-
-        # default params
-        if "default" in self.params:
-            print("default")
-            print(self.params)
-            self.params["fn"] = self.params["default"]
+    def __init__(self, file_path):
+        self.file_path = file_path
 
         try:
-            print(self.params["fn"])
-            self.f = FileDetOpener(self.find_file(self.params["fn"]))
+            self.f = FileDetOpener(self.find_file(self.file_path))
         except IOError as e:
             raise FuzzExceptBadFile("Error opening file. %s" % str(e))
 
@@ -59,8 +37,7 @@ class File:
         return FuzzWord(self.get_next(), self.get_type())
 
     def count(self):
-        if self.params["count"].lower() == "false":
-            return -1
+        """Counts the amount of lines in the file"""
 
         if self.__count is None:
             self.__count = len(list(self.f))
@@ -76,6 +53,7 @@ class File:
 
     @staticmethod
     def find_file(name):
+        """Find file of the provided payload's file path in the file system"""
         if os.path.exists(name):
             return name
 

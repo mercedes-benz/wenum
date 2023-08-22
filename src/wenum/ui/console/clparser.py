@@ -18,14 +18,11 @@ from .output import table_print
 
 short_opts = "hLAFZX:vcab:e:R:D:d:z:r:f:t:w:H:m:f:s:p:w:u:q:o"
 long_opts = [
-    "efield=",
     "ee=",
     "zE=",
     "zD=",
-    "field=",
     "ip=",
     "filter-help",
-    "zP=",
     "recipe=",
     "dump-recipe=",
     "req-delay=",
@@ -55,17 +52,13 @@ long_opts = [
     "help",
     "version",
     "dry-run",
-    "prev",
     "cachefile=",
     "limit-requests"
 ]
 REPEATABLE_OPTS = [
     "--prefilter",
     "--recipe",
-    "-z",
-    "--zP",
-    "--zD",
-    "payload",
+    "payloads",
     "-w",
     "-b",
     "-H",
@@ -146,15 +139,9 @@ class CLParser:
             opts, args = getopt.getopt(self.argv[1:], self.short_opts, self.long_opts)
             optsd = defaultdict(list)
 
-            payload_cache = {}
             for option, value in opts:
-                if option in ["-z", "--zP", "-w", "--zD", "--zE"]:
-                    if option in ["-z", "-w"]:
-                        if payload_cache:
-                            optsd["payload"].append(payload_cache)
-                            payload_cache = {}
-
-                    payload_cache[option] = value
+                if option in ["-w"]:
+                    optsd["payloads"].append(value)
                 optsd[option].append(value)
 
             # Setting the runtime log as early as possible
@@ -182,10 +169,6 @@ class CLParser:
             if not args and not optsd:
                 self.show_brief_usage()
                 sys.exit(1)
-
-            if payload_cache:
-                optsd["payload"].append(payload_cache)
-                # payload_cache = {}
 
             self._parse_help_opt(optsd)
 
@@ -219,11 +202,15 @@ class CLParser:
                     options.import_from_file(recipe)
 
             # command line has priority over recipe
+
+            options["payloads"] = optsd["payloads"]
+            if "-m" in optsd:
+                options["iterator"] = optsd["-m"][0]
+
             self._parse_options(optsd, options)
             self._parse_conn_options(optsd, options)
             self._parse_filters(optsd, options)
             self._parse_seed(url, optsd, options)
-            self._parse_payload(optsd, options)
             self._parse_scripts(optsd, options)
 
             if "--cachefile" in optsd:
@@ -285,9 +272,7 @@ class CLParser:
             self.show_plugin_ext_help("scripts", category=script_string)
 
         if "--ee" in optsd:
-            if "payloads" in optsd["--ee"]:
-                self.show_plugins_names("payloads")
-            elif "encoders" in optsd["--ee"]:
+            if "encoders" in optsd["--ee"]:
                 self.show_plugins_names("encoders")
             elif "iterators" in optsd["--ee"]:
                 self.show_plugins_names("iterators")
@@ -317,9 +302,7 @@ class CLParser:
             sys.exit(0)
 
         if "-e" in optsd:
-            if "payloads" in optsd["-e"]:
-                self.show_plugins_help("payloads")
-            elif "encoders" in optsd["-e"]:
+            if "encoders" in optsd["-e"]:
                 self.show_plugins_help("encoders", 2)
             elif "iterators" in optsd["-e"]:
                 self.show_plugins_help("iterators")
@@ -341,9 +324,6 @@ class CLParser:
         if "-m" in optsd:
             if "help" in optsd["-m"]:
                 self.show_plugins_help("iterators")
-        if "-z" in optsd:
-            if "help" in optsd["-z"]:
-                self.show_plugin_ext_help("payloads", category="$all$")
 
     @staticmethod
     def _check_options(optsd):
@@ -416,64 +396,6 @@ class CLParser:
 
         if "--hard-filter" in optsd:
             options["hard_filter"] = True
-
-    @staticmethod
-    def _parse_payload(optsd, options: FuzzSession):
-
-        payloads_list = []
-
-        for payload in optsd["payload"]:
-            if "-z" not in payload and "-w" not in payload:
-                raise FuzzExceptBadOptions(
-                    "--zP must be preceded by a -z or -w switch."
-                )
-
-            zpayl = payload["-z"] if "-z" in payload else "file,%s" % payload["-w"]
-            extraparams = payload["--zP"] if "--zP" in payload else None
-
-            vals = zpayl.split(",")
-
-            default_param = None
-            params = {}
-
-            if len(vals) >= 2:
-                name, default_param = vals[:2]
-            else:
-                name = vals[0]
-
-            default_param_cli = payload["--zD"] if "--zD" in payload else None
-            if default_param_cli and default_param:
-                raise FuzzExceptBadOptions("--zD and -z parameters are exclusive.")
-            elif default_param_cli:
-                default_param = default_param_cli
-
-            if extraparams:
-                params = dict([x.split("=", 1) for x in extraparams.split(",")])
-            if default_param:
-                params["default"] = default_param
-
-            encoders = vals[2] if len(vals) == 3 else None
-            encoders_cli = payload["--zE"] if "--zE" in payload else None
-            if encoders_cli and encoders:
-                raise FuzzExceptBadOptions("--zE and -z encoders are exclusive.")
-            elif encoders_cli:
-                encoders = encoders_cli
-
-            if encoders:
-                params["encoder"] = encoders.split("-")
-            elif "encoder" in params:
-                params["encoder"] = params["encoder"].split("-")
-            else:
-                params["encoder"] = None
-
-            payloads_list.append((name, params))
-
-        if "-m" in optsd:
-            options["iterator"] = optsd["-m"][0]
-
-        if payloads_list:
-            print(payloads_list)
-            options["payloads"] = payloads_list
 
     @staticmethod
     def _parse_seed(url, optsd, options):
