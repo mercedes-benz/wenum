@@ -472,6 +472,7 @@ class CLParser:
             options["iterator"] = optsd["-m"][0]
 
         if payloads_list:
+            print(payloads_list)
             options["payloads"] = payloads_list
 
     @staticmethod

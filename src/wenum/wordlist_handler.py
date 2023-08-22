@@ -27,8 +27,6 @@ class File:
         ("encoding", "Auto", False, "Indicates the file encoding."),
     )
 
-    default_parameter = "fn"
-
     def __init__(self, params):
         self.params = params
         self.file_path = ""
@@ -37,35 +35,11 @@ class File:
         if "default" in self.params:
             print("default")
             print(self.params)
-            self.params[self.default_parameter] = self.params["default"]
-
-            if not self.default_parameter:
-                raise FuzzExceptBadOptions("Too many plugin parameters specified")
-
-        # Check for allowed parameters
-        if [
-            k
-            for k in list(self.params.keys())
-            if k not in [x[0] for x in self.parameters]
-               and k not in ["encoder", "default"]
-        ]:
-            raise FuzzExceptBadOptions("Plugin %s, unknown parameter specified!" % self.name)
-
-        # check mandatory params, assign default values
-        for name, default_value, required, description in self.parameters:
-            if required and name not in self.params:
-                raise FuzzExceptBadOptions("Plugin %s, missing parameter %s!" % (self.name, name))
-
-            if name not in self.params:
-                self.params[name] = default_value
+            self.params["fn"] = self.params["default"]
 
         try:
-            encoding = (
-                self.params["encoding"]
-                if self.params["encoding"].lower() != "auto"
-                else None
-            )
-            self.f = FileDetOpener(self.find_file(self.params["fn"]), encoding)
+            print(self.params["fn"])
+            self.f = FileDetOpener(self.find_file(self.params["fn"]))
         except IOError as e:
             raise FuzzExceptBadFile("Error opening file. %s" % str(e))
 
