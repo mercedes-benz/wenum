@@ -37,16 +37,6 @@ class FuzzResSimpleFilter(BaseFilter):
             ]
         )
 
-    def set_baseline(self, res):
-        if BASELINE_CODE in self.hideparams["lines"]:
-            self.hideparams["lines"].append(res.lines)
-        if BASELINE_CODE in self.hideparams["codes"]:
-            self.hideparams["codes"].append(res.code)
-        if BASELINE_CODE in self.hideparams["words"]:
-            self.hideparams["words"].append(res.words)
-        if BASELINE_CODE in self.hideparams["chars"]:
-            self.hideparams["chars"].append(res.chars)
-
     def is_visible(self, res):
         if self.hideparams["codes_show"] is None:
             cond1 = True

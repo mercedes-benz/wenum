@@ -24,7 +24,6 @@ help_banner2 = """********************************************************
 
 header_usage = """Usage:\twenum [options] -w wordlist <url>\r\n
 \tFUZZ, ..., FUZnZ  wherever you put these keywords wenum will replace them with the values of the specified payload.
-\tFUZZ{baseline_value} FUZZ will be replaced by baseline_value. It will be the first request performed and could be used as a base for filtering.
 """
 
 brief_usage = (f"""{header_usage}\n\n{examples_banner}\n\nType wenum -h for \

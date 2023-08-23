@@ -107,9 +107,6 @@ class FuzzResFilter(BaseFilter):
         self.stack = []
         self._cache = collections.defaultdict(set)
 
-    def set_baseline(self, res):
-        self.baseline = res
-
     def _compute_res_symbol(self, tokens):
         return self._get_field_value(self.fuzz_result, tokens[0])
 

@@ -72,21 +72,6 @@ class SeedQueue(FuzzQueue):
                     self.queue_out.put(item)
                     break
 
-    def send_baseline(self):
-        """
-        Only relevant if specified in cli options. Sends the baseline request which will then used for e.g. filtering
-        in following requests
-        """
-        fuzz_baseline = self.options["compiled_baseline"]
-
-        if fuzz_baseline is not None and self.stats.pending_seeds() == 1:
-            self.stats.pending_fuzz.inc()
-            self.send_first(fuzz_baseline)
-
-            # wait for BBB to be completed before generating more items
-            while self.stats.processed() == 0 and not self.stats.cancelled:
-                time.sleep(0.0001)
-
     def restart(self, seed: FuzzResult):
         """
         Assign the next seed that should be currently processed
@@ -106,12 +91,10 @@ class SeedQueue(FuzzQueue):
 
         if self.options["limitrequests"]:
             if not self.options.http_pool.queued_requests > self.options["LIMITREQUESTS_THRESHOLD"]:
-                self.send_baseline()
                 self.send_dictionary()
             else:
                 self.end_seed()
         else:
-            self.send_baseline()
             self.send_dictionary()
 
     def get_fuzz_res(self, dictio_item: tuple) -> FuzzResult:
@@ -293,10 +276,8 @@ class FilterQ(FuzzQueue):
         return "FilterQ"
 
     def process(self, fuzz_result: FuzzResult):
-        if fuzz_result.is_baseline:
-            self.ffilter.set_baseline(fuzz_result)
 
-        if self.ffilter.is_visible(fuzz_result) or fuzz_result.is_baseline:
+        if self.ffilter.is_visible(fuzz_result):
             self.send(fuzz_result)
         else:
             self.discard(fuzz_result)
@@ -391,7 +372,7 @@ class PrefilterQueue(FuzzQueue):
         return "PrefilterQueue"
 
     def process(self, fuzz_result: FuzzResult):
-        if fuzz_result.is_baseline or self.ffilter.is_visible(fuzz_result):
+        if self.ffilter.is_visible(fuzz_result):
             self.send(fuzz_result)
         else:
             self.discard(fuzz_result)

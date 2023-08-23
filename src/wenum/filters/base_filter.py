@@ -17,13 +17,6 @@ class BaseFilter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def set_baseline(self, fuzz_result):
-        """
-        Sets the filter depending on the baseline object provided
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def is_visible(self, fuzz_result):
         """
         Check if the fuzz_result should be filtered out
