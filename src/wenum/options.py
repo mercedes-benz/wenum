@@ -7,7 +7,6 @@ from .exception import (
 from .facade import (
     Facade,
     ERROR_CODE,
-    BASELINE_CODE,
 )
 
 from .factories.fuzzresfactory import resfactory
@@ -325,16 +324,14 @@ class FuzzSession(UserDict):
         try:
             for filter_option in ["hc", "hw", "hl", "hh", "sc", "sw", "sl", "sh"]:
                 self.data[filter_option] = [
-                    BASELINE_CODE
-                    if i == "BBB"
-                    else ERROR_CODE
+                    ERROR_CODE
                     if i == "XXX"
                     else int(i)
                     for i in self.data[filter_option]
                 ]
         except ValueError:
             raise FuzzExceptBadOptions(
-                "Bad options: Filter must be specified in the form of [int, ... , int, BBB, XXX]."
+                "Bad options: Filter must be specified in the form of [int, ... , int, XXX]."
             )
 
         self.compile_seeds()

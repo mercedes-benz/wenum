@@ -4,8 +4,6 @@ from wenum.filters.base_filter import BaseFilter
 import re
 import collections
 
-from ..facade import BASELINE_CODE
-
 
 class FuzzResSimpleFilter(BaseFilter):
     """

@@ -43,7 +43,6 @@ class FuzzResFilter(BaseFilter):
 
     def __init__(self, filter_string=None):
         self.filter_string = filter_string
-        self.baseline: TypingOptional[FuzzResult] = None
 
         quoted_str_value = QuotedString("'", unquoteResults=True, escChar="\\")
         int_values = Word("0123456789").setParseAction(lambda s, l, t: [int(t[0])])
@@ -61,20 +60,17 @@ class FuzzResFilter(BaseFilter):
         res_symbol = Regex(
             r"(description|nres|code|chars|lines|words|md5|content|timer|url|l|w|c|(r|history|plugins)(\w|_|-|\.)*|h)"
         ).setParseAction(self._compute_res_symbol)
-        bbb_symbol = Regex(
-            r"BBB(?:\[(?P<field>(\w|_|-|\.)+)\])?", asMatch=True
-        ).setParseAction(self.__compute_bbb_symbol)
 
         diff_call = Group(
             Suppress(Literal("|"))
             + Literal("diff")
             + Suppress(Literal("("))
-            + (fuzz_symbol | res_symbol | bbb_symbol | int_values | quoted_str_value)
+            + (fuzz_symbol | res_symbol | int_values | quoted_str_value)
             + Suppress(")")
         )
 
         fuzz_statement = Group(
-            (fuzz_symbol | res_symbol | bbb_symbol | int_values | quoted_str_value)
+            (fuzz_symbol | res_symbol | int_values | quoted_str_value)
             + Optional(diff_call | operator_call, None)
         ).setParseAction(self.__compute_res_value)
 
@@ -171,36 +167,6 @@ class FuzzResFilter(BaseFilter):
 
         if isinstance(ret, list):
             return [ret]
-        return ret
-
-    def __compute_bbb_symbol(self, tokens):
-        if self.baseline is None:
-            raise FuzzExceptBadOptions(
-                "FilterQ: specify a baseline value when using BBB"
-            )
-
-        match_dict = tokens[0].groupdict()
-
-        ret = None
-
-        if match_dict["field"]:
-            ret = self._get_field_value(self.baseline, match_dict["field"])
-        else:
-            element = self.stack.pop() if self.stack else None
-
-            if element == "l" or element == "lines":
-                ret = self.baseline.lines
-            elif element == "c" or element == "code":
-                ret = self.baseline.code
-            elif element == "w" or element == "words":
-                ret = self.baseline.words
-            elif element == "h" or element == "chars":
-                return self.baseline.chars
-            elif element == "index" or element == "i":
-                ret = self.baseline.result_number
-            else:
-                ret = self.baseline.payload_man.get_payload_content(1)
-
         return ret
 
     def _get_operator_value(self, location, fuzz_val, match_dict):

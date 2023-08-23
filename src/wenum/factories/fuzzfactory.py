@@ -27,8 +27,6 @@ class RequestBuilder:
 class SeedBuilder:
     def __call__(self, options) -> FuzzRequest:
         seed: FuzzRequest = reqfactory.create("request_from_options", options)
-        marker_dict = SeedBuilderHelper.get_marker_dict(seed)
-        SeedBuilderHelper.remove_baseline_markers(seed, marker_dict)
 
         return seed
 
