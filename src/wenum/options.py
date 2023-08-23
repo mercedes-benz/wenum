@@ -7,7 +7,6 @@ from .exception import (
 from .facade import (
     Facade,
     ERROR_CODE,
-    BASELINE_CODE,
 )
 
 from .factories.fuzzresfactory import resfactory
@@ -120,7 +119,6 @@ class FuzzSession(UserDict):
             compiled_prefilter=[],
             compiled_printer=None,
             compiled_seed=None,
-            compiled_baseline=None,
             compiled_stats=None,
             compiled_dictio=None,
             runtime_log=None,)
@@ -282,7 +280,7 @@ class FuzzSession(UserDict):
     def get_fuzz_words(self) -> set:
         fuzz_words = self.data["compiled_filter"].get_fuzz_words()
 
-        for comp_obj in ["compiled_seed", "compiled_baseline"]:
+        for comp_obj in ["compiled_seed"]:
             if self.data[comp_obj]:
                 fuzz_words += self.data[comp_obj].payload_man.get_fuzz_words()
 
@@ -301,9 +299,6 @@ class FuzzSession(UserDict):
 
     def compile_seeds(self):
         self.data["compiled_seed"] = resfactory.create("seed_from_options", self)
-        self.data["compiled_baseline"] = resfactory.create(
-            "baseline_from_options", self
-        )
 
     def compile(self):
         """
@@ -329,16 +324,14 @@ class FuzzSession(UserDict):
         try:
             for filter_option in ["hc", "hw", "hl", "hh", "sc", "sw", "sl", "sh"]:
                 self.data[filter_option] = [
-                    BASELINE_CODE
-                    if i == "BBB"
-                    else ERROR_CODE
+                    ERROR_CODE
                     if i == "XXX"
                     else int(i)
                     for i in self.data[filter_option]
                 ]
         except ValueError:
             raise FuzzExceptBadOptions(
-                "Bad options: Filter must be specified in the form of [int, ... , int, BBB, XXX]."
+                "Bad options: Filter must be specified in the form of [int, ... , int, XXX]."
             )
 
         self.compile_seeds()
@@ -360,13 +353,6 @@ class FuzzSession(UserDict):
 
         if self.data["compiled_dictio"].width() != len(fuzz_words):
             raise FuzzExceptBadOptions("FUZZ words and number of payloads do not match!")
-
-        if self.data["compiled_baseline"] is None and (
-                BASELINE_CODE in self.data["hc"]
-                or BASELINE_CODE in self.data["hl"]
-                or BASELINE_CODE in self.data["hw"]
-                or BASELINE_CODE in self.data["hh"]):
-            raise FuzzExceptBadOptions("Bad options: specify a baseline value when using BBB")
 
         if self.data["script"]:
             Facade().scripts.kbase.update(self.data["script_args"])

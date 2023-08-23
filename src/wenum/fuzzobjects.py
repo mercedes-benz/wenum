@@ -212,7 +212,6 @@ class FuzzPayload:
         self.word = None
         self.index = None
         self.content = None
-        self.is_baseline = False
         self.type = None
 
     @property
@@ -222,9 +221,6 @@ class FuzzPayload:
         return self.content
 
     def description(self):
-        if self.is_baseline:
-            return self.content
-
         if self.marker is None:
             return ""
 
@@ -248,7 +244,7 @@ class FPayloadManager:
     def __init__(self):
         self.payloads = defaultdict(list)
 
-    def add(self, payload_dict, fuzzword=None, is_baseline=False):
+    def add(self, payload_dict, fuzzword=None):
         """
         Add a payload to the manager
         """
@@ -260,7 +256,6 @@ class FPayloadManager:
         )
         fp.content = fuzzword.content if fuzzword else None
         fp.type = fuzzword.type if fuzzword else None
-        fp.is_baseline = is_baseline
 
         self.payloads[fp.index].append(fp)
 
@@ -320,7 +315,6 @@ class FuzzResult(FuzzItem):
         self.history: FuzzRequest = history
 
         self.exception = exception
-        self.is_baseline: bool = False
         self.rlevel_desc: str = ""
         self.result_number: int = next(FuzzResult.newid) if track_id else 0
 

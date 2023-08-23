@@ -24,7 +24,6 @@ help_banner2 = """********************************************************
 
 header_usage = """Usage:\twenum [options] -w wordlist <url>\r\n
 \tFUZZ, ..., FUZnZ  wherever you put these keywords wenum will replace them with the values of the specified payload.
-\tFUZZ{baseline_value} FUZZ will be replaced by baseline_value. It will be the first request performed and could be used as a base for filtering.
 """
 
 brief_usage = (f"""{header_usage}\n\n{examples_banner}\n\nType wenum -h for \
@@ -64,8 +63,8 @@ Options:
 \t-H header                 : Use header (ex:"Cookie:id=1312321&user=FUZZ")
 \t--basic/ntlm/digest auth  : in format "user:pass" or "FUZZ:FUZZ" or "domain\\FUZ2Z:FUZZ"
 \t
-\t--hc/hl/hw/hh N[,N]+      : Hide responses with the specified code/lines/words/chars (Use BBB for taking values from baseline)
-\t--sc/sl/sw/sh N[,N]+      : Show responses with the specified code/lines/words/chars (Use BBB for taking values from baseline)
+\t--hc/hl/hw/hh N[,N]+      : Hide responses with the specified code/lines/words/chars
+\t--sc/sl/sw/sh N[,N]+      : Show responses with the specified code/lines/words/chars
 \t--ss/hs regex             : Show/Hide responses with the specified regex within the content
 \t--auto-filter             : Activate automatic runtime filtering on responses. If a response repeats itself too often, it will get filtered out of postprocessing.
 """
@@ -92,7 +91,7 @@ Advanced options:
 \t-m iterator               : Specify an iterator for combining wordlists (product by default)
 
 
-\t--filter <filter>         : Show/hide responses using the specified filter expression (Use BBB for taking values from baseline)
+\t--filter <filter>         : Show/hide responses using the specified filter expression
 \t--hard-filter             : Change the filter to not only hide the responses, but also prevent post processing of them.
 \t--prefilter <filter>      : Filter items before fuzzing using the specified expression. Repeat for concatenating filters.
 

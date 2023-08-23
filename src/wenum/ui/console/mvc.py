@@ -211,9 +211,7 @@ class View:
         self.printed_temp_lines = 0
 
     def _print_result_verbose(self, fuzz_result: FuzzResult, print_nres=True):
-        txt_colour = (
-            self.term.noColour if not fuzz_result.is_baseline else self.term.fgCyan
-        )
+        txt_colour = self.term.noColour
 
         if fuzz_result.history.redirect_header:
             location = fuzz_result.history.full_redirect_url
@@ -305,9 +303,7 @@ class View:
             url_output = f"{fuzz_result.url} -> {location}"
         else:
             url_output = fuzz_result.url
-        txt_colour = (
-            self.term.noColour if not fuzz_result.is_baseline else self.term.fgCyan
-        )
+        txt_colour = self.term.noColour
 
         # Each column consists of a tuple storing both the string and the associated colour of the column
         columns = [

@@ -20,7 +20,6 @@ class FuzzResultFactory(ObjectFactory):
                 "seed_from_plugin": FuzzResPluginSeedBuilder(),
                 "seed_from_options": FuzzResOptionsSeedBuilder(),
                 "seed_from_options_and_dict": FuzzResultDictSeedBuilder(),
-                "baseline_from_options": BaselineResultBuilder(),
             },
         )
 
@@ -46,30 +45,6 @@ class FuzzResOptionsSeedBuilder:
         fuzz_result.from_plugin = False
 
         return fuzz_result
-
-
-class BaselineResultBuilder:
-    """
-    The baseline is a reference response. Usually specified to be used in cli options
-    """
-
-    def __call__(self, options):
-        raw_seed = reqfactory.create("request_from_options", options)
-        baseline_payloadman = payman_factory.create(
-            "payloadman_from_baseline", raw_seed
-        )
-
-        if baseline_payloadman.payloads:
-            fuzz_result = FuzzResult(raw_seed)
-            fuzz_result.payload_man = baseline_payloadman
-            fuzz_result.is_baseline = True
-            fuzz_result.from_plugin = False
-
-            SeedBuilderHelper.replace_markers(raw_seed, baseline_payloadman)
-
-            return fuzz_result
-        else:
-            return None
 
 
 class FuzzResultDictSeedBuilder:
@@ -172,7 +147,6 @@ class FuzzResBackfeedBuilder:
             backfeed_fuzzresult.from_plugin = True if from_plugin else False
             backfeed_fuzzresult.backfeed_level += 1
             backfeed_fuzzresult.discarded = False
-            backfeed_fuzzresult.is_baseline = False
 
             backfeed_fuzzresult.payload_man = payman_factory.create("empty_payloadman",
                                                                     FuzzWord(url, FuzzWordType.WORD))

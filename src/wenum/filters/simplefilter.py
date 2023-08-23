@@ -4,8 +4,6 @@ from wenum.filters.base_filter import BaseFilter
 import re
 import collections
 
-from ..facade import BASELINE_CODE
-
 
 class FuzzResSimpleFilter(BaseFilter):
     """
@@ -36,16 +34,6 @@ class FuzzResSimpleFilter(BaseFilter):
                 self.hideparams["codes_show"] is not None,
             ]
         )
-
-    def set_baseline(self, res):
-        if BASELINE_CODE in self.hideparams["lines"]:
-            self.hideparams["lines"].append(res.lines)
-        if BASELINE_CODE in self.hideparams["codes"]:
-            self.hideparams["codes"].append(res.code)
-        if BASELINE_CODE in self.hideparams["words"]:
-            self.hideparams["words"].append(res.words)
-        if BASELINE_CODE in self.hideparams["chars"]:
-            self.hideparams["chars"].append(res.chars)
 
     def is_visible(self, res):
         if self.hideparams["codes_show"] is None:

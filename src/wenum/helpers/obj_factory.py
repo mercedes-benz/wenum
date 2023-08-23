@@ -55,7 +55,8 @@ class ObjectFactory:
 
 class SeedBuilderHelper:
     FUZZ_MARKERS_REGEX = re.compile(
-        r"(?P<full_marker>(?P<word>FUZ(?P<index>\d)*Z)(?P<nonfuzz_marker>(?:\[(?P<field>.*?)\])?(?P<full_bl>\{(?P<bl_value>.*?)\})?))"
+        #TODO field value is probably irrelevant. Should be phased out after verifying
+        r"(?P<full_marker>(?P<word>FUZ(?P<index>\d)*Z)(?P<nonfuzz_marker>(?:\[(?P<field>.*?)\])?))"
     )
     REQ_ATTR = ["raw_request", "scheme", "method", "auth.credentials"]
 
@@ -72,11 +73,6 @@ class SeedBuilderHelper:
         for text in [rgetattr(fuzz_request, field) for field in SeedBuilderHelper.REQ_ATTR]:
             marker_dict_list += SeedBuilderHelper._get_markers(text)
 
-        # validate
-        if len({bd["bl_value"] is None for bd in marker_dict_list}) > 1:
-            raise FuzzExceptBadOptions(
-                "You must supply a baseline value per FUZZ word."
-            )
         return marker_dict_list
 
     @staticmethod
@@ -95,22 +91,9 @@ class SeedBuilderHelper:
                     rsetattr(freq, field, new_value, None)
 
     @staticmethod
-    def remove_baseline_markers(freq, markers):
-        SeedBuilderHelper._remove_markers(freq, markers, "full_bl")
-        return freq
-
-    @staticmethod
     def remove_nonfuzz_markers(freq, markers):
         SeedBuilderHelper._remove_markers(markers, "nonfuzz_marker")
         return freq
-
-    # Not working due to reqresp internals
-    # def replace_markers(self, seed, fpm):
-    #     for payload in fpm.get_payloads():
-    #         for field in self.REQ_ATTR:
-    #             old_value = rgetattr(seed, field)
-    #             new_value = old_value.replace(payload.marker, payload.value)
-    #             rsetattr(seed, field, new_value , None)
 
     @staticmethod
     def replace_markers(freq: FuzzRequest, fpm: FPayloadManager):

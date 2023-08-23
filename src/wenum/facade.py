@@ -10,7 +10,6 @@ import os
 
 
 ERROR_CODE = -1
-BASELINE_CODE = -2
 
 
 class Settings(SettingsBase):

@@ -8,7 +8,6 @@ class PayManFactory(ObjectFactory):
         ObjectFactory.__init__(
             self,
             {
-                "payloadman_from_baseline": BaselinePayloadManBuilder(),
                 "payloadman_from_request": FuzzReqPayloadManBuilder(),
                 "empty_payloadman": OnePayloadManBuilder(),
             },
@@ -35,20 +34,6 @@ class OnePayloadManBuilder:
         fpm.add(
             {"full_marker": None, "word": None, "index": None, "field": None}, content
         )
-
-        return fpm
-
-
-class BaselinePayloadManBuilder:
-    def __call__(self, fuzz_request):
-        fpm = FPayloadManager()
-
-        for payload_dict in [
-            pdict
-            for pdict in SeedBuilderHelper.get_marker_dict(fuzz_request)
-            if pdict["bl_value"] is not None
-        ]:
-            fpm.add(payload_dict, FuzzWord(payload_dict["bl_value"], FuzzWordType.WORD), True)
 
         return fpm
 
