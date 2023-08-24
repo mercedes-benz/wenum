@@ -21,7 +21,7 @@ from .ui.console.common import (
 )
 from .ui.console.clparser import CLParser
 
-from .fuzzobjects import FuzzWordType, FuzzStats
+from .fuzzobjects import FuzzStats
 
 
 def main():

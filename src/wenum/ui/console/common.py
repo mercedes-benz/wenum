@@ -78,7 +78,7 @@ Advanced options:
 \t--recipe <filename>       : Reads options from a recipe. Repeat for various recipes.
 \t--dry-run                 : Test run without actually making any HTTP request.
 \t--limit-requests          : Limit recursions. Once 20000 requests are sent, recursions will be deactivated
-\t--ip host:port            : Specify an IP to connect to instead of the URL's host in the format ip:port
+\t--ip host:port            : Specify an IP to connect to instead of relying on the DNS response for the URL's host. Format ip:port. This can help if you want to force connecting to a specific IP and still present a host name in the SNI, which will remain the URL's host.
 \t-Z                        : Disable Scan mode (Connection errors will cause the script to exit).
 \t--req-delay N             : Sets the maximum time in seconds the request is allowed to take (CURLOPT_TIMEOUT). Default 90.
 \t--conn-delay N            : Sets the maximum time in seconds the connection phase to the server to take (CURLOPT_CONNECTTIMEOUT). Default 90.
