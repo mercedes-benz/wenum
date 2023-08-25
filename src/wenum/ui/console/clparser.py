@@ -25,7 +25,7 @@ long_opts = [
     "ip=",
     "filter-help",
     "recipe=",
-    "dump-recipe=",
+    "dump-config=",
     "req-delay=",
     "conn-delay=",
     "sc=",
@@ -74,23 +74,24 @@ def parse_args():
     parser.add_argument("-n", "--noninteractive", action="store_true",
                         help="Disable runtime interactions.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose information in CLI output.")
-    parser.add_argument("-o", "--output", help="Store results in the specified output file.")
-    parser.add_argument("-f", "--output-format", help="Set the format of the output file.", choices=["json", "html"], default="json", nargs="2")#TODO iirc nmap implemented this nicely. Check
+    parser.add_argument("-o", "--output", help="Store results in the specified output file.")#TODO Restructure printers
+    parser.add_argument("-f", "--output-format", help="Set the format of the output file.", choices=["json", "html"], default="json", nargs="2")#TODO iirc nmap implemented this nicely. Check and reimplement html output btw
     parser.add_argument("-l", "--debug-log", help="Save runtime information to a file.")
     parser.add_argument("-p", "--proxy", help="Proxy requests. Use format 'protocol://ip:port'. "
                                               "Protocols SOCKS4, SOCKS5 and HTTP are supported.")
-    parser.add_argument("-P", "--replay-proxy", help="Send requests that were not filtered through the specified proxy. Format and conditions match -p.")#TODO implement
-    parser.add_argument("-t", "--threads", type=int, help="Modify the number of concurrent \"threads\",/connections", default=40)
-    parser.add_argument("-s", "--sleep", type=int, help="Wait specified seconds between requests.", default=0)
+    #parser.add_argument("-P", "--replay-proxy", help="Send requests that were not filtered through the specified proxy. Format and conditions match -p.")#TODO implement
+    parser.add_argument("-t", "--threads", type=int, help="Modify the number of concurrent \"threads\",/connections for requests", default=40)
+    parser.add_argument("--plugin-executors", type=int, help="Modify the amount of threads used for concurrent execution of plugins.", default=3)#TODO implement
+    parser.add_argument("-s", "--sleep", type=float, help="Wait supplied seconds between requests.", default=0)
     parser.add_argument("-L", "--location", action="store_true", help="Follow redirections by sending an additional request to the redirection URL.")
     parser.add_argument("-R", "--recursion", type=int, help="Enable recursive path discovery by specifying a maximum depth.", default=0)
     parser.add_argument("-r", "--plugin-recursion", type=int, help="Adjust the max depth for recursions originating from plugins. Matches --recursion by default.")
-    parser.add_argument("-K", "--config", help="Specify a custom config location. By default read from ~/.wenum/wenum.conf")#TODO implement
+    #parser.add_argument("-K", "--config", help="Read config from specified path. By default read from XDG_CONFIG_HOME ~/.config/wenum/wenum-config.toml")#TODO implement
     parser.add_argument("-X", "--method", help="Change the HTTP method used for requests.", default="GET")
-    parser.add_argument("-d", "--data", help="Use POST data (ex: \"id=FUZZ&catalogue=1\")") #TODO What happens without -X POST?
-    parser.add_argument("-H", "--header", help="Specify a header, e.g. 'User-Agent: wenum', separated by colon. Multiple flags accepted.") #TODO Separation with colons functional?
-    parser.add_argument("-b", "--cookie", help="Set a specific cookie for the request in the form QWE. Multiple flags accepted.")
-    parser.add_argument("-e", "--stop-errors", action="store_true", help="Stop when 10 errors were detected")#TODO Implement
+    parser.add_argument("-d", "--data", help="Use POST method with supplied data (e.g. \"id=FUZZ&catalogue=1\"). Method can be overridden with -X.")
+    parser.add_argument("-H", "--header", help="Add/modify a header, e.g. \"User-Agent: Changed\". Multiple flags accepted.")
+    parser.add_argument("-b", "--cookie", help="Add cookies, e.g. \"Cookie1=abc; Cookie2=def\".")
+    #parser.add_argument("-e", "--stop-errors", action="store_true", help="Stop when 10 errors were detected")#TODO Implement
     parser.add_argument("-E", "--stop-error", action="store_true", help="Stop on any connection error.")
     parser.add_argument("--hc", help="Hide responses matching the supplied comma-separated codes.")
     parser.add_argument("--hl", help="Hide responses matching the supplied comma-separated lines.")
@@ -107,17 +108,17 @@ def parse_args():
     parser.add_argument("--filter-help", action="store_true", help="Show the filter language specification.")
     parser.add_argument("--hard-filter", action="store_true", help="Don't only hide the responses, but also prevent post processing of them (e.g. sending to plugins).")
     parser.add_argument("--auto-filter", action="store_true", help="Filter automatically during runtime. If a response occurs too often, it will get filtered out.")
-    parser.add_argument("--dump-recipe", action="store_true", help="Print specified options in a dedicated format that can later be imported.")
-    parser.add_argument("--recipe", help="Reads options from a recipe. Repeat for various recipes.") #TODO Remove repetition option. This seems sounds niche + complexity causing buggy states
+    parser.add_argument("--dump-config", help="Print specified options to file that can later be imported.")
+    parser.add_argument("--recipe", help="Reads options from a config. Repeat for various recipes.") #TODO Remove repetition option. Fuse --config and make config toml format
     parser.add_argument("--dry-run", help="Test run without actually making any HTTP request.")
     parser.add_argument("--limit-requests", type=int, help="Limit recursions. Once specified amount of requests are sent, recursions will be deactivated", default=0)
     parser.add_argument("--ip", help="Specify an IP to connect to. Format ip:port. This can help if you want to force connecting to a specific IP and still present a host name in the SNI, which will remain the URL's host.")#TODO Change from --ip to --sni, which allows for same featureset and feels less convoluted next to --url
-    parser.add_argument("--request‐timeout", type=int, help="Change the maximum seconds the request is allowed to take.", default=30)
+    parser.add_argument("--request‐timeout", type=int, help="Change the maximum seconds the request is allowed to take.", default=20)
     parser.add_argument("--domain-scope", action="store_true", help="Base the scope check on the domain name instead of IP.")
     parser.add_argument("--list-plugins", help="List all plugins and categories")
     parser.add_argument("--plugins", help="Plugins to be run as a comma separated list of plugin-files or plugin-categories")
-    parser.add_argument("--plugin-args", help="Provide arguments to scripts. e.g. --plugin-args grep.regex=\"<A href=\\\"(.*?)\\\">\"", default=30)#TODO Maybe remove? Really no plugin utilizes this except for regex.py, and I dont know if they ever will
-    parser.add_argument("-i", "--iterator", help="Modify the iterator used for combining wordlists.", default="product", choices="")#TODO Find out choices
+    parser.add_argument("--plugin-args", help="Provide arguments to scripts. e.g. --plugin-args grep.regex=\"<A href=\\\"(.*?)\\\">\"")#TODO Maybe remove? Really no plugin utilizes this except for regex.py, and I dont know if they ever will
+    parser.add_argument("-i", "--iterator", help="Modify the iterator used for combining wordlists.", default="product", choices="")#TODO Find out choices, restructure iterators
     parser.add_argument("--version", action="store_true", help="Print version and exit.")
 
 
@@ -270,7 +271,7 @@ class CLParser:
 
             if "--cachefile" in optsd:
                 options.cache.load_cache_from_file(options.data["cachefile"])
-            if "--dump-recipe" in optsd:
+            if "--dump-config" in optsd:
                 print(exec_banner)
 
                 for error_msg in options.validate():
@@ -278,8 +279,8 @@ class CLParser:
 
                 print("")
 
-                options.export_to_file(optsd["--dump-recipe"][0])
-                print("Recipe written to %s." % (optsd["--dump-recipe"][0],))
+                options.export_to_file(optsd["--dump-config"][0])
+                print("Recipe written to %s." % (optsd["--dump-config"][0],))
                 sys.exit(0)
 
             return options

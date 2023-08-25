@@ -14,7 +14,7 @@ ERROR_CODE = -1
 
 class Settings(SettingsBase):
     def get_config_file(self):
-        config_file = "wenum.ini"
+        config_file = "wenum-config.toml"
 
         config = os.path.join(get_config_dir(check=False), config_file)
         legacy_config = os.path.join(get_home(check=False), config_file)

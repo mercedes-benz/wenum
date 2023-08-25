@@ -73,7 +73,7 @@ all_options = options + """
 Advanced options:
 
 \t--filter-help             : Filter language specification
-\t--dump-recipe <filename>  : Prints specified options in dedicated format that can later be imported
+\t--dump-config <filename>  : Prints specified options in dedicated format that can later be imported
 \t--recipe <filename>       : Reads options from a recipe. Repeat for various recipes.
 \t--dry-run                 : Test run without actually making any HTTP request.
 \t--limit-requests          : Limit recursions. Once 20000 requests are sent, recursions will be deactivated
