@@ -118,7 +118,7 @@ def parse_args():
     parser.add_argument("--list-plugins", help="List all plugins and categories")#TODO implement, though maybe this falls off with the info option
     parser.add_argument("--plugins", help="Plugins to be run as a comma separated list of plugin-files or plugin-categories")
     parser.add_argument("--plugin-args", help="Provide arguments to scripts. e.g. --plugin-args grep.regex=\"<A href=\\\"(.*?)\\\">\"")#TODO Maybe remove? Really no plugin utilizes this except for regex.py, and I dont know if they ever will
-    parser.add_argument("-i", "--iterator", help="Modify the iterator used for combining wordlists.", default="product", choices=["product", "zip", "chain"])#TODO Find out choices, restructure iterators
+    parser.add_argument("-i", "--iterator", help="Modify the iterator used for combining wordlists.", default="product", choices=["product", "zip", "chain"])
     parser.add_argument("--info", help="Print information about the specified topic and exit.", choices=["plugins", "iterators", "filter"])#TODO implement, and this feels like a good positional argument. Why?
     parser.add_argument("--version", action="store_true", help="Print version and exit.")
 

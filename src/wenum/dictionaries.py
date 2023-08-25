@@ -3,21 +3,7 @@ import logging
 from .exception import FuzzExceptNoPluginError, FuzzExceptBadOptions
 from .facade import Facade
 from .fuzzobjects import FuzzWord, FuzzWordType
-
-
-class BaseIterator:
-    def count(self):
-        raise NotImplementedError
-
-    def width(self):
-        raise NotImplementedError
-
-    def payloads(self):
-        raise NotImplementedError
-
-    def cleanup(self):
-        for payload in self.payloads():
-            payload.close()
+from .iterators import BaseIterator
 
 
 class BaseDictionary:

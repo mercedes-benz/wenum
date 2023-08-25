@@ -23,6 +23,7 @@ from .externals.reqresp.cache import HttpCache
 
 from collections import defaultdict, UserDict
 
+from .printers import JSON
 import json
 
 # The priority moves in steps of 10 to allow a buffer zone for future finegrained control. This way, one group of
@@ -319,7 +320,7 @@ class FuzzSession(UserDict):
                 "Bad options: Printer must be specified in the form of ('filename', 'printer')")
 
         if filename:
-            self.data["compiled_printer"] = Facade().printers.get_plugin("JSON")(filename)
+            self.data["compiled_printer"] = JSON(filename)
 
         try:
             for filter_option in ["hc", "hw", "hl", "hh", "sc", "sw", "sl", "sh"]:

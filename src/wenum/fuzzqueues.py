@@ -12,7 +12,8 @@ from .plugin_api.static_data import head_extensions
 
 if TYPE_CHECKING:
     from wenum.options import FuzzSession
-    from wenum.plugin_api.base import BasePlugin, BasePrinter
+    from wenum.plugin_api.base import BasePlugin
+    from wenum.printers import BasePrinter
     from wenum.externals.reqresp.cache import HttpCache
 import time
 from threading import Thread, Event

@@ -8,17 +8,14 @@ from wenum.ui.console.common import Term, UncolouredTerm
 if TYPE_CHECKING:
     from wenum.options import FuzzSession
     from queue import Queue
-from wenum.fuzzobjects import FuzzPlugin, FuzzResult, FuzzStats
-from wenum.facade import Facade
+from wenum.fuzzobjects import FuzzPlugin, FuzzResult
 from wenum.exception import (
-    FuzzExceptBadFile,
     FuzzExceptBadOptions,
     FuzzExceptPluginError,
 )
 from wenum.factories.plugin_factory import plugin_factory
 from wenum.externals.reqresp.cache import HttpCache
 
-import sys
 from abc import abstractmethod
 from distutils import util
 
@@ -130,45 +127,3 @@ class BasePlugin:
         return bool(util.strtobool(value))
 
 
-class BasePrinter:
-    def __init__(self, output):
-        self.outputfile_handle = None
-        # List containing every result information
-        self.result_list = []
-        if output:
-            try:
-                self.outputfile_handle = open(output, "w")
-            except IOError as e:
-                raise FuzzExceptBadFile("Error opening file. %s" % str(e))
-        else:
-            self.outputfile_handle = sys.stdout
-
-        self.verbose = Facade().printers.kbase["verbose"]
-
-    @abstractmethod
-    def header(self, summary: FuzzStats):
-        """
-        Print at the beginning of the file
-        """
-        raise FuzzExceptPluginError("Method header not implemented")
-
-    @abstractmethod
-    def footer(self, summary: FuzzStats):
-        """
-        Print at the end of the file. Will also be called when runtime is done
-        """
-        raise FuzzExceptPluginError("Method footer not implemented")
-
-    @abstractmethod
-    def update_results(self, fuzz_result: FuzzResult, stats: FuzzStats):
-        """
-        Update the result list and return result information (response of request).
-        """
-        raise FuzzExceptPluginError("Method result not implemented")
-
-    @abstractmethod
-    def print_to_file(self, data_to_write):
-        """
-        Overwrite file contents with data
-        """
-        raise FuzzExceptPluginError("Method result not implemented")
