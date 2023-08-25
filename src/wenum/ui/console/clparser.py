@@ -38,9 +38,6 @@ long_opts = [
     "hl=",
     "hw=",
     "hs=",
-    "ntlm=",
-    "basic=",
-    "digest=",
     "script-help=",
     "script=",
     "script-args=",
@@ -93,24 +90,23 @@ def parse_args():
     parser.add_argument("-d", "--data", help="Use POST data (ex: \"id=FUZZ&catalogue=1\")") #TODO What happens without -X POST?
     parser.add_argument("-H", "--header", help="Specify a header, e.g. 'User-Agent: wenum', separated by colon. Multiple flags accepted.") #TODO Separation with colons functional?
     parser.add_argument("-b", "--cookie", help="Set a specific cookie for the request in the form QWE. Multiple flags accepted.")
-    parser.add_argument("--basic") #TODO Kill this option throughout the source code
     parser.add_argument("-e", "--stop-errors", action="store_true", help="Stop when 10 errors were detected")#TODO Implement
     parser.add_argument("-E", "--stop-error", action="store_true", help="Stop on any connection error.")
-    parser.add_argument("--hc", help="Hide responses with the supplied comma-separated codes.")
-    parser.add_argument("--hl", help="Hide responses with the supplied comma-separated lines.")
-    parser.add_argument("--hw", help="Hide responses with the supplied comma-separated words.")
-    parser.add_argument("--hs", help="Hide responses with the supplied comma-separated sizes/chars.")
-    parser.add_argument("--hr", help="Hide responses with the supplied regex.")
-    parser.add_argument("--sc", help="Show responses with the supplied comma-separated codes.")
-    parser.add_argument("--sl", help="Show responses with the supplied comma-separated lines.")
-    parser.add_argument("--sw", help="Show responses with the supplied comma-separated words.")
-    parser.add_argument("--ss", help="Show responses with the supplied comma-separated sizes/chars.")
-    parser.add_argument("--sr", help="Show responses with the supplied regex.")
+    parser.add_argument("--hc", help="Hide responses matching the supplied comma-separated codes.")
+    parser.add_argument("--hl", help="Hide responses matching the supplied comma-separated lines.")
+    parser.add_argument("--hw", help="Hide responses matching the supplied comma-separated words.")
+    parser.add_argument("--hs", help="Hide responses matching the supplied comma-separated sizes/chars.")
+    parser.add_argument("--hr", help="Hide responses matching the supplied regex.")
+    parser.add_argument("--sc", help="Show responses matching the supplied comma-separated codes.")
+    parser.add_argument("--sl", help="Show responses matching the supplied comma-separated lines.")
+    parser.add_argument("--sw", help="Show responses matching the supplied comma-separated words.")
+    parser.add_argument("--ss", help="Show responses matching the supplied comma-separated sizes/chars.")
+    parser.add_argument("--sr", help="Show responses matching the supplied regex.")
     parser.add_argument("--filter", help="Show/hide responses using the supplied regex.")
-    parser.add_argument("--hard-filter", action="store_true", help="Don't only hide the responses, but also prevent post processing of them (e.g. sending to plugins).")
-    parser.add_argument("--auto-filter", action="store_true", help="Filter automatically during runtime. If a response occurs too often, it will get filtered out.")
     parser.add_argument("--pre-filter", help="Filter items before fuzzing using the specified expression. Repeat for concatenating filters.")#TODO Remove repetition, unnecessary complexity?
     parser.add_argument("--filter-help", action="store_true", help="Show the filter language specification.")
+    parser.add_argument("--hard-filter", action="store_true", help="Don't only hide the responses, but also prevent post processing of them (e.g. sending to plugins).")
+    parser.add_argument("--auto-filter", action="store_true", help="Filter automatically during runtime. If a response occurs too often, it will get filtered out.")
     parser.add_argument("--dump-recipe", action="store_true", help="Print specified options in a dedicated format that can later be imported.")
     parser.add_argument("--recipe", help="Reads options from a recipe. Repeat for various recipes.") #TODO Remove repetition option. This seems sounds niche + complexity causing buggy states
     parser.add_argument("--dry-run", help="Test run without actually making any HTTP request.")
@@ -121,7 +117,7 @@ def parse_args():
     parser.add_argument("--list-plugins", help="List all plugins and categories")
     parser.add_argument("--plugins", help="Plugins to be run as a comma separated list of plugin-files or plugin-categories")
     parser.add_argument("--plugin-args", help="Provide arguments to scripts. e.g. --plugin-args grep.regex=\"<A href=\\\"(.*?)\\\">\"", default=30)#TODO Maybe remove? Really no plugin utilizes this except for regex.py, and I dont know if they ever will
-    parser.add_argument("-i", "--iterator", help="Specify an iterator for combining wordlists", default="product", choices="")#TODO Find out choices
+    parser.add_argument("-i", "--iterator", help="Modify the iterator used for combining wordlists.", default="product", choices="")#TODO Find out choices
     parser.add_argument("--version", action="store_true", help="Print version and exit.")
 
 
@@ -463,15 +459,6 @@ class CLParser:
 
         if "-X" in optsd:
             options["method"] = optsd["-X"][0]
-
-        if "--basic" in optsd:
-            options["auth"] = {"method": "basic", "credentials": optsd["--basic"][0]}
-
-        if "--digest" in optsd:
-            options["auth"] = {"method": "digest", "credentials": optsd["--digest"][0]}
-
-        if "--ntlm" in optsd:
-            options["auth"] = {"method": "ntlm", "credentials": optsd["--ntlm"][0]}
 
         if "--ip" in optsd:
             splitted = optsd["--ip"][0].partition(":")

@@ -242,19 +242,6 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
         self._request.response.code = int(c)
 
     @property
-    def auth(self) -> DotDict:
-        method, creds = self._request.get_auth()
-
-        return DotDict({"method": method, "credentials": creds})
-
-    @auth.setter
-    def auth(self, creds_dict):
-        self._request.set_auth(creds_dict["method"], creds_dict["credentials"])
-        method, creds = self._request.get_auth()
-
-        return DotDict({"method": method, "credentials": creds})
-
-    @property
     def reqtime(self):
         return self._request.totaltime
 
@@ -307,9 +294,6 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
 
         # headers must be parsed first as they might affect how reqresp parases other params
         self.headers.request = dict(options["headers"])
-
-        if options["auth"].get("method") is not None:
-            self.auth = options["auth"]
 
         if options["postdata"] is not None:
             self.params.post = options["postdata"]

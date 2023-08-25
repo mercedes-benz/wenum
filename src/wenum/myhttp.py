@@ -35,7 +35,6 @@ MAX_AGE = datetime.datetime.now(pytz.utc) - datetime.timedelta(days=30)
 
 
 class HttpPool:
-    HTTPAUTH_BASIC, HTTPAUTH_NTLM, HTTPAUTH_DIGEST = ("basic", "ntlm", "digest")
     newid = itertools.count(0)
 
     def __init__(self, options):

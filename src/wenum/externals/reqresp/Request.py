@@ -131,14 +131,6 @@ class Request:
         if variables:
             self.__variablesGET.parseUrlEncoded(variables)
 
-    # ############# Authentication ###########################
-    def set_auth(self, method, string):
-        self._authMethod = method
-        self._userpass = string
-
-    def get_auth(self):
-        return self._authMethod, self._userpass
-
     def set_variable_post(self, key, value):
         v = self._variablesPOST.getVariable(key)
         v.update(value)

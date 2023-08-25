@@ -23,17 +23,7 @@ class ReqRespRequestFactory:
             pycurl.URL, convert_to_unicode(fuzz_request._request.complete_url)
         )
 
-        authMethod, userpass = fuzz_request._request.get_auth()
-        if authMethod or userpass:
-            if authMethod == "basic":
-                pycurl_c.setopt(pycurl.HTTPAUTH, pycurl.HTTPAUTH_BASIC)
-            elif authMethod == "ntlm":
-                pycurl_c.setopt(pycurl.HTTPAUTH, pycurl.HTTPAUTH_NTLM)
-            elif authMethod == "digest":
-                pycurl_c.setopt(pycurl.HTTPAUTH, pycurl.HTTPAUTH_DIGEST)
-            pycurl_c.setopt(pycurl.USERPWD, convert_to_unicode(userpass))
-        else:
-            pycurl_c.unsetopt(pycurl.USERPWD)
+        pycurl_c.unsetopt(pycurl.USERPWD)
 
         pycurl_c.setopt(
             pycurl.HTTPHEADER, convert_to_unicode(fuzz_request._request.get_headers())
