@@ -69,13 +69,13 @@ def parse_args():
     parser = argparse.ArgumentParser(prog="wenum", description="A Web Fuzzer. The options follow the curl schema where possible.", epilog="Examples")
     parser.add_argument("-u", "--url", help="Specify a URL for the request.")
     parser.add_argument("-w", "--wordlist", help="Specify a wordlist file.")
-    parser.add_argument("-c", "--colourless", action="store_true", help="Disable colours in CLI output.")
+    parser.add_argument("-c", "--colorless", action="store_true", help="Disable colours in CLI output.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Disable progress messages in CLI output.")
     parser.add_argument("-n", "--noninteractive", action="store_true",
                         help="Disable runtime interactions.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose information in CLI output.")
-    parser.add_argument("-o", "--output", help="Store results in the specified output file.")#TODO Restructure printers
-    parser.add_argument("-f", "--output-format", help="Set the format of the output file.", choices=["json", "html"], default="json", nargs="2")#TODO iirc nmap implemented this nicely. Check and reimplement html output btw, with regards to possibility to use multiple outputs
+    parser.add_argument("-o", "--output", help="Store results in the specified output file.")
+    parser.add_argument("-f", "--output-format", help="Set the format of the output file. Note: Currently only json, html will come.", choices=["json", "html"], default="json", nargs="2")#TODO iirc nmap implemented this nicely. Check and reimplement html output btw, with regards to possibility to use multiple outputs
     parser.add_argument("-l", "--debug-log", help="Save runtime information to a file.")
     parser.add_argument("-p", "--proxy", help="Proxy requests. Use format 'protocol://ip:port'. "
                                               "Protocols SOCKS4, SOCKS5 and HTTP are supported.")
@@ -110,6 +110,7 @@ def parse_args():
     parser.add_argument("--auto-filter", action="store_true", help="Filter automatically during runtime. If a response occurs too often, it will get filtered out.")
     parser.add_argument("--dump-config", help="Print specified options to file that can later be imported.")
     parser.add_argument("--recipe", help="Reads options from a config. Repeat for various recipes.") #TODO Remove repetition option. Fuse --config and make config toml format
+    #parser.add_argument("--cache-file", help="Read in a cache file from a previous run, and post process the results without sending the requests.")#TODO implement
     parser.add_argument("--dry-run", help="Test run without actually making any HTTP request.")
     parser.add_argument("--limit-requests", type=int, help="Limit recursions. Once specified amount of requests are sent, recursions will be deactivated", default=0)
     parser.add_argument("--ip", help="Specify an IP to connect to. Format ip:port. This can help if you want to force connecting to a specific IP and still present a host name in the SNI, which will remain the URL's host.")#TODO Change from --ip to --sni, which allows for same featureset and feels less convoluted next to --url
