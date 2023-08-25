@@ -26,6 +26,7 @@ class Settings(SettingsBase):
         return os.path.join(get_config_dir(check=True), config_file)
 
     def set_defaults(self):
+        """Creating a default config"""
         return dict(
             plugins=[("bing_apikey", ""), ("shodan_apikey", "")],
             kbase=[

@@ -1,14 +1,11 @@
-from itertools import zip_longest
-
 from ..helpers.obj_factory import ObjectFactory
 from ..exception import FuzzExceptBadOptions
-from ..facade import Facade
 from wenum.wordlist_handler import File
 from ..dictionaries import (
     TupleIt,
     WrapperIt,
-    EncodeIt,
 )
+from wenum.iterators import Zip, Product, Chain
 
 
 class DictionaryFactory(ObjectFactory):
@@ -39,9 +36,15 @@ class BaseDictioBuilder:
         if len(selected_dic) == 1:
             return TupleIt(selected_dic[0])
         elif options["iterator"]:
-            return Facade().iterators.get_plugin(options["iterator"])(*selected_dic)
+            if options["iterator"] == "zip":
+                return Zip(*selected_dic)
+            elif options["iterator"] == "chain":
+                return Chain(*selected_dic)
+            # Using product as the fallback, as it's the most common (and therefore default) anyways
+            else:
+                return Product(*selected_dic)
         else:
-            return Facade().iterators.get_plugin("product")(*selected_dic)
+            return Product(*selected_dic)
 
 
 class DictioFromIterableBuilder(BaseDictioBuilder):

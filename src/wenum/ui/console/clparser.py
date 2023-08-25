@@ -75,13 +75,13 @@ def parse_args():
                         help="Disable runtime interactions.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose information in CLI output.")
     parser.add_argument("-o", "--output", help="Store results in the specified output file.")#TODO Restructure printers
-    parser.add_argument("-f", "--output-format", help="Set the format of the output file.", choices=["json", "html"], default="json", nargs="2")#TODO iirc nmap implemented this nicely. Check and reimplement html output btw
+    parser.add_argument("-f", "--output-format", help="Set the format of the output file.", choices=["json", "html"], default="json", nargs="2")#TODO iirc nmap implemented this nicely. Check and reimplement html output btw, with regards to possibility to use multiple outputs
     parser.add_argument("-l", "--debug-log", help="Save runtime information to a file.")
     parser.add_argument("-p", "--proxy", help="Proxy requests. Use format 'protocol://ip:port'. "
                                               "Protocols SOCKS4, SOCKS5 and HTTP are supported.")
     #parser.add_argument("-P", "--replay-proxy", help="Send requests that were not filtered through the specified proxy. Format and conditions match -p.")#TODO implement
     parser.add_argument("-t", "--threads", type=int, help="Modify the number of concurrent \"threads\",/connections for requests", default=40)
-    parser.add_argument("--plugin-executors", type=int, help="Modify the amount of threads used for concurrent execution of plugins.", default=3)#TODO implement
+    #parser.add_argument("--plugin-executors", type=int, help="Modify the amount of threads used for concurrent execution of plugins.", default=3)#TODO implement
     parser.add_argument("-s", "--sleep", type=float, help="Wait supplied seconds between requests.", default=0)
     parser.add_argument("-L", "--location", action="store_true", help="Follow redirections by sending an additional request to the redirection URL.")
     parser.add_argument("-R", "--recursion", type=int, help="Enable recursive path discovery by specifying a maximum depth.", default=0)
@@ -105,7 +105,7 @@ def parse_args():
     parser.add_argument("--sr", help="Show responses matching the supplied regex.")
     parser.add_argument("--filter", help="Show/hide responses using the supplied regex.")
     parser.add_argument("--pre-filter", help="Filter items before fuzzing using the specified expression. Repeat for concatenating filters.")#TODO Remove repetition, unnecessary complexity?
-    parser.add_argument("--filter-help", action="store_true", help="Show the filter language specification.")
+    parser.add_argument("--filter-help", action="store_true", help="Show the filter language specification.")#TODO May be phased out with the generic info option
     parser.add_argument("--hard-filter", action="store_true", help="Don't only hide the responses, but also prevent post processing of them (e.g. sending to plugins).")
     parser.add_argument("--auto-filter", action="store_true", help="Filter automatically during runtime. If a response occurs too often, it will get filtered out.")
     parser.add_argument("--dump-config", help="Print specified options to file that can later be imported.")
@@ -115,10 +115,11 @@ def parse_args():
     parser.add_argument("--ip", help="Specify an IP to connect to. Format ip:port. This can help if you want to force connecting to a specific IP and still present a host name in the SNI, which will remain the URL's host.")#TODO Change from --ip to --sni, which allows for same featureset and feels less convoluted next to --url
     parser.add_argument("--request‐timeout", type=int, help="Change the maximum seconds the request is allowed to take.", default=20)
     parser.add_argument("--domain-scope", action="store_true", help="Base the scope check on the domain name instead of IP.")
-    parser.add_argument("--list-plugins", help="List all plugins and categories")
+    parser.add_argument("--list-plugins", help="List all plugins and categories")#TODO implement, though maybe this falls off with the info option
     parser.add_argument("--plugins", help="Plugins to be run as a comma separated list of plugin-files or plugin-categories")
     parser.add_argument("--plugin-args", help="Provide arguments to scripts. e.g. --plugin-args grep.regex=\"<A href=\\\"(.*?)\\\">\"")#TODO Maybe remove? Really no plugin utilizes this except for regex.py, and I dont know if they ever will
-    parser.add_argument("-i", "--iterator", help="Modify the iterator used for combining wordlists.", default="product", choices="")#TODO Find out choices, restructure iterators
+    parser.add_argument("-i", "--iterator", help="Modify the iterator used for combining wordlists.", default="product", choices=["product", "zip", "chain"])#TODO Find out choices, restructure iterators
+    parser.add_argument("--info", help="Print information about the specified topic and exit.", choices=["plugins", "iterators", "filter"])#TODO implement, and this feels like a good positional argument. Why?
     parser.add_argument("--version", action="store_true", help="Print version and exit.")
 
 

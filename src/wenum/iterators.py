@@ -1,20 +1,31 @@
-from wenum.externals.moduleman.plugin import moduleman_plugin
-from wenum.dictionaries import BaseIterator
-
 import itertools
 from functools import reduce
+from abc import ABC, abstractmethod
 
 from builtins import zip as builtinzip
 
 
-@moduleman_plugin
-class zip(BaseIterator):
+class BaseIterator(ABC):
+    @abstractmethod
+    def count(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def width(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def payloads(self):
+        raise NotImplementedError
+
+    def cleanup(self):
+        for payload in self.payloads():
+            payload.close()
+
+
+class Zip(BaseIterator):
     name = "zip"
-    author = ("Xavi Mendez (@xmendez)",)
-    version = "0.1"
     summary = "Returns an iterator that aggregates elements from each of the iterables."
-    category = ["default"]
-    priority = 99
 
     def __init__(self, *i):
         self._payload_list = i
@@ -38,14 +49,9 @@ class zip(BaseIterator):
         return self
 
 
-@moduleman_plugin
-class product(BaseIterator):
+class Product(BaseIterator):
     name = "product"
-    author = ("Xavi Mendez (@xmendez)",)
-    version = "0.1"
     summary = "Returns an iterator cartesian product of input iterables."
-    category = ["default"]
-    priority = 99
 
     def __init__(self, *i):
         self._payload_list = i
@@ -69,14 +75,9 @@ class product(BaseIterator):
         return self
 
 
-@moduleman_plugin
-class chain(BaseIterator):
+class Chain(BaseIterator):
     name = "chain"
-    author = ("Xavi Mendez (@xmendez)",)
-    version = "0.1"
     summary = "Returns an iterator returns elements from the first iterable until it is exhausted, then proceeds to the next iterable, until all of the iterables are exhausted."
-    category = ["default"]
-    priority = 99
 
     def __init__(self, *i):
         self._payload_list = i
