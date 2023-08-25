@@ -19,4 +19,4 @@ host="127.0.0.1:8081"
 wenum --interact --hard-filter --script=default,gau,links,sourcemap,robots,sitemap,linkparser,domainpath -p 127.0.0.1:9999:SOCKS5 -R 2 -H 'User-Agent: SOMETHING' -w /usr/share/seclists/Discovery/Web-Content/common.txt --auto-filter --runtime-log -f wenum_out.json --hc 404 -F "https://$host/FUZZ"`
 ```
 
-For a detailed documentation, please refer to the [wiki](https://github.com/WebFuzzForge/wenum/wiki)
+For a detailed documentation, please refer to the [wiki](https://github.com/WebFuzzForge/wenum/wiki).
