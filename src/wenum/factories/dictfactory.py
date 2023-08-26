@@ -13,7 +13,6 @@ class DictionaryFactory(ObjectFactory):
         ObjectFactory.__init__(
             self,
             {
-                "dictio_from_iterable": DictioFromIterableBuilder(),
                 "dictio_from_payload": DictioFromPayloadBuilder(),
                 "dictio_from_options": DictioFromOptions(),
             },
@@ -47,27 +46,12 @@ class BaseDictioBuilder:
             return Product(*selected_dic)
 
 
-class DictioFromIterableBuilder(BaseDictioBuilder):
-    def __call__(self, options):
-        selected_dic = []
-        self._payload_list = []
-
-        for d in [WrapperIt(x) for x in options["dictio"]]:
-            selected_dic.append(d)
-
-        self.validate(options, selected_dic)
-
-        return self.get_dictio(options, selected_dic)
-
-
 class DictioFromPayloadBuilder(BaseDictioBuilder):
     def __call__(self, options):
         selected_dic = []
 
-        for payload in options["payloads"]:
-
-            dictionary = File(payload)
-
+        for wordlist in options.wordlist_list:
+            dictionary = File(wordlist)
             selected_dic.append(dictionary)
 
         self.validate(options, selected_dic)
@@ -76,10 +60,7 @@ class DictioFromPayloadBuilder(BaseDictioBuilder):
 
 class DictioFromOptions(BaseDictioBuilder):
     def __call__(self, options):
-        if options["dictio"]:
-            return DictioFromIterableBuilder()(options)
-        else:
-            return DictioFromPayloadBuilder()(options)
+        return DictioFromPayloadBuilder()(options)
 
 
 dictionary_factory = DictionaryFactory()

@@ -37,7 +37,7 @@ class BasePlugin:
         self.cache = HttpCache()
         self.options: FuzzSession = options
         self.logger = logging.getLogger("runtime_log")
-        self.term = Term() if options["colour"] else UncolouredTerm()
+        self.term = Term(options)
 
         # check mandatory params, assign default values
         for name, default_value, required, description in self.parameters:

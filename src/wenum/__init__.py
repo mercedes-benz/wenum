@@ -1,15 +1,12 @@
 __title__ = "wenum"
-__version__ = "3.1.0"
-__build__ = 0x023000
-__author__ = "Xavier Mendez"
-__license__ = "GPL 2.0"
-__copyright__ = "Copyright 2011-2020 Xavier Mendez"
+__version__ = "0.1"
 
 import logging
 import sys
 
 import warnings
 
+#TODO Refactor this file
 
 # define a logging Handler
 console = logging.StreamHandler()
@@ -48,4 +45,4 @@ except ImportError:
     sys.exit(1)
 
 from .options import FuzzSession
-from .api import fuzz, get_payload, get_payloads, encode, decode, payload, get_session
+from .api import fuzz, encode, decode, payload, get_session

@@ -73,7 +73,7 @@ class FuzzQueue(MyPriorityQueue, Thread, ABC):
         self.stats: FuzzStats = options.get("compiled_stats")
         self.options: FuzzSession = options
         self.logger = logging.getLogger("runtime_log")
-        self.term = Term if options["colour"] else UncolouredTerm
+        self.term = Term(options)
 
         Thread.__init__(self)
         self.name = self.get_name()

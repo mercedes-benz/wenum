@@ -147,32 +147,9 @@ class HttpPool:
         # Bool indicating whether the request should be queued for request again. Useful for exceptions
         requeue = False
 
-        if "cachefile" in self.options.data:
-            cached = self.cache.get_object_from_object_cache(fuzz_result)
-            if cached:
-                cached_fuzzres = cached[0]
-                action = self._discard_cached(cached_fuzzres)
-                if action == 'discard':
-                    fuzz_result.discarded = True
-                    self.pool_map[poolid]["queue"].put((fuzz_result, requeue))
-                elif action == 'queue':
-                    with self.mutex_stats:
-                        self.queued_requests += 1
-                    self.request_queue.put((fuzz_result, poolid))
-                else:
-                    fuzz_result = cached[0]
-                    fuzz_result.plugins_res.clear()
-                    res_copy = copy.deepcopy(fuzz_result)
-                    self.pool_map[poolid]["queue"].put((res_copy, requeue))
-                return
-
-            with self.mutex_stats:
-                self.queued_requests += 1
-            self.request_queue.put((fuzz_result, poolid))
-        else:
-            with self.mutex_stats:
-                self.queued_requests += 1
-            self.request_queue.put((fuzz_result, poolid))
+        with self.mutex_stats:
+            self.queued_requests += 1
+        self.request_queue.put((fuzz_result, poolid))
 
     @staticmethod
     def _discard_cached(fuzzres: FuzzResult) -> str:
@@ -347,6 +324,3 @@ class HttpPool:
             c.close()
             self.curlh_freelist.append(c)
         self.curl_multi.close()
-
-        if "cachefile" in self.options.data:
-            self.cache.save_cache_to_file(self.options.data["cachefile"])

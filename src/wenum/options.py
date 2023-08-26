@@ -4,6 +4,7 @@ from .exception import (
     FuzzExceptBadOptions,
     FuzzExceptBadFile,
 )
+from os.path import isfile
 from .facade import (
     Facade,
     ERROR_CODE,
@@ -33,7 +34,16 @@ PRIORITY_STEP = 10
 
 
 class FuzzSession(UserDict):
-    def __init__(self, **kwargs):
+    def __init__(self, parsed_args=None):
+        print("Tes")
+        self.url = ""
+        self.wordlist_list = []
+        self.colorless = None
+        #TODO this if statement is only temporary, will be necessary soon enough
+        if parsed_args:
+            self.validate_args(parsed_args)
+
+
         self.data: dict = self._defaults()
         self.keys_not_to_dump = [
             "recipe",
@@ -49,17 +59,38 @@ class FuzzSession(UserDict):
             "transport",
         ]
 
-        # recipe must be superseded by options
-        if "recipe" in kwargs and kwargs["recipe"]:
-            for recipe in kwargs["recipe"]:
-                self.import_from_file(recipe)
+        ## recipe must be superseded by options
+        #if "recipe" in kwargs and kwargs["recipe"]:
+        #    for recipe in kwargs["recipe"]:
+        #        self.import_from_file(recipe)
 
-        self.update(kwargs)
+        #self.update(kwargs)
 
         self.cache: HttpCache = HttpCache()
         self.http_pool: Optional[HttpPool] = None
 
         self.stats = FuzzStats()
+
+    def validate_args(self, parsed_args):
+        print(parsed_args)
+        if parsed_args.url is None or "FUZZ" not in parsed_args.url:
+            raise FuzzExceptBadOptions(
+                "Specify the URL either with -u and supply a FUZZ keyword. "
+            )
+        self.url = parsed_args.url
+
+        print("a")
+        print(parsed_args.wordlist)
+        if not parsed_args.wordlist:
+            raise FuzzExceptBadOptions("Bad usage: You must specify a payload.")
+        for wordlist in parsed_args.wordlist:
+            if not isfile(wordlist):
+                raise FuzzExceptBadFile("File does not exist")
+            self.wordlist_list.append(wordlist)
+
+        self.colorless = parsed_args.colorless
+
+
 
     @staticmethod
     def _defaults():
@@ -130,11 +161,6 @@ class FuzzSession(UserDict):
     def validate(self):
         error_list = []
 
-        if self.data["dictio"] and self.data["payloads"]:
-            raise FuzzExceptBadOptions(
-                "Bad usage: Dictio and payloads options are mutually exclusive. Only one could be specified."
-            )
-
         if self.data["rlevel"] > 0 and self.data["transport"] == "dryrun":
             error_list.append(
                 "Bad usage: Recursion cannot work without making any HTTP request."
@@ -144,13 +170,6 @@ class FuzzSession(UserDict):
             error_list.append(
                 "Bad usage: Plugins cannot work without making any HTTP request."
             )
-
-
-        if not self.data["url"]:
-            error_list.append("Bad usage: You must specify an URL.")
-
-        if not self.data["payloads"] and not self.data["dictio"]:
-            error_list.append("Bad usage: You must specify a payload.")
 
         if self.data["hs"] and self.data["ss"]:
             raise FuzzExceptBadOptions(
@@ -262,14 +281,6 @@ class FuzzSession(UserDict):
                 self.http_pool.deregister()
                 self.http_pool = None
 
-    def get_payloads(self, iterator):
-        self.data["dictio"] = iterator
-
-        return self
-
-    def get_payload(self, iterator):
-        return self.get_payloads([iterator])
-
     def __enter__(self):
         self.http_pool = HttpPool(self)
         self.http_pool.register()
@@ -287,9 +298,6 @@ class FuzzSession(UserDict):
 
         for prefilter in self.data["compiled_prefilter"]:
             fuzz_words += prefilter.get_fuzz_words()
-
-        if self.data["url"] == "FUZZ":
-            fuzz_words.append("FUZZ")
 
         return set(fuzz_words)
 

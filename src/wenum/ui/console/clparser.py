@@ -17,7 +17,7 @@ from wenum import __version__ as version
 from .output import table_print
 import argparse
 
-short_opts = "hLAFZX:vcab:e:R:D:d:z:r:f:t:w:H:m:f:s:p:w:u:q:o"
+short_opts = "hLAFZX:vcab:e:R:D:d:z:i:r:o:t:w:H:m:o:s:p:q:w:u"
 long_opts = [
     "ee=",
     "zE=",
@@ -39,24 +39,22 @@ long_opts = [
     "hw=",
     "hs=",
     "script-help=",
-    "script=",
+    "plugins=",
     "script-args=",
     "prefilter=",
     "filter=",
     "interact",
     "hard-filter",
     "auto-filter",
-    "runtime-log",
+    "debug-log",
     "help",
     "version",
     "dry-run",
-    "cachefile=",
     "limit-requests"
 ]
 REPEATABLE_OPTS = [
     "--prefilter",
     "--recipe",
-    "payloads",
     "-w",
     "-b",
     "-H",
@@ -68,15 +66,18 @@ def parse_args():
     """Define all options"""
     parser = argparse.ArgumentParser(prog="wenum", description="A Web Fuzzer. The options follow the curl schema where possible.", epilog="Examples")
     parser.add_argument("-u", "--url", help="Specify a URL for the request.")
-    parser.add_argument("-w", "--wordlist", help="Specify a wordlist file.")
+    # argparse offers a way of directly reading in a file, but that feature seems unstable
+    # (file handle supposedly kept open for the entire runtime?) - see https://bugs.python.org/issue13824
+    # Therefore simply reading in a string and manually checking instead
+    parser.add_argument("-w", "--wordlist", action="append", help="Specify a wordlist file.")
     parser.add_argument("-c", "--colorless", action="store_true", help="Disable colours in CLI output.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Disable progress messages in CLI output.")
     parser.add_argument("-n", "--noninteractive", action="store_true",
                         help="Disable runtime interactions.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose information in CLI output.")
     parser.add_argument("-o", "--output", help="Store results in the specified output file.")
-    parser.add_argument("-f", "--output-format", help="Set the format of the output file. Note: Currently only json, html will come.", choices=["json", "html"], default="json", nargs="2")#TODO iirc nmap implemented this nicely. Check and reimplement html output btw, with regards to possibility to use multiple outputs
-    parser.add_argument("-l", "--debug-log", help="Save runtime information to a file.")
+    parser.add_argument("-f", "--output-format", help="Set the format of the output file. Note: Currently only json, html will come.", choices=["json", "html", "all"], default="json")#TODO Check and reimplement html output
+    parser.add_argument("-l", "--debug-log", action="store_true", help="Save runtime information to a file.")#TODO Change from bool to file name that can be specified
     parser.add_argument("-p", "--proxy", help="Proxy requests. Use format 'protocol://ip:port'. "
                                               "Protocols SOCKS4, SOCKS5 and HTTP are supported.")
     #parser.add_argument("-P", "--replay-proxy", help="Send requests that were not filtered through the specified proxy. Format and conditions match -p.")#TODO implement
@@ -117,11 +118,12 @@ def parse_args():
     parser.add_argument("--request‐timeout", type=int, help="Change the maximum seconds the request is allowed to take.", default=20)
     parser.add_argument("--domain-scope", action="store_true", help="Base the scope check on the domain name instead of IP.")
     parser.add_argument("--list-plugins", help="List all plugins and categories")#TODO implement, though maybe this falls off with the info option
-    parser.add_argument("--plugins", help="Plugins to be run as a comma separated list of plugin-files or plugin-categories")
+    parser.add_argument("--plugins", help="Plugins to be run as a comma separated list of plugin-files or plugin-categories")#TODO add nargs and in future handle that way instead of comma separation. Maybe same with other options with multiple args?
     parser.add_argument("--plugin-args", help="Provide arguments to scripts. e.g. --plugin-args grep.regex=\"<A href=\\\"(.*?)\\\">\"")#TODO Maybe remove? Really no plugin utilizes this except for regex.py, and I dont know if they ever will
     parser.add_argument("-i", "--iterator", help="Modify the iterator used for combining wordlists.", default="product", choices=["product", "zip", "chain"])
     parser.add_argument("--info", help="Print information about the specified topic and exit.", choices=["plugins", "iterators", "filter"])#TODO implement, and this feels like a good positional argument. Why?
     parser.add_argument("--version", action="store_true", help="Print version and exit.")
+    return parser.parse_args()
 
 
 class CLParser:
@@ -193,20 +195,22 @@ class CLParser:
 
     def parse_cl(self) -> FuzzSession:
         # Usage and command line help
+        print("Phewwwwwww")
+
+        arguments = parse_args()
+
         try:
             opts, args = getopt.getopt(self.argv[1:], self.short_opts, self.long_opts)
             optsd = defaultdict(list)
 
             for option, value in opts:
-                if option in ["-w"]:
-                    optsd["payloads"].append(value)
                 optsd[option].append(value)
 
             # Setting the runtime log as early as possible
-            if "--runtime-log" in optsd:
+            if "--debug-log" in optsd:
                 # If an output file is specified, base the name and path on it
-                if "-f" in optsd:
-                    logger_filename = optsd["-f"][0] + ".log"
+                if "-o" in optsd:
+                    logger_filename = optsd["-o"][0] + ".log"
                 else:
                     logger_filename = "wenum_runtime.log"
                 logger = logging.getLogger("runtime_log")
@@ -236,34 +240,20 @@ class CLParser:
             elif len(args) > 1:
                 raise FuzzExceptBadOptions("Too many arguments.")
 
-            options = FuzzSession()
-
-            cli_url = None
-            if "-u" in optsd:
-                if (url is not None and url != "FUZZ") or url == optsd["-u"][0]:
-                    raise FuzzExceptBadOptions(
-                        "Specify the URL either with -u or last argument. If you want to use a full payload, "
-                        "it can only be specified with FUZZ. "
-                    )
-
-                cli_url = optsd["-u"][0]
-
-            if cli_url:
-                url = cli_url
+            options = FuzzSession(arguments)
 
             # check command line options correctness
             self._check_options(optsd)
 
-            # parse options from recipe first
-            if "--recipe" in optsd:
-                for recipe in optsd["--recipe"]:
-                    options.import_from_file(recipe)
+            ## parse options from recipe first
+            #if "--recipe" in optsd:
+            #    for recipe in optsd["--recipe"]:
+            #        options.import_from_file(recipe)
 
             # command line has priority over recipe
 
-            options["payloads"] = optsd["payloads"]
-            if "-m" in optsd:
-                options["iterator"] = optsd["-m"][0]
+            if "-i" in optsd:
+                options["iterator"] = optsd["-i"][0]
 
             self._parse_options(optsd, options)
             self._parse_conn_options(optsd, options)
@@ -271,8 +261,6 @@ class CLParser:
             self._parse_seed(url, optsd, options)
             self._parse_scripts(optsd, options)
 
-            if "--cachefile" in optsd:
-                options.cache.load_cache_from_file(options.data["cachefile"])
             if "--dump-config" in optsd:
                 print(exec_banner)
 
@@ -285,6 +273,7 @@ class CLParser:
                 print("Recipe written to %s." % (optsd["--dump-config"][0],))
                 sys.exit(0)
 
+            print("Phewww")
             return options
         except FuzzException as e:
             self.show_brief_usage()
@@ -373,16 +362,6 @@ class CLParser:
                     "Unknown category. Valid values are: payloads, encoders, iterators, printers or scripts."
                 )
 
-        if "-f" in optsd:
-            if "help" in optsd["-f"]:
-                self.show_plugins_help("printers")
-        if "-o" in optsd:
-            if "help" in optsd["-o"]:
-                self.show_plugins_help("printers")
-        if "-m" in optsd:
-            if "help" in optsd["-m"]:
-                self.show_plugins_help("iterators")
-
     @staticmethod
     def _check_options(optsd):
         # Check for repeated flags
@@ -394,7 +373,7 @@ class CLParser:
             )
 
         # -A and script not allowed at the same time
-        if "--script" in list(optsd.keys()) and [
+        if "--plugins" in list(optsd.keys()) and [
             key for key in optsd.keys() if key in ["-A"]
         ]:
             raise FuzzExceptBadOptions(
@@ -458,7 +437,7 @@ class CLParser:
     @staticmethod
     def _parse_seed(url, optsd, options):
         if url:
-            options["url"] = url
+            options.url = url
 
         if "-X" in optsd:
             options["method"] = optsd["-X"][0]
@@ -496,7 +475,7 @@ class CLParser:
         if "-q" in optsd:
             options["plugin_rlevel"] = int(optsd["-q"][0])
 
-        if "-F" in optsd:
+        if "-L" in optsd:
             options["follow_redirects"] = True
 
     @staticmethod
@@ -529,7 +508,7 @@ class CLParser:
         if "-Z" in optsd:
             conn_options["scanmode"] = False
 
-        if "-o" in optsd:
+        if "--domain-scope" in optsd:
             conn_options["domain_scope"] = True
 
         if "-s" in optsd:
@@ -553,8 +532,8 @@ class CLParser:
         if [key for key in optsd.keys() if key in ["-A"]]:
             options["verbose"] = True
 
-        if "-f" in optsd:
-            vals = optsd["-f"][0].split(",", 1)
+        if "-o" in optsd:
+            vals = optsd["-o"][0].split(",", 1)
 
             if len(vals) == 1:
                 options["printer"] = (vals[0], None)
@@ -570,8 +549,6 @@ class CLParser:
         if "--interact" in optsd:
             options["interactive"] = True
 
-        if "--cachefile" in optsd:
-            options["cachefile"] = optsd['--cachefile'][0]
 
     @staticmethod
     def _parse_scripts(optsd, options):
@@ -585,7 +562,7 @@ class CLParser:
         if "-A" in optsd:
             options["script"] = "default"
 
-        if "--script" in optsd:
+        if "--plugins" in optsd:
             options["script"] = "" if optsd["--script"][0] == "" else optsd["--script"][0]
 
         if "--script-args" in optsd:

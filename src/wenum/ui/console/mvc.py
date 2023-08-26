@@ -95,7 +95,7 @@ class Controller:
         self.view.dispatcher.subscribe(self.on_stats, "s")
         self.view.dispatcher.subscribe(self.on_seeds, "r")
         self.view.dispatcher.subscribe(self.on_debug, "d")
-        self.term = Term() if fuzzer.options.get("colour") else UncolouredTerm()
+        self.term = Term(fuzzer.options)
 
     def on_help(self, **event):
         message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", usage)
@@ -205,7 +205,7 @@ class View:
     def __init__(self, session_options):
         self.last_discarded_result = None
         self.verbose = session_options["verbose"]
-        self.term = Term() if session_options["colour"] else UncolouredTerm()
+        self.term = Term(session_options)
         # Keeps track of the line count of the print for discarded responses (to then overwrite these lines with the
         # next print)
         self.printed_temp_lines = 0
@@ -250,8 +250,7 @@ class View:
         print("=" * (3 * len(max_widths) + sum(max_widths[:-1]) + 10))
         print("")
 
-    @staticmethod
-    def _print_line(columns: list[tuple[str, str]], max_widths: list[int]) -> int:
+    def _print_line(self, columns: list[tuple[str, str]], max_widths: list[int]) -> int:
         """
         Takes columns, which are tuples of message(0) and colour_code(1), and a list of respective widths for
         the columns, prints them and returns the amount of lines printed.
@@ -276,7 +275,7 @@ class View:
             sys.stdout.write(
                 "   ".join(
                     [
-                        colour + str.ljust(str(item), width) + Term.reset
+                        colour + str.ljust(str(item), width) + self.term.reset
                         for (item, width, colour) in zip(
                             column, max_widths, [colour[1] for colour in columns]
                         )

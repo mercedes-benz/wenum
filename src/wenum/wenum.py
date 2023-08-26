@@ -19,7 +19,7 @@ from .ui.console.mvc import Controller, KeyPress
 from .ui.console.common import (
     Term, UncolouredTerm,
 )
-from .ui.console.clparser import CLParser
+from .ui.console.clparser import CLParser, parse_args
 
 from .fuzzobjects import FuzzStats
 
@@ -36,9 +36,16 @@ def main():
 
     try:
         # parse command line
+        #arguments = parse_args()
+        #print(arguments)
         session_options: FuzzSession = CLParser(sys.argv).parse_cl().compile()
+        print("Phew")
 
         fuzzer = Fuzzer(session_options)
+        print(session_options.wordlist_list)
+        print("Test")
+        print(session_options["url"])
+        print("Options ready")
 
         if session_options["interactive"]:
             # initialise controller
@@ -53,10 +60,7 @@ def main():
                 Controller(fuzzer, keypress)
                 keypress.start()
 
-        if session_options["colour"]:
-            term = Term()
-        else:
-            term = UncolouredTerm()
+        term = Term(session_options)
 
         logger = logging.getLogger("runtime_log")
         # Logging startup options on startup

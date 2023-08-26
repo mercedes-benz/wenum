@@ -116,7 +116,7 @@ class SeedQueue(FuzzQueue):
         Since on startup there is always a recursion on the base FUZZ dir, it needs to be added to the cache
         to avoid e.g. plugins to enqueue a second recursion on it
         """
-        key = self.options["url"].replace("FUZZ", "")
+        key = self.options.url.replace("FUZZ", "")
         self.options.cache.check_cache(url_key=key, cache_type="recursion")
 
     def send_dictionary(self):

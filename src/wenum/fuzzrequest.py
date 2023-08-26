@@ -288,9 +288,9 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
     # methods wenum needs for substituting payloads and building dictionaries
 
     def update_from_options(self, options):
-        if options["url"] != "FUZZ":
-            self.url = options["url"]
-            self.fuzzing_url = options["url"]
+        if options.url != "FUZZ":
+            self.url = options.url
+            self.fuzzing_url = options.url
 
         # headers must be parsed first as they might affect how reqresp parases other params
         self.headers.request = dict(options["headers"])

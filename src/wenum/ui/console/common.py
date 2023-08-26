@@ -54,7 +54,7 @@ Options:
 \t
 \t-u url                    : Specify a URL for the request.
 \t-f filename               : Store results in the output file as JSON.
-\t--runtime-log             : Save runtime information to a file, such as which seeds have been thrown.
+\t--debug-log             : Save runtime information to a file, such as which seeds have been thrown.
 \t-w wordlist               : Specify a wordlist file.
 \t-X method                 : Specify an HTTP method for the request, ie. HEAD or FUZZ
 \t
@@ -103,50 +103,55 @@ verbose_usage = all_options
 
 class Term:
     """Class designed to handle terminal matters. Provides convenience functions."""
-    reset = "\x1b[0m"
-    bright = "\x1b[1m"
-    dim = "\x1b[2m"
-    underscore = "\x1b[4m"
-    blink = "\x1b[5m"
-    reverse = "\x1b[7m"
-    hidden = "\x1b[8m"
+    def __init__(self, options):
+        if options.colorless:
+            self.reset = self.bright = self.dim = self.underscore = self.blink = self.reverse = self.hidden \
+                = self.fgBlack = self.fgRed = self.fgGreen = self.fgYellow = self.fgBlue = \
+                self.fgMagenta = self.fgCyan = self.fgWhite = self.bgBlack = self.bgRed = self.bgGreen \
+                = self.bgYellow = self.bgBlue = self.bgMagenta = self.bgCyan = self.bgWhite = ""
+        else:
+            self.reset = "\x1b[0m"
+            self.bright = "\x1b[1m"
+            self.dim = "\x1b[2m"
+            self.underscore = "\x1b[4m"
+            self.blink = "\x1b[5m"
+            self.reverse = "\x1b[7m"
+            self.hidden = "\x1b[8m"
 
-    delete = "\x1b[0K"
-    oneup = "\x1b[1A"
+            self.fgBlack = "\x1b[30m"
+            self.fgRed = "\x1b[31m"
+            self.fgGreen = "\x1b[32m"
+            self.fgYellow = "\x1b[33m"
+            self.fgBlue = "\x1b[34m"
+            self.fgMagenta = "\x1b[35m"
+            self.fgCyan = "\x1b[36m"
+            self.fgWhite = "\x1b[37m"
 
-    fgBlack = "\x1b[30m"
-    fgRed = "\x1b[31m"
-    fgGreen = "\x1b[32m"
-    fgYellow = "\x1b[33m"
-    fgBlue = "\x1b[34m"
-    fgMagenta = "\x1b[35m"
-    fgCyan = "\x1b[36m"
-    fgWhite = "\x1b[37m"
+            self.bgBlack = "\x1b[40m"
+            self.bgRed = "\x1b[41m"
+            self.bgGreen = "\x1b[42m"
+            self.bgYellow = "\x1b[43m"
+            self.bgBlue = "\x1b[44m"
+            self.bgMagenta = "\x1b[45m"
+            self.bgCyan = "\x1b[46m"
+            self.bgWhite = "\x1b[47m"
 
-    bgBlack = "\x1b[40m"
-    bgRed = "\x1b[41m"
-    bgGreen = "\x1b[42m"
-    bgYellow = "\x1b[43m"
-    bgBlue = "\x1b[44m"
-    bgMagenta = "\x1b[45m"
-    bgCyan = "\x1b[46m"
-    bgWhite = "\x1b[47m"
+        self.delete = "\x1b[0K"
+        self.oneup = "\x1b[1A"
+        self.noColour = ""
 
-    noColour = ""
-
-    @staticmethod
-    def get_colour(code: int) -> str:
+    def get_colour(self, code: int) -> str:
         """Return appropriate color based on the response's  status code"""
         if code == 0:
-            cc = Term.fgYellow
+            cc = self.fgYellow
         elif 400 <= code < 500:
-            cc = Term.fgRed
+            cc = self.fgRed
         elif 300 <= code < 400:
-            cc = Term.fgBlue
+            cc = self.fgBlue
         elif 200 <= code < 300:
-            cc = Term.fgGreen
+            cc = self.fgGreen
         else:
-            cc = Term.fgMagenta
+            cc = self.fgMagenta
 
         return cc
 
@@ -155,22 +160,20 @@ class Term:
         """Directly prints the color to the terminal."""
         sys.stdout.write(colour)
 
-    @staticmethod
-    def colour_string(colour: str, text: str) -> str:
+    def colour_string(self, colour: str, text: str) -> str:
         """
         Return supplied string with supplied colour (ANSI Escapes).
         Useful when supplied string is not to be immediately printed
         """
-        return colour + text + Term.reset
+        return colour + text + self.reset
 
-    @staticmethod
-    def erase_lines(lines: int) -> None:
+    def erase_lines(self, lines: int) -> None:
         """Erases the amount of lines specified from the terminal"""
         for i in range(lines - 1):
-            sys.stdout.write("\r" + Term.delete)
-            sys.stdout.write(Term.oneup)
+            sys.stdout.write("\r" + self.delete)
+            sys.stdout.write(self.oneup)
 
-        sys.stdout.write("\r" + Term.delete)
+        sys.stdout.write("\r" + self.delete)
 
 
 class UncolouredTerm(Term):

@@ -11,15 +11,15 @@ def fuzz(**kwargs):
     return FuzzSession(**kwargs).fuzz()
 
 
-def get_payloads(iterator):
-    fs = FuzzSession()
+#def get_payloads(iterator):
+#    fs = FuzzSession()
+#
+#    return fs.get_payloads(iterator)
 
-    return fs.get_payloads(iterator)
 
-
-def get_payload(iterator):
-    fs = FuzzSession()
-    return fs.get_payload(iterator)
+#def get_payload(iterator):
+#    fs = FuzzSession()
+#    return fs.get_payload(iterator)
 
 
 def encode(name, value):

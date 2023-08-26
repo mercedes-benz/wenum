@@ -6,13 +6,15 @@ from wenum.fuzzrequest import FuzzRequest
 
 
 class HttpCache:
+    """
+    The cache keeps track of all the requests that have already been enqueued, to avoid doing it multiple times.
+    """
     db = None
 
     def __init__(self):
         # cache control, a dictionary with URLs as keys and their values being lists full of the
         # categories that the queries were categorized as
         self.__cache_map = defaultdict(list)
-        self.es = None
         # This should be relevant for loading the cache from file. Needs to be documented more
         # thoroughly
         self.__object_map = defaultdict(list)
@@ -37,30 +39,3 @@ class HttpCache:
         if update:
             self.__cache_map[url_key].append(cache_type)
         return cached
-
-    def get_object_from_object_cache(self, fuzz_result, key=False):
-        """
-        Return entry in object_cache based on fuzzresult or key if provided (function for --cache-file option)
-        """
-        if key is False:
-            key = fuzz_result.history.to_cache_key()
-        if key in self.__object_map:
-            return self.__object_map[key]
-        if not self.db:
-            return None
-        res = self.db.get(key.encode("UTF-8"))
-        if not res:
-            return None
-        obj = pickle.loads(res)
-
-        return [obj]
-
-    def load_cache_from_file(self, filename):
-        """
-        EXPERIMENTAL: Loading cache from a cache file on startup
-        """
-        if not os.path.isfile(filename):
-            return
-
-        with open(filename, "rb") as pkl_handle:
-            self.__object_map = pickle.load(pkl_handle)
