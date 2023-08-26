@@ -56,7 +56,7 @@ class Fuzzer:
             # Something has to collects its sends, for proper fuzzqueue's count and sync purposes
             self.qmanager.add("transport_queue", HttpQueue(options))
 
-        if options.get("follow_redirects"):
+        if options.location:
             self.qmanager.add("redirects_queue", RedirectQ(options))
 
         if options.get("auto_filter"):
@@ -67,10 +67,10 @@ class Fuzzer:
         if options.get("script"):
             self.qmanager.add("plugins_queue", PluginQueue(options))
 
-        if options.get("rlevel") > 0:
+        if options.recursion:
             self.qmanager.add("recursive_queue", RecursiveQ(options))
 
-        if (options.get("script") or options.get("rlevel") > 0) and options.get(
+        if (options.get("script") or options.recursion) and options.get(
             "transport"
         ) == "http/s":
             rq = RoutingQ(

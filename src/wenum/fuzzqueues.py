@@ -46,7 +46,7 @@ class SeedQueue(FuzzQueue):
 
     def __init__(self, options: FuzzSession):
         super().__init__(options)
-        self.delay = options.get("delay")
+        self.sleep = options.sleep
 
     def get_name(self):
         return "SeedQueue"
@@ -65,7 +65,7 @@ class SeedQueue(FuzzQueue):
             # (see HttpQueue docstring). If SeedQueue did put items without restraint,
             # HttpQueue would buffer all the seeds, allocating huge amounts of RAM
             while True:
-                if self.queue_out.qsize() > (self.options.get("concurrent") * 5):
+                if self.queue_out.qsize() > (self.options.threads * 5):
                     # Wait a little and try again
                     time.sleep(0.5)
                     continue
@@ -141,8 +141,8 @@ class SeedQueue(FuzzQueue):
             while fuzz_word:
                 if self.options["compiled_stats"].cancelled:
                     break
-                if self.delay:
-                    time.sleep(self.delay)
+                if self.sleep:
+                    time.sleep(self.sleep)
                 fuzz_result = self.get_fuzz_res(fuzz_word)
                 # Only send out if it's not already in the cache
                 if not self.options.cache.check_cache(fuzz_result.url):
@@ -416,8 +416,8 @@ class PluginExecutor(FuzzQueue):
         self.__walking_threads: Queue = Queue()
         self.selected_plugins: list[BasePlugin] = selected_plugins
         self.cache: HttpCache = options.cache
-        self.max_rlevel = options.get("rlevel")
-        self.max_plugin_rlevel = options.get("plugin_rlevel")
+        self.max_rlevel = options.recursion
+        self.max_plugin_rlevel = options.plugin_recursion
 
     def get_name(self) -> str:
         return "PluginExecutor"
@@ -610,8 +610,8 @@ class RecursiveQ(FuzzQueue):
         super().__init__(options)
 
         self.cache = options.cache
-        self.max_rlevel = options.get("rlevel")
-        self.max_plugin_rlevel = options.get("plugin_rlevel")
+        self.max_rlevel = options.recursion
+        self.max_plugin_rlevel = options.plugin_recursion
 
     def get_name(self):
         return "RecursiveQ"
@@ -847,7 +847,7 @@ class HttpQueue(FuzzQueue):
                 if requeue:
                     self.http_pool.enqueue(fuzz_result, self.poolid)
                 else:
-                    if fuzz_result.exception and not self.options.get("scanmode"):
+                    if fuzz_result.exception and self.options.stop_error:
                         self._throw(fuzz_result.exception)
                     else:
                         self.send(fuzz_result)

@@ -52,7 +52,7 @@ class HttpPool:
         self.curlh_freelist: list[pycurl.Curl] = []
         # Queue object storing all the requests available for sending out. Maxsize avoids buffering tens of thousands of
         # requests beforehand, which would result in gigabytes of reserved memory
-        self.request_queue: Queue = Queue(maxsize=options.get("concurrent"))
+        self.request_queue: Queue = Queue(maxsize=options.threads)
 
         # List containing the threads
         # TODO This list seems to only contain a single thread. Refactor into a single thread attribute?
@@ -72,7 +72,7 @@ class HttpPool:
         self.curl_multi = pycurl.CurlMulti()
         self.handles = []
 
-        for i in range(self.options.get("concurrent")):
+        for i in range(self.options.threads):
             curl_h = pycurl.Curl()
             self.handles.append(curl_h)
             self.curlh_freelist.append(curl_h)

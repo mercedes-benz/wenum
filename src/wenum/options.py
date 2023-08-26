@@ -47,6 +47,41 @@ class FuzzSession(UserDict):
         self.output = ""
         self.debug_log = ""
         self.proxy_list = []
+        self.threads = None
+        self.sleep = None
+        self.location = None
+        self.recursion = None
+        self.plugin_recursion = None
+        self.method = None
+        self.poooost_data = None
+        self.header = []
+        self.cookie = None
+        self.stop_error = None
+        self.hc = []
+        self.hl = []
+        self.hw = []
+        self.hs = []
+        self.hr = []
+        self.sc = []
+        self.sl = []
+        self.sw = []
+        self.ss = []
+        self.sr = None
+        self.filter = None
+        self.pre_filter = None
+        self.hard_filter = None
+        self.auto_filter = None
+        self.dump_config = None
+        self.config = None
+        self.dry_run = None
+        self.limit_requests = None
+        self.ip = None
+        self.request_timeout = None
+        self.domain_scope = None
+        self.plugins = []
+        self.plugin_args = []
+        self.iterator = None
+        self.version = None
         #TODO this if statement is only temporary, will be necessary soon enough
         if parsed_args:
             self.validate_args(parsed_args)
@@ -138,6 +173,29 @@ class FuzzSession(UserDict):
                 raise FuzzExceptBadOptions("Please ensure that the proxy string's port is numeric.")
             self.proxy_list.append(proxy)
 
+        if parsed_args.threads < 0:
+            raise FuzzExceptBadOptions("Threads can not be a negative number.")
+        self.threads = parsed_args.threads
+
+        if parsed_args.sleep < 0:
+            raise FuzzExceptBadOptions("Can not sleep for a negative time.")
+        self.sleep = parsed_args.sleep
+
+        self.location = parsed_args.location
+
+        if parsed_args.recursion < 0 or parsed_args.plugin_recursion < 0:
+            raise FuzzExceptBadOptions("Can not set a negative recursion limit.")
+        self.recursion = parsed_args.recursion
+        if not parsed_args.plugin_recursion:
+            self.plugin_recursion = self.recursion
+        else:
+            self.plugin_recursion = parsed_args.plugin_recursion
+
+        self.method = parsed_args.method
+
+        self.poooost_data = parsed_args.data
+
+        self.stop_error = parsed_args.stop_error
 
 
     @staticmethod
@@ -208,10 +266,6 @@ class FuzzSession(UserDict):
     def validate(self):
         error_list = []
 
-        if self.data["rlevel"] > 0 and self.data["transport"] == "dryrun":
-            error_list.append(
-                "Bad usage: Recursion cannot work without making any HTTP request."
-            )
 
         if self.data["script"] and self.data["transport"] == "dryrun":
             error_list.append(
@@ -222,10 +276,6 @@ class FuzzSession(UserDict):
             raise FuzzExceptBadOptions(
                 "Bad usage: Hide and show regex filters flags are mutually exclusive. Only one could be specified.")
 
-        if self.data["rlevel"] < 0:
-            raise FuzzExceptBadOptions(
-                "Bad usage: Recursion level must be a positive int."
-            )
 
         return error_list
 

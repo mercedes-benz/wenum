@@ -36,7 +36,6 @@ class Settings(SettingsBase):
                 )
             ],
             connection=[
-                ("concurrent", "20"),
                 ("conn_delay", "90"),
                 ("req_delay", "90"),
                 ("retries", "3"),

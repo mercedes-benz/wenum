@@ -2,6 +2,7 @@ from ..fuzzrequest import FuzzRequest
 
 from ..helpers.obj_factory import ObjectFactory, SeedBuilderHelper
 
+
 class FuzzRequestFactory(ObjectFactory):
     def __init__(self):
         super(FuzzRequestFactory, self).__init__(
@@ -17,7 +18,6 @@ class RequestBuilder:
         fuzz_request = FuzzRequest()
 
         fuzz_request.url = options.url
-        fuzz_request.wf_fuzz_methods = options["method"]
         fuzz_request.update_from_options(options)
 
         return fuzz_request

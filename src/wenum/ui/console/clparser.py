@@ -91,11 +91,11 @@ def parse_args():
     #parser.add_argument("-K", "--config", help="Read config from specified path. By default read from XDG_CONFIG_HOME ~/.config/wenum/wenum-config.toml")#TODO implement
     parser.add_argument("-X", "--method", help="Change the HTTP method used for requests.", default="GET")
     parser.add_argument("-d", "--data", help="Use POST method with supplied data (e.g. \"id=FUZZ&catalogue=1\"). Method can be overridden with -X.")
-    parser.add_argument("-H", "--header", help="Add/modify a header, e.g. \"User-Agent: Changed\". Multiple flags accepted.")
+    parser.add_argument("-H", "--header", action="append", help="Add/modify a header, e.g. \"User-Agent: Changed\". Multiple flags accepted.")
     parser.add_argument("-b", "--cookie", help="Add cookies, e.g. \"Cookie1=abc; Cookie2=def\".")
     #parser.add_argument("-e", "--stop-errors", action="store_true", help="Stop when 10 errors were detected")#TODO Implement
     parser.add_argument("-E", "--stop-error", action="store_true", help="Stop on any connection error.")
-    parser.add_argument("--hc", help="Hide responses matching the supplied comma-separated codes.")
+    parser.add_argument("--hc", help="Hide responses matching the supplied comma-separated codes.", nargs="*")
     parser.add_argument("--hl", help="Hide responses matching the supplied comma-separated lines.")
     parser.add_argument("--hw", help="Hide responses matching the supplied comma-separated words.")
     parser.add_argument("--hs", help="Hide responses matching the supplied comma-separated sizes/chars.")
@@ -111,7 +111,7 @@ def parse_args():
     parser.add_argument("--hard-filter", action="store_true", help="Don't only hide the responses, but also prevent post processing of them (e.g. sending to plugins).")
     parser.add_argument("--auto-filter", action="store_true", help="Filter automatically during runtime. If a response occurs too often, it will get filtered out.")
     parser.add_argument("--dump-config", help="Print specified options to file that can later be imported.")
-    parser.add_argument("--recipe", help="Reads options from a config. Repeat for various recipes.") #TODO Remove repetition option. Fuse --config and make config toml format
+    #parser.add_argument("--recipe", help="Reads options from a config. Repeat for various recipes.") #TODO Remove repetition option. Fuse --config and make config toml format
     #parser.add_argument("--cache-file", help="Read in a cache file from a previous run, and post process the results without sending the requests.")#TODO implement
     parser.add_argument("--dry-run", help="Test run without actually making any HTTP request.")
     parser.add_argument("--limit-requests", type=int, help="Limit recursions. Once specified amount of requests are sent, recursions will be deactivated", default=0)
@@ -423,8 +423,8 @@ class CLParser:
                 "port": splitted[2] if splitted[2] else "80",
             }
 
-        if "-d" in optsd:
-            options["postdata"] = optsd["-d"][0]
+        #if "-d" in optsd:
+        #    options["postdata"] = optsd["-d"][0]
 
         for bb in optsd["-b"]:
             options["cookie"].append(bb)
@@ -436,18 +436,6 @@ class CLParser:
                     'Wrong header specified, it should be in the format "name: value".'
                 )
             options["headers"].append((splitted[0], splitted[2].strip()))
-
-        if "-R" in optsd:
-            options["rlevel"] = int(optsd["-R"][0])
-            # By default, set the plugin_rlevel to the ordinary rlevel
-            options["plugin_rlevel"] = int(optsd["-R"][0])
-
-        # Optionally overwrite default value
-        if "-r" in optsd:
-            options["plugin_rlevel"] = int(optsd["-r"][0])
-
-        if "-L" in optsd:
-            options["follow_redirects"] = True
 
     @staticmethod
     def _parse_conn_options(optsd, conn_options: FuzzSession):
@@ -462,17 +450,11 @@ class CLParser:
             conn_options["limitrequests"] = True
 
         # "-Z" option disables scanmode. Scanmode disabled exits the script on an unsuccessful request
-        if "-Z" in optsd:
-            conn_options["scanmode"] = False
+        #if "-Z" in optsd:
+        #    conn_options["scanmode"] = False
 
         if "--domain-scope" in optsd:
             conn_options["domain_scope"] = True
-
-        if "-s" in optsd:
-            conn_options["delay"] = float(optsd["-s"][0])
-
-        if "-t" in optsd:
-            conn_options["concurrent"] = int(optsd["-t"][0])
 
     @staticmethod
     def _parse_options(optsd, options):

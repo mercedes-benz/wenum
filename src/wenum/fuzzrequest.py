@@ -134,7 +134,6 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
         self._request: Request = Request()
 
         self._proxy = None
-        self.wf_fuzz_methods = None
         self.wf_retries = 0
         self.wf_ip = None
         # Original url retains the URL that has been specified for fuzzing, such as http://example.com/FUZZ
@@ -287,15 +286,14 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
         # headers must be parsed first as they might affect how reqresp parases other params
         self.headers.request = dict(options["headers"])
 
-        if options["postdata"] is not None:
-            self.params.post = options["postdata"]
+        if options.poooost_data:
+            self.params.post = options.poooost_data
 
         if options["connect_to_ip"]:
             self.wf_ip = options["connect_to_ip"]
 
-        if options["method"]:
-            self.method = options["method"]
-            self.wf_fuzz_methods = options["method"]
+        if options.method:
+            self.method = options.method
 
         if options["cookie"]:
             self.cookies.request = options["cookie"]
