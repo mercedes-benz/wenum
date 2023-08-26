@@ -40,9 +40,7 @@ Options:
 \t-c                        : Output without colors
 \t-a                        : Output without showing progress messages. Useful if the term can not handle them.
 \t-v                        : Verbose information.
-\t--interact                : Listens for key presses. Interact with the program. Press 'p' for pause, 'h' for help.
 \t
-\t-p addr                   : Use Proxy in format ip:port:type. Repeat option for using various proxies.
 \t                            Where type could be SOCKS4,SOCKS5 or HTTP if omitted.
 \t
 \t-t N                      : Specify the number of concurrent connections (20 default)
@@ -174,16 +172,3 @@ class Term:
             sys.stdout.write(self.oneup)
 
         sys.stdout.write("\r" + self.delete)
-
-
-class UncolouredTerm(Term):
-    reset = bright = dim = underscore = blink = reverse = hidden = fgBlack = fgRed = fgGreen = fgYellow = fgBlue =\
-        fgMagenta = fgCyan = fgWhite = bgBlack = bgRed = bgGreen = bgYellow = bgBlue = bgMagenta = bgCyan = bgWhite = ""
-
-    @staticmethod
-    def get_colour(code: int) -> str:
-        return ""
-
-    @staticmethod
-    def colour_string(colour: str, text: str) -> str:
-        return text

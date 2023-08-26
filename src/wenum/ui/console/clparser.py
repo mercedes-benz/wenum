@@ -17,7 +17,7 @@ from wenum import __version__ as version
 from .output import table_print
 import argparse
 
-short_opts = "hLAFZX:vcab:e:R:D:d:z:i:r:o:t:w:H:m:o:s:p:q:w:u"
+short_opts = "hLAFZX:vcab:e:R:D:d:l:z:i:r:o:t:w:H:m:o:s:p:n:q:w:u"
 long_opts = [
     "ee=",
     "zE=",
@@ -76,10 +76,11 @@ def parse_args():
                         help="Disable runtime interactions.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose information in CLI output.")
     parser.add_argument("-o", "--output", help="Store results in the specified output file.")
-    parser.add_argument("-f", "--output-format", help="Set the format of the output file. Note: Currently only json, html will come.", choices=["json", "html", "all"], default="json")#TODO Check and reimplement html output
-    parser.add_argument("-l", "--debug-log", action="store_true", help="Save runtime information to a file.")#TODO Change from bool to file name that can be specified
-    parser.add_argument("-p", "--proxy", help="Proxy requests. Use format 'protocol://ip:port'. "
-                                              "Protocols SOCKS4, SOCKS5 and HTTP are supported.")
+    #parser.add_argument("-f", "--output-format", help="Set the format of the output file. Note: Currently only json, html will come.", choices=["json", "html", "all"], default="json")#TODO Check and reimplement html output
+    parser.add_argument("-l", "--debug-log", help="Save runtime information to a file.")
+    parser.add_argument("-p", "--proxy", action="append", help="Proxy requests. Use format 'protocol://ip:port'. "
+                                              "Protocols SOCKS4, SOCKS5 and HTTP are supported. If supplied multiple "
+                                              "times, the requests will be split between all supplied proxies.")
     #parser.add_argument("-P", "--replay-proxy", help="Send requests that were not filtered through the specified proxy. Format and conditions match -p.")#TODO implement
     parser.add_argument("-t", "--threads", type=int, help="Modify the number of concurrent \"threads\",/connections for requests", default=40)
     #parser.add_argument("--plugin-executors", type=int, help="Modify the amount of threads used for concurrent execution of plugins.", default=3)#TODO implement
@@ -106,7 +107,7 @@ def parse_args():
     parser.add_argument("--sr", help="Show responses matching the supplied regex.")
     parser.add_argument("--filter", help="Show/hide responses using the supplied regex.")
     parser.add_argument("--pre-filter", help="Filter items before fuzzing using the specified expression. Repeat for concatenating filters.")#TODO Remove repetition, unnecessary complexity?
-    parser.add_argument("--filter-help", action="store_true", help="Show the filter language specification.")#TODO May be phased out with the generic info option
+    #parser.add_argument("--filter-help", action="store_true", help="Show the filter language specification.")#TODO May be phased out with the generic info option, currently broken
     parser.add_argument("--hard-filter", action="store_true", help="Don't only hide the responses, but also prevent post processing of them (e.g. sending to plugins).")
     parser.add_argument("--auto-filter", action="store_true", help="Filter automatically during runtime. If a response occurs too often, it will get filtered out.")
     parser.add_argument("--dump-config", help="Print specified options to file that can later be imported.")
@@ -117,11 +118,11 @@ def parse_args():
     parser.add_argument("--ip", help="Specify an IP to connect to. Format ip:port. This can help if you want to force connecting to a specific IP and still present a host name in the SNI, which will remain the URL's host.")#TODO Change from --ip to --sni, which allows for same featureset and feels less convoluted next to --url
     parser.add_argument("--request‐timeout", type=int, help="Change the maximum seconds the request is allowed to take.", default=20)
     parser.add_argument("--domain-scope", action="store_true", help="Base the scope check on the domain name instead of IP.")
-    parser.add_argument("--list-plugins", help="List all plugins and categories")#TODO implement, though maybe this falls off with the info option
+    #parser.add_argument("--list-plugins", help="List all plugins and categories")#TODO implement, though maybe this falls off with the info option
     parser.add_argument("--plugins", help="Plugins to be run as a comma separated list of plugin-files or plugin-categories")#TODO add nargs and in future handle that way instead of comma separation. Maybe same with other options with multiple args?
     parser.add_argument("--plugin-args", help="Provide arguments to scripts. e.g. --plugin-args grep.regex=\"<A href=\\\"(.*?)\\\">\"")#TODO Maybe remove? Really no plugin utilizes this except for regex.py, and I dont know if they ever will
     parser.add_argument("-i", "--iterator", help="Modify the iterator used for combining wordlists.", default="product", choices=["product", "zip", "chain"])
-    parser.add_argument("--info", help="Print information about the specified topic and exit.", choices=["plugins", "iterators", "filter"])#TODO implement, and this feels like a good positional argument. Why?
+    #parser.add_argument("--info", help="Print information about the specified topic and exit.", choices=["plugins", "iterators", "filter"])#TODO implement, and this feels like a good positional argument. Why?
     parser.add_argument("--version", action="store_true", help="Print version and exit.")
     return parser.parse_args()
 
@@ -205,28 +206,6 @@ class CLParser:
 
             for option, value in opts:
                 optsd[option].append(value)
-
-            # Setting the runtime log as early as possible
-            if "--debug-log" in optsd:
-                # If an output file is specified, base the name and path on it
-                if "-o" in optsd:
-                    logger_filename = optsd["-o"][0] + ".log"
-                else:
-                    logger_filename = "wenum_runtime.log"
-                logger = logging.getLogger("runtime_log")
-                logger.propagate = False
-                logger.setLevel(logging.DEBUG)
-                formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s", datefmt="%d.%m.%Y %H:%M:%S")
-                handler = logging.FileHandler(filename=logger_filename)
-                handler.setLevel(logging.DEBUG)
-                handler.setFormatter(formatter)
-                logger.addHandler(handler)
-            else:
-                # This is a logger configuration that doesn't log anywhere. It will effectively be used if --runtime-log
-                # is not specified
-                null_logger = logging.getLogger("runtime_log")
-                null_logger.addHandler(logging.NullHandler())
-                null_logger.propagate = False
 
             if not args and not optsd:
                 self.show_brief_usage()
@@ -372,14 +351,6 @@ class CLParser:
                 % " ".join(opt_list)
             )
 
-        # -A and script not allowed at the same time
-        if "--plugins" in list(optsd.keys()) and [
-            key for key in optsd.keys() if key in ["-A"]
-        ]:
-            raise FuzzExceptBadOptions(
-                "Bad usage: --scripts and -A are incompatible options."
-            )
-
     @staticmethod
     def _parse_filters(optsd, options: FuzzSession) -> None:
         """
@@ -472,28 +443,14 @@ class CLParser:
             options["plugin_rlevel"] = int(optsd["-R"][0])
 
         # Optionally overwrite default value
-        if "-q" in optsd:
-            options["plugin_rlevel"] = int(optsd["-q"][0])
+        if "-r" in optsd:
+            options["plugin_rlevel"] = int(optsd["-r"][0])
 
         if "-L" in optsd:
             options["follow_redirects"] = True
 
     @staticmethod
     def _parse_conn_options(optsd, conn_options: FuzzSession):
-        if "-p" in optsd:
-            proxy = []
-
-            for p in optsd["-p"]:
-                vals = p.split(":")
-
-                if len(vals) == 2:
-                    proxy.append((vals[0], vals[1], "HTTP"))
-                elif len(vals) == 3:
-                    proxy.append((vals[0], vals[1], vals[2]))
-                else:
-                    raise FuzzExceptBadOptions("Bad proxy parameter specified.")
-
-            conn_options["proxies"] = proxy
 
         if "--conn-delay" in optsd:
             conn_options["conn_delay"] = int(optsd["--conn-delay"][0])
@@ -520,35 +477,11 @@ class CLParser:
     @staticmethod
     def _parse_options(optsd, options):
 
-        if "-v" in optsd:
-            options["verbose"] = True
-
-        if "-c" in optsd:
-            options["colour"] = False
-
-        if "-a" in optsd:
-            options["progress_bar"] = False
-
-        if [key for key in optsd.keys() if key in ["-A"]]:
-            options["verbose"] = True
-
-        if "-o" in optsd:
-            vals = optsd["-o"][0].split(",", 1)
-
-            if len(vals) == 1:
-                options["printer"] = (vals[0], None)
-            else:
-                options["printer"] = vals
-
         if "--recipe" in optsd:
             options["recipe"] = optsd["--recipe"]
 
         if "--dry-run" in optsd:
             options["transport"] = "dryrun"
-
-        if "--interact" in optsd:
-            options["interactive"] = True
-
 
     @staticmethod
     def _parse_scripts(optsd, options):
@@ -558,9 +491,6 @@ class CLParser:
             script_args = {},
         )
         """
-
-        if "-A" in optsd:
-            options["script"] = "default"
 
         if "--plugins" in optsd:
             options["script"] = "" if optsd["--script"][0] == "" else optsd["--script"][0]

@@ -20,7 +20,7 @@ class Gau(BasePlugin):
 
     def __init__(self, options):
         BasePlugin.__init__(self, options)
-        self.proxy = options["proxies"]
+        self.proxy_list = options.proxy_list
         self.run_once = True
 
     def validate(self, fuzz_result):
@@ -34,9 +34,9 @@ class Gau(BasePlugin):
 
     def process(self, fuzz_result):
         initial_url = fuzz_result.history.fuzzing_url.replace("FUZZ", "")
-        if self.proxy:
+        if self.proxy_list:
             # Concatenate protocol + IP + port -> e.g. SOCKS5://127.0.0.1:8081
-            proxy_string = self.proxy[0][2] + "://" + self.proxy[0][0] + ":" + self.proxy[0][1]
+            proxy_string = self.proxy_list[0]
             proxy_option = f"--proxy {proxy_string}"
         else:
             proxy_option = ""

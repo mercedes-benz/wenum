@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Optional
 
-from wenum.ui.console.common import Term, UncolouredTerm
+from wenum.ui.console.common import Term
 
 if TYPE_CHECKING:
     from wenum.options import FuzzSession

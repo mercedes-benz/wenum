@@ -10,7 +10,7 @@ from itertools import zip_longest
 
 from wenum.fuzzobjects import FuzzWordType, FuzzResult, FuzzStats
 
-from .common import exec_banner, Term, UncolouredTerm
+from .common import exec_banner, Term
 from wenum.plugin_api.urlutils import parse_url
 import wenum.ui.console.kbhit as kbhit
 from .output import wrap_always_list
@@ -204,7 +204,7 @@ class View:
 
     def __init__(self, session_options):
         self.last_discarded_result = None
-        self.verbose = session_options["verbose"]
+        self.verbose = session_options.verbose
         self.term = Term(session_options)
         # Keeps track of the line count of the print for discarded responses (to then overwrite these lines with the
         # next print)

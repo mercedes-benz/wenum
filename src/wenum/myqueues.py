@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from typing import Optional
 
-from .ui.console.common import Term, UncolouredTerm
+from .ui.console.common import Term
 
 if TYPE_CHECKING:
     from .options import FuzzSession

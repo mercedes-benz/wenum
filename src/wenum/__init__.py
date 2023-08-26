@@ -10,10 +10,12 @@ import warnings
 
 # define a logging Handler
 console = logging.StreamHandler()
+
+formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s", datefmt="%d.%m.%Y %H:%M:%S")
 console.setLevel(logging.WARNING)
-formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
+#formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
 console.setFormatter(formatter)
-logging.getLogger("").addHandler(console)
+logging.getLogger("runtime_log").addHandler(console)
 
 
 # define warnings format

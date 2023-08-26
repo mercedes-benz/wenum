@@ -250,14 +250,6 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
         self._request.totaltime = time
 
     @property
-    def wf_proxy(self):
-        return self._proxy
-
-    @wf_proxy.setter
-    def wf_proxy(self, proxy_tuple):
-        self._proxy = proxy_tuple
-
-    @property
     def date(self):
         return self._request.date
 

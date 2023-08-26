@@ -189,7 +189,7 @@ class CLIPrinterQ(FuzzQueue):
             print(fuzz_result.rlevel_desc)
         else:
             self.printer.print_result(fuzz_result)
-        if self.options["progress_bar"]:
+        if not self.options.quiet:
             self.printer.append_temp_lines(self.options["compiled_stats"])
         self.send(fuzz_result)
 
@@ -683,9 +683,8 @@ class RecursiveQ(FuzzQueue):
         based on the URL of the FuzzResult
         Returns True if it is a false positive, False if it is legitimate
         """
-        if options["proxies"]:
-            # Concatenate protocol + IP + port -> e.g. SOCKS5://127.0.0.1:8081
-            proxy_string = options["proxies"][0][2] + "://" + options["proxies"][0][0] + ":" + options["proxies"][0][1]
+        if options.proxy_list:
+            proxy_string = options.proxy_list[0]
             proxy_dict = {"http": proxy_string,
                           "https": proxy_string}
         else:

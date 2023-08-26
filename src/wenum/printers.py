@@ -13,7 +13,7 @@ from abc import abstractmethod, ABC
 
 
 class BasePrinter(ABC):
-    def __init__(self, output):
+    def __init__(self, output, verbose):
         self.outputfile_handle = None
         # List containing every result information
         self.result_list = []
@@ -25,7 +25,7 @@ class BasePrinter(ABC):
         else:
             self.outputfile_handle = sys.stdout
 
-        self.verbose = Facade().printers.kbase["verbose"]
+        self.verbose = verbose
 
     @abstractmethod
     def header(self, summary: FuzzStats):
@@ -60,8 +60,8 @@ class JSON(BasePrinter):
     name = "json"
     summary = "Results in json format"
 
-    def __init__(self, output):
-        BasePrinter.__init__(self, output)
+    def __init__(self, output, verbose):
+        BasePrinter.__init__(self, output, verbose)
 
     def header(self, stats: FuzzStats):
         # Empty JSON header to avoid messing up the file structure

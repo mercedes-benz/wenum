@@ -1,4 +1,7 @@
+import logging
 from typing import Optional
+from urllib.parse import urlparse
+
 from .exception import (
     FuzzExceptBadRecipe,
     FuzzExceptBadOptions,
@@ -35,10 +38,15 @@ PRIORITY_STEP = 10
 
 class FuzzSession(UserDict):
     def __init__(self, parsed_args=None):
-        print("Tes")
         self.url = ""
         self.wordlist_list = []
         self.colorless = None
+        self.quiet = None
+        self.noninteractive = None
+        self.verbose = None
+        self.output = ""
+        self.debug_log = ""
+        self.proxy_list = []
         #TODO this if statement is only temporary, will be necessary soon enough
         if parsed_args:
             self.validate_args(parsed_args)
@@ -72,6 +80,7 @@ class FuzzSession(UserDict):
         self.stats = FuzzStats()
 
     def validate_args(self, parsed_args):
+        """Checks all options for their validity, parses and assigns them to the FuzzSession object"""
         print(parsed_args)
         if parsed_args.url is None or "FUZZ" not in parsed_args.url:
             raise FuzzExceptBadOptions(
@@ -79,16 +88,55 @@ class FuzzSession(UserDict):
             )
         self.url = parsed_args.url
 
-        print("a")
-        print(parsed_args.wordlist)
         if not parsed_args.wordlist:
             raise FuzzExceptBadOptions("Bad usage: You must specify a payload.")
         for wordlist in parsed_args.wordlist:
             if not isfile(wordlist):
-                raise FuzzExceptBadFile("File does not exist")
+                raise FuzzExceptBadFile("Wordlist could not be found.")
             self.wordlist_list.append(wordlist)
 
         self.colorless = parsed_args.colorless
+
+        self.quiet = parsed_args.quiet
+
+        self.noninteractive = parsed_args.noninteractive
+
+        self.verbose = parsed_args.verbose
+
+        self.output = parsed_args.output
+
+        if parsed_args.debug_log:
+            logger = logging.getLogger("runtime_log")
+            logger.propagate = False
+            logger.setLevel(logging.DEBUG)
+            formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s", datefmt="%d.%m.%Y %H:%M:%S")
+            handler = logging.FileHandler(filename=parsed_args.debug_log)
+            handler.setLevel(logging.DEBUG)
+            logger.handlers.clear()
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+        else:
+            null_logger = logging.getLogger("runtime_log")
+            null_logger.handlers.clear()
+            null_logger.addHandler(logging.NullHandler())
+            null_logger.propagate = False
+        self.debug_log = parsed_args.debug_log
+
+        for proxy in parsed_args.proxy:
+            parsed_proxy = urlparse(proxy)
+            if parsed_proxy.scheme.lower() not in ["socks4", "socks5", "http"]:
+                raise FuzzExceptBadOptions("The supplied proxy protocol is not supported. Please use SOCKS4, SOCKS5, "
+                                           "or HTTP.")
+            if ":" not in parsed_proxy.netloc:
+                raise FuzzExceptBadOptions("Please supply the port that should be used for the proxy.")
+            split_netloc = parsed_proxy.netloc.split(":")
+            if not len(split_netloc) == 2:
+                raise FuzzExceptBadOptions("Please ensure that the proxy string contains exactly one colon.")
+            try:
+                int(split_netloc[1])
+            except ValueError:
+                raise FuzzExceptBadOptions("Please ensure that the proxy string's port is numeric.")
+            self.proxy_list.append(proxy)
 
 
 
@@ -113,7 +161,6 @@ class FuzzSession(UserDict):
             iterator=None,
             printer=(None, None),
             colour=True,
-            progress_bar=True,
             verbose=False,
             interactive=False,
             hard_filter=False,
@@ -179,12 +226,6 @@ class FuzzSession(UserDict):
             raise FuzzExceptBadOptions(
                 "Bad usage: Recursion level must be a positive int."
             )
-
-        if self.data["proxies"]:
-            for ip, port, ttype in self.data["proxies"]:
-                if ttype not in ("SOCKS5", "SOCKS4", "HTTP"):
-                    raise FuzzExceptBadOptions(
-                        "Bad proxy type specified, correct values are HTTP, SOCKS4 or SOCKS5.")
 
         return error_list
 
@@ -320,15 +361,10 @@ class FuzzSession(UserDict):
 
         self.data["seed_payload"] = True if self.data["url"] == "FUZZ" else False
 
-        # printer
-        try:
-            filename, printer = self.data["printer"]
-        except ValueError:
-            raise FuzzExceptBadOptions(
-                "Bad options: Printer must be specified in the form of ('filename', 'printer')")
+        filename = self.output
 
         if filename:
-            self.data["compiled_printer"] = JSON(filename)
+            self.data["compiled_printer"] = JSON(filename, self.verbose)
 
         try:
             for filter_option in ["hc", "hw", "hl", "hh", "sc", "sw", "sl", "sh"]:
@@ -373,12 +409,6 @@ class FuzzSession(UserDict):
         if not self.http_pool:
             self.http_pool = HttpPool(self)
             self.http_pool.register()
-
-        if self.data["colour"]:
-            Facade().printers.kbase["colour"] = False
-
-        if self.data["verbose"]:
-            Facade().printers.kbase["verbose"] = True
 
         return self
 

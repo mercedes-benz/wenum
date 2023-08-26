@@ -1,6 +1,3 @@
-# Covered by GPL V2.0
-# Coded by Carlos del Ojo Elias (deepbit@gmail.com)
-# Lately maintained by Xavi Mendez (xmendez@edge-security.com)
 from typing import Optional
 from urllib.parse import urlparse
 from urllib.parse import urlunparse

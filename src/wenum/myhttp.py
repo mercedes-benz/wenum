@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     from wenum.options import FuzzSession
@@ -115,9 +116,9 @@ class HttpPool:
         self.pool_map[poolid]["queue"] = Queue()
         self.pool_map[poolid]["proxy"] = None
 
-        if self.options.get("proxies"):
+        if self.options.proxy_list:
             self.pool_map[poolid]["proxy"] = self._get_next_proxy(
-                self.options.get("proxies")
+                self.options.proxy_list
             )
 
         return poolid
@@ -202,22 +203,18 @@ class HttpPool:
 
     def _set_extra_options(self, c, fuzzres, poolid):
         if self.pool_map[poolid]["proxy"]:
-            ip, port, ptype = next(self.pool_map[poolid]["proxy"])
+            proxy = next(self.pool_map[poolid]["proxy"])
 
-            fuzzres.history.wf_proxy = (("%s:%s" % (ip, port)), ptype)
+            parsed_proxy = urlparse(proxy)
 
-            if ptype == "SOCKS5":
+            if parsed_proxy.scheme.lower() == "socks5":
                 c.setopt(pycurl.PROXYTYPE, pycurl.PROXYTYPE_SOCKS5)
-                c.setopt(pycurl.PROXY, "%s:%s" % (ip, port))
-            elif ptype == "SOCKS4":
+                c.setopt(pycurl.PROXY, parsed_proxy.netloc)
+            elif parsed_proxy.scheme.lower() == "socks4":
                 c.setopt(pycurl.PROXYTYPE, pycurl.PROXYTYPE_SOCKS4)
-                c.setopt(pycurl.PROXY, "%s:%s" % (ip, port))
-            elif ptype == "HTTP":
-                c.setopt(pycurl.PROXY, "%s:%s" % (ip, port))
+                c.setopt(pycurl.PROXY, parsed_proxy.netloc)
             else:
-                raise FuzzExceptBadOptions(
-                    "Bad proxy type specified, correct values are HTTP, SOCKS4 or SOCKS5."
-                )
+                c.setopt(pycurl.PROXY, parsed_proxy.netloc)
         else:
             c.setopt(pycurl.PROXY, "")
 
