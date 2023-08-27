@@ -47,4 +47,3 @@ except ImportError:
     sys.exit(1)
 
 from .options import FuzzSession
-from .api import fuzz, encode, decode, payload, get_session

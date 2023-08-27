@@ -1,14 +1,13 @@
 from .options import FuzzSession
 from .facade import Facade
-from .ui.console.clparser import CLParser
 
 """
 wenum API
 """
 
 
-def fuzz(**kwargs):
-    return FuzzSession(**kwargs).fuzz()
+#def fuzz(**kwargs):
+#    return FuzzSession(**kwargs).fuzz()
 
 
 #def get_payloads(iterator):
@@ -30,10 +29,10 @@ def decode(name, value):
     return Facade().encoders.get_plugin(name)().decode(value)
 
 
-def payload(**kwargs):
-    return FuzzSession(**kwargs).payload()
+#def payload(**kwargs):
+#    return FuzzSession(**kwargs).payload()
 
 
-def get_session(cline):
-    cl = ["wenum"] + cline.split(" ")
-    return FuzzSession(**CLParser(cl).parse_cl())
+#def get_session(cline):
+#    cl = ["wenum"] + cline.split(" ")
+#    return FuzzSession(**CLParser(cl).parse_cl())

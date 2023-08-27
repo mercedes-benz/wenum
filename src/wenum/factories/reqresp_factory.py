@@ -58,7 +58,7 @@ class ReqRespRequestFactory:
         if fuzz_request.wf_ip:
             pycurl_c.setopt(
                 pycurl.CONNECT_TO,
-                ["::{}:{}".format(fuzz_request.wf_ip["ip"], fuzz_request.wf_ip["port"])],
+                [f"::{fuzz_request.wf_ip}"],
             )
 
         return pycurl_c

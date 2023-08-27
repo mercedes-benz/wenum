@@ -138,7 +138,7 @@ class Term:
         self.oneup = "\x1b[1A"
         self.noColour = ""
 
-    def get_colour(self, code: int) -> str:
+    def get_color(self, code: int) -> str:
         """Return appropriate color based on the response's  status code"""
         if code == 0:
             cc = self.fgYellow
@@ -154,16 +154,16 @@ class Term:
         return cc
 
     @staticmethod
-    def set_colour(colour):
+    def set_color(color):
         """Directly prints the color to the terminal."""
-        sys.stdout.write(colour)
+        sys.stdout.write(color)
 
-    def colour_string(self, colour: str, text: str) -> str:
+    def color_string(self, color: str, text: str) -> str:
         """
-        Return supplied string with supplied colour (ANSI Escapes).
+        Return supplied string with supplied color (ANSI Escapes).
         Useful when supplied string is not to be immediately printed
         """
-        return colour + text + self.reset
+        return color + text + self.reset
 
     def erase_lines(self, lines: int) -> None:
         """Erases the amount of lines specified from the terminal"""

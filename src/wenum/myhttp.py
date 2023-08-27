@@ -218,13 +218,7 @@ class HttpPool:
         else:
             c.setopt(pycurl.PROXY, "")
 
-        mdelay = self.options.get("req_delay")
-        if mdelay is not None:
-            c.setopt(pycurl.TIMEOUT, mdelay)
-
-        cdelay = self.options.get("conn_delay")
-        if cdelay is not None:
-            c.setopt(pycurl.CONNECTTIMEOUT, cdelay)
+        c.setopt(pycurl.TIMEOUT, self.options.request_timeout)
 
         return c
 

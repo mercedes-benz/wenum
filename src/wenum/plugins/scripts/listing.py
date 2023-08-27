@@ -31,5 +31,5 @@ class Listing(BasePlugin):
     def process(self, fuzz_result):
         for r in self.regex:
             if len(r.findall(fuzz_result.history.content)) > 0:
-                self.add_information(f"{self.term.colour_string(self.term.fgYellow, 'Directory listing')} identified")
+                self.add_information(f"{self.term.color_string(self.term.fgYellow, 'Directory listing')} identified")
                 break

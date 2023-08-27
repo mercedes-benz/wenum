@@ -53,10 +53,10 @@ class Headers(BasePlugin):
                     header_value.lower() not in self.kbase[KBASE_KEY_REQ_UNCOMMON]
                     or KBASE_KEY_REQ_UNCOMMON not in self.kbase
             ):
-                coloured_header_key = self.term.colour_string(self.term.fgBlue, header_value)
-                coloured_header_value = self.term.colour_string(self.term.fgYellow, value)
+                colored_header_key = self.term.color_string(self.term.fgBlue, header_value)
+                colored_header_value = self.term.color_string(self.term.fgYellow, value)
                 self.add_information(f"New uncommon HTTP request header: "
-                                     f"'{coloured_header_key}: {coloured_header_value}'")
+                                     f"'{colored_header_key}: {colored_header_value}'")
                 self.kbase[KBASE_KEY_REQ_UNCOMMON].append(header_value.lower())
 
     def check_response_header(self, fuzz_result, header):
@@ -69,11 +69,11 @@ class Headers(BasePlugin):
                     header_value.lower() not in self.kbase[KBASE_KEY_RESP_UNCOMMON]
                     or KBASE_KEY_RESP_UNCOMMON not in self.kbase
             ):
-                coloured_header_key = self.term.colour_string(self.term.fgBlue, header_value)
-                coloured_header_value = self.term.colour_string(
+                colored_header_key = self.term.color_string(self.term.fgBlue, header_value)
+                colored_header_value = self.term.color_string(
                     self.term.fgYellow, fuzz_result.history.headers.response[header_value])
                 self.add_information(f"New uncommon HTTP response header: "
-                                     f"'{coloured_header_key}: {coloured_header_value}'")
+                                     f"'{colored_header_key}: {colored_header_value}'")
                 self.kbase[KBASE_KEY_RESP_UNCOMMON].append(header_value.lower())
 
     def check_server_header(self, header, value):
@@ -82,7 +82,7 @@ class Headers(BasePlugin):
                     value.lower() not in self.kbase[KBASE_KEY]
                     or KBASE_KEY not in self.kbase
             ):
-                self.add_information(f"New HTTP server header: '{self.term.colour_string(self.term.fgYellow, value)}'")
+                self.add_information(f"New HTTP server header: '{self.term.color_string(self.term.fgYellow, value)}'")
                 self.kbase[KBASE_KEY].append(value.lower())
 
     def process(self, fuzz_result):

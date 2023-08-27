@@ -71,7 +71,7 @@ class Cookies:
 
     @request.setter
     def request(self, values):
-        self.req._headers["Cookie"] = "; ".join(values)
+        self.req._headers["Cookie"] = values
 
     @property
     def all(self):
@@ -283,17 +283,16 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
             self.url = options.url
             self.fuzzing_url = options.url
 
-        # headers must be parsed first as they might affect how reqresp parases other params
-        self.headers.request = dict(options["headers"])
+        self.headers.request = options.header_dict
 
         if options.poooost_data:
             self.params.post = options.poooost_data
 
-        if options["connect_to_ip"]:
-            self.wf_ip = options["connect_to_ip"]
+        if options.ip:
+            self.wf_ip = options.ip
 
         if options.method:
             self.method = options.method
 
-        if options["cookie"]:
-            self.cookies.request = options["cookie"]
+        if options.cookie:
+            self.cookies.request = options.cookie

@@ -90,8 +90,8 @@ class SeedQueue(FuzzQueue):
         else:
             raise FuzzExceptInternalError("SeedQueue: Unknown item type in queue!")
 
-        if self.options["limitrequests"]:
-            if not self.options.http_pool.queued_requests > self.options["LIMITREQUESTS_THRESHOLD"]:
+        if self.options.limit_requests:
+            if not self.options.http_pool.queued_requests > self.options.limit_requests:
                 self.send_dictionary()
             else:
                 self.end_seed()
@@ -352,32 +352,11 @@ class AutofilterQ(FuzzQueue):
             redirect_string = ". Redirects will still be followed in the background."
         else:
             redirect_string = ""
-        coloured_identifier = self.term.colour_string(self.term.fgRed, identifier)
+        colored_identifier = self.term.color_string(self.term.fgRed, identifier)
         fuzz_result.plugins_res.append(
             plugin_factory.create("plugin_from_finding", self.get_name(),
                                   f"Recurring response detected. Filtering out "
-                                  f"'{coloured_identifier}'{redirect_string}", FuzzPlugin.INFO))
-
-
-class PrefilterQueue(FuzzQueue):
-    """
-    Queue activated by the 'prefilter' option
-    """
-
-    def __init__(self, options: FuzzSession, prefilter):
-        super().__init__(options)
-
-        self.ffilter = prefilter
-
-    def get_name(self):
-        return "PrefilterQueue"
-
-    def process(self, fuzz_result: FuzzResult):
-        if self.ffilter.is_visible(fuzz_result):
-            self.send(fuzz_result)
-        else:
-            self.discard(fuzz_result)
-
+                                  f"'{colored_identifier}'{redirect_string}", FuzzPlugin.INFO))
 
 class PluginQueue(FuzzListQueue):
     """
@@ -386,7 +365,7 @@ class PluginQueue(FuzzListQueue):
 
     def __init__(self, options: FuzzSession):
         # Get active plugins
-        lplugins = [plugin(options) for plugin in Facade().scripts.get_plugins(options.get("script"))]
+        lplugins = [plugin(options) for plugin in Facade().scripts.get_plugins(options.plugins_list)]
 
         if not lplugins:
             raise FuzzExceptBadOptions(
@@ -474,8 +453,8 @@ class PluginExecutor(FuzzQueue):
             elif plugin.message and plugin.is_visible():
                 fuzz_result.plugins_res.append(plugin)
             # If it has a seed (BACKFEED/SEED) and goes over http
-            elif plugin.seed and self.options["transport"] == "http/s":
-                in_scope = fuzz_result.history.check_in_scope(plugin.seed.history.url, self.options["domain_scope"])
+            elif plugin.seed and not self.options.dry_run:
+                in_scope = fuzz_result.history.check_in_scope(plugin.seed.history.url, self.options.domain_scope)
                 if in_scope:
                     if plugin.seed.item_type == FuzzType.BACKFEED:
                         cache_type = "processed"
@@ -523,20 +502,20 @@ class PluginExecutor(FuzzQueue):
             # Only if the plugin queued a request at all
             if plugin_dict["queued_requests"]:
                 multiple = "s" if plugin_dict["queued_requests"] > 1 else ""
-                coloured_part = self.term.colour_string(self.term.fgYellow,
+                colored_part = self.term.color_string(self.term.fgYellow,
                                                         f"{plugin_dict['queued_requests']} request{multiple}")
                 fuzz_result.plugins_res.append(plugin_factory.create(
                     "plugin_from_finding", name=plugin_name,
-                    message=f"Plugin {plugin_name}: Enqueued {coloured_part}",
+                    message=f"Plugin {plugin_name}: Enqueued {colored_part}",
                     severity=FuzzPlugin.INFO))
             # Only if the plugin queued a seed at all
             if plugin_dict["queued_seeds"]:
                 multiple = "s" if plugin_dict["queued_seeds"] > 1 else ""
-                coloured_part = self.term.colour_string(self.term.fgRed, f"{plugin_dict['queued_seeds']} "
+                colored_part = self.term.color_string(self.term.fgRed, f"{plugin_dict['queued_seeds']} "
                                                                          f"seed{multiple}")
                 fuzz_result.plugins_res.append(plugin_factory.create(
                     "plugin_from_finding", name=plugin_name,
-                    message=f"Plugin {plugin_name}: Enqueued {coloured_part}",
+                    message=f"Plugin {plugin_name}: Enqueued {colored_part}",
                     severity=FuzzPlugin.INFO))
 
 
@@ -577,7 +556,7 @@ class RedirectQ(FuzzQueue):
         # Join both URLs. If it's relative, will append to the base URL. Otherwise, will use link_url's netloc
         target_url = urljoin(fuzz_result.url, link_url)
 
-        in_scope = fuzz_result.history.check_in_scope(target_url, domain_based=self.options["domain_scope"])
+        in_scope = fuzz_result.history.check_in_scope(target_url, domain_based=self.options.domain_scope)
         if not in_scope:
             fuzz_result.plugins_res.append(plugin_factory.create(
                 "plugin_from_finding", name=self.get_name(),
@@ -593,7 +572,7 @@ class RedirectQ(FuzzQueue):
                                                      target_url, method, from_plugin)
             fuzz_result.plugins_res.append(plugin_factory.create(
                 "plugin_from_finding", name=self.get_name(),
-                message=f"{self.term.colour_string(self.term.fgBlue, 'Following redirection')} "
+                message=f"{self.term.color_string(self.term.fgBlue, 'Following redirection')} "
                         f"to {target_url}", severity=FuzzPlugin.INFO))
             self.send(backfeed)
 
@@ -631,8 +610,8 @@ class RecursiveQ(FuzzQueue):
         if self.cache.check_cache(recursion_url, cache_type="recursion", update=False):
             pass
         # Don't recurse if request limiting is active and threshold is reached
-        elif self.options["limitrequests"] and self.options.http_pool.queued_requests > \
-                self.options["LIMITREQUESTS_THRESHOLD"]:
+        elif self.options.limit_requests and self.options.http_pool.queued_requests > \
+                self.options.limit_requests:
             fuzz_result.plugins_res.append(
                 plugin_factory.create("plugin_from_finding", self.get_name(),
                                       f"Skipped recursion - limiting requests as per argument for "
@@ -657,7 +636,7 @@ class RecursiveQ(FuzzQueue):
             self.send(seed)
             fuzz_result.plugins_res.append(plugin_factory.create(
                 "plugin_from_finding", name=self.get_name(),
-                message=f"Enqueued path {recursion_url} for {self.term.colour_string(self.term.fgRed, 'recursion')} "
+                message=f"Enqueued path {recursion_url} for {self.term.color_string(self.term.fgRed, 'recursion')} "
                         f"(rlevel={seed.rlevel}, plugin_rlevel={seed.plugin_rlevel})", severity=FuzzPlugin.INFO))
         # Sends the current request into the next queue
         self.send(fuzz_result)
@@ -689,10 +668,8 @@ class RecursiveQ(FuzzQueue):
                           "https": proxy_string}
         else:
             proxy_dict = ""
-        if options["headers"]:
-            headers_dict = {}
-            for header in options["headers"]:
-                headers_dict[header[0]] = header[1]
+        if options.header_dict:
+            headers_dict = {options.header_dict}
         else:
             headers_dict = {
                 "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0"

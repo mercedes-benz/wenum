@@ -1,4 +1,5 @@
 import logging
+import sys
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -19,6 +20,7 @@ from .fuzzobjects import FuzzStats
 from .filters.ppfilter import FuzzResFilter
 from .filters.simplefilter import FuzzResSimpleFilter
 from .helpers.str_func import json_minify
+from . import __version__ as version
 
 from .core import Fuzzer
 from .myhttp import HttpPool
@@ -54,18 +56,18 @@ class FuzzSession(UserDict):
         self.plugin_recursion = None
         self.method = None
         self.poooost_data = None
-        self.header = []
+        self.header_dict = {}
         self.cookie = None
         self.stop_error = None
-        self.hc = []
-        self.hl = []
-        self.hw = []
-        self.hs = []
-        self.hr = []
-        self.sc = []
-        self.sl = []
-        self.sw = []
-        self.ss = []
+        self.hc_list = []
+        self.hl_list = []
+        self.hw_list = []
+        self.hs_list = []
+        self.hr = None
+        self.sc_list = []
+        self.sl_list = []
+        self.sw_list = []
+        self.ss_list = []
         self.sr = None
         self.filter = None
         self.pre_filter = None
@@ -78,8 +80,7 @@ class FuzzSession(UserDict):
         self.ip = None
         self.request_timeout = None
         self.domain_scope = None
-        self.plugins = []
-        self.plugin_args = []
+        self.plugins_list = []
         self.iterator = None
         self.version = None
         #TODO this if statement is only temporary, will be necessary soon enough
@@ -117,9 +118,14 @@ class FuzzSession(UserDict):
     def validate_args(self, parsed_args):
         """Checks all options for their validity, parses and assigns them to the FuzzSession object"""
         print(parsed_args)
-        if parsed_args.url is None or "FUZZ" not in parsed_args.url:
+
+        if parsed_args.version:
+            print(f"wenum version: {version}")
+            sys.exit(0)
+
+        if parsed_args.url is None:
             raise FuzzExceptBadOptions(
-                "Specify the URL either with -u and supply a FUZZ keyword. "
+                "Specify the URL either with -u"
             )
         self.url = parsed_args.url
 
@@ -195,8 +201,108 @@ class FuzzSession(UserDict):
 
         self.poooost_data = parsed_args.data
 
+        for header_args in parsed_args.header:
+            for header in header_args:
+                split_header = header.split(":", maxsplit=1)
+                if len(split_header) != 2:
+                    raise FuzzExceptBadOptions("Please provide the header in the format 'name: value'")
+                self.header_dict[split_header[0]] = split_header[1]
+
         self.stop_error = parsed_args.stop_error
 
+        if parsed_args.hr and parsed_args.sr:
+            raise FuzzExceptBadOptions(
+                "Bad usage: Hide (--hr) and show (--sr) regex filter flags are mutually exclusive.")
+
+        for hc_args in parsed_args.hc:
+            for hc in hc_args:
+                self.hc_list.append(hc)
+
+        for hw_args in parsed_args.hw:
+            for hw in hw_args:
+                self.hw_list.append(hw)
+
+        for hl_args in parsed_args.hl:
+            for hl in hl_args:
+                self.hl_list.append(hl)
+
+        for hs_args in parsed_args.hs:
+            for hs in hs_args:
+                self.hs_list.append(hs)
+
+        self.hr = parsed_args.hr
+
+        for sc_args in parsed_args.sc:
+            for sc in sc_args:
+                self.sc_list.append(sc)
+
+        for sw_args in parsed_args.sw:
+            for sw in sw_args:
+                self.sw_list.append(sw)
+
+        for sl_args in parsed_args.sl:
+            for sl in sl_args:
+                self.sl_list.append(sl)
+
+        for ss_args in parsed_args.ss:
+            for ss in ss_args:
+                self.ss_list.append(ss)
+
+        self.sr = parsed_args.sr
+
+        self.filter = parsed_args.filter
+
+        self.hard_filter = parsed_args.hard_filter
+
+        self.auto_filter = parsed_args.auto_filter
+
+        self.dump_config = parsed_args.dump_config
+
+        self.dry_run = parsed_args.dry_run
+
+        self.limit_requests = parsed_args.limit_requests
+
+        parsed_ip = urlparse(parsed_args.ip)
+        split_netloc = parsed_ip.netloc.split(":")
+        if ":" not in parsed_ip.netloc:
+            self.ip = parsed_ip.netloc + ":80"
+        elif len(split_netloc) == 2:
+            try:
+                int(split_netloc[1])
+                self.ip = parsed_ip.netloc
+            except ValueError:
+                raise FuzzExceptBadOptions("Please ensure that the port of the --ip argument is numeric.")
+        else:
+            raise FuzzExceptBadOptions("Please ensure that the --ip argument string contains one colon.")
+
+        self.request_timeout = parsed_args.request_timeout
+
+        self.domain_scope = parsed_args.domain_scope
+
+        self.plugins_list = parsed_args.plugins
+
+        if len(self.wordlist_list) == 1 and parsed_args.iterator:
+            raise FuzzExceptBadOptions("Several dictionaries must be used when specifying an iterator.")
+        self.iterator = parsed_args.iterator
+
+        if not self.wordlist_list:
+            raise FuzzExceptBadOptions("At least one wordlist needs to be specified.")
+
+        if not self.url:
+            raise FuzzExceptBadOptions("A target URL needs to be specified.")
+
+        if self.plugins_list and self.dry_run:
+            raise FuzzExceptBadOptions(
+                "Bad usage: Plugins cannot work without making any HTTP request."
+            )
+
+        if "FUZZ" not in [self.url, self.header_dict, self.cookie, self.method, self.poooost_data]:
+            raise FuzzExceptBadOptions("No FUZZ keyword has been supplied.")
+
+        if self.dump_config:
+            self.export_to_file(self.dump_config)
+            print(f"Recipe written to {self.dump_config}.")
+            sys.exit(0)
 
     @staticmethod
     def _defaults():
@@ -218,7 +324,7 @@ class FuzzSession(UserDict):
             follow_redirects=False,
             iterator=None,
             printer=(None, None),
-            colour=True,
+            color=True,
             verbose=False,
             interactive=False,
             hard_filter=False,
@@ -262,22 +368,6 @@ class FuzzSession(UserDict):
 
     def update(self, options):
         self.data.update(options)
-
-    def validate(self):
-        error_list = []
-
-
-        if self.data["script"] and self.data["transport"] == "dryrun":
-            error_list.append(
-                "Bad usage: Plugins cannot work without making any HTTP request."
-            )
-
-        if self.data["hs"] and self.data["ss"]:
-            raise FuzzExceptBadOptions(
-                "Bad usage: Hide and show regex filters flags are mutually exclusive. Only one could be specified.")
-
-
-        return error_list
 
     def export_to_file(self, filename):
         """
@@ -343,17 +433,8 @@ class FuzzSession(UserDict):
 
         return active_options_dict
 
-    def payload(self, **kwargs):
-        try:
-            self.data.update(kwargs)
-            self.compile_seeds()
-            self.compile_dictio()
-            for r in self.data["compiled_dictio"]:
-                yield tuple((fuzz_word.content for fuzz_word in r))
-        finally:
-            self.data["compiled_dictio"].cleanup()
-
     def fuzz(self, **kwargs):
+        """Method used by the API"""
         self.data.update(kwargs)
 
         fz = None
@@ -387,9 +468,6 @@ class FuzzSession(UserDict):
             if self.data[comp_obj]:
                 fuzz_words += self.data[comp_obj].payload_man.get_fuzz_words()
 
-        for prefilter in self.data["compiled_prefilter"]:
-            fuzz_words += prefilter.get_fuzz_words()
-
         return set(fuzz_words)
 
     def compile_dictio(self):
@@ -404,41 +482,18 @@ class FuzzSession(UserDict):
         """
         Sets some things before actually running
         """
-        # Validate options
-        error = self.validate()
-        if error:
-            raise FuzzExceptBadOptions(error[0])
 
-        self.data["seed_payload"] = True if self.data["url"] == "FUZZ" else False
+        self.data["seed_payload"] = True if self.url == "FUZZ" else False
 
-        filename = self.output
-
-        if filename:
-            self.data["compiled_printer"] = JSON(filename, self.verbose)
-
-        try:
-            for filter_option in ["hc", "hw", "hl", "hh", "sc", "sw", "sl", "sh"]:
-                self.data[filter_option] = [
-                    ERROR_CODE
-                    if i == "XXX"
-                    else int(i)
-                    for i in self.data[filter_option]
-                ]
-        except ValueError:
-            raise FuzzExceptBadOptions(
-                "Bad options: Filter must be specified in the form of [int, ... , int, XXX]."
-            )
+        if self.output:
+            self.data["compiled_printer"] = JSON(self.output, self.verbose)
 
         self.compile_seeds()
         self.compile_dictio()
 
         # filter options
         self.data["compiled_simple_filter"] = FuzzResSimpleFilter.from_options(self)
-        self.data["compiled_filter"] = FuzzResFilter(self.data["filter"])
-        for prefilter in self.data["prefilter"]:
-            self.data["compiled_prefilter"].append(
-                FuzzResFilter(filter_string=prefilter)
-            )
+        self.data["compiled_filter"] = FuzzResFilter(self.filter)
 
         # This line takes a long time to execute (for big wordlists?)
         self.data["compiled_stats"] = FuzzStats.from_options(self)
@@ -448,13 +503,6 @@ class FuzzSession(UserDict):
 
         if self.data["compiled_dictio"].width() != len(fuzz_words):
             raise FuzzExceptBadOptions("FUZZ words and number of payloads do not match!")
-
-        if self.data["script"]:
-            Facade().scripts.kbase.update(self.data["script_args"])
-
-            for k, v in Facade().settings.get_section("kbase"):
-                if k not in self.data["script_args"]:
-                    Facade().scripts.kbase[k] = v
 
         if not self.http_pool:
             self.http_pool = HttpPool(self)

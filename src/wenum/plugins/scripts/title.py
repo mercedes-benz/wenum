@@ -27,4 +27,4 @@ class Title(BasePlugin):
 
         if title and title != "" and title not in self.kbase["title"]:
             self.kbase["title"] = title
-            self.add_information(f"{self.term.colour_string(self.term.fgYellow, title)}")
+            self.add_information(f"{self.term.color_string(self.term.fgYellow, title)}")

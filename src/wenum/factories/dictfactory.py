@@ -25,7 +25,7 @@ class BaseDictioBuilder:
         if not selected_dic:
             raise FuzzExceptBadOptions("Empty dictionary! Check payload and filter")
 
-        if len(selected_dic) == 1 and options["iterator"]:
+        if len(selected_dic) == 1 and options.iterator:
             raise FuzzExceptBadOptions(
                 "Several dictionaries must be used when specifying an iterator"
             )
@@ -34,10 +34,10 @@ class BaseDictioBuilder:
     def get_dictio(options, selected_dic):
         if len(selected_dic) == 1:
             return TupleIt(selected_dic[0])
-        elif options["iterator"]:
-            if options["iterator"] == "zip":
+        elif options.iterator:
+            if options.iterator == "zip":
                 return Zip(*selected_dic)
-            elif options["iterator"] == "chain":
+            elif options.iterator == "chain":
                 return Chain(*selected_dic)
             # Using product as the fallback, as it's the most common (and therefore default) anyways
             else:

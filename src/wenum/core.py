@@ -13,7 +13,6 @@ from .fuzzqueues import (
     FilePrinterQ,
     RoutingQ,
     FilterQ,
-    PrefilterQueue,
     PluginQueue,
     RecursiveQ,
     DryRunQ,
@@ -29,7 +28,7 @@ class Fuzzer:
     def __init__(self, options: FuzzSession):
         """
         Create queues. Usually
-        genReq ---> seed_queue -> [prefilter_queue] -> http_queue/dryrun -> [round_robin -> plugins_queue] * N
+        genReq ---> seed_queue -> http_queue/dryrun -> [round_robin -> plugins_queue] * N
         -> [recursive_queue -> routing_queue] -> [filter_queue] -> [save_queue] -> [printer_queue] ---> results
         The order is dictated simply by the order in which they get added to the qmanager object
         """
@@ -41,38 +40,26 @@ class Fuzzer:
 
         self.qmanager.add("seed_queue", SeedQueue(options))
 
-        for prefilter_idx, prefilter in enumerate(options.get("compiled_prefilter")):
-            if prefilter.is_active():
-                self.qmanager.add(
-                    "prefilter_queue_{}".format(prefilter_idx), PrefilterQueue(options, prefilter)
-                )
-
-        if options.get("transport") == "dryrun":
+        if options.dry_run:
             self.qmanager.add("transport_queue", DryRunQ(options))
-        elif options.get("transport") == "payload":
-            self.qmanager.add("transport_queue", PassPayloadQ(options))
         else:
-            # http_queue breaks process rules due to being asynchronous.
-            # Something has to collects its sends, for proper fuzzqueue's count and sync purposes
             self.qmanager.add("transport_queue", HttpQueue(options))
 
         if options.location:
             self.qmanager.add("redirects_queue", RedirectQ(options))
 
-        if options.get("auto_filter"):
+        if options.auto_filter:
             self.qmanager.add(
                 "autofilter_queue", AutofilterQ(options)
             )
 
-        if options.get("script"):
+        if options.plugins_list:
             self.qmanager.add("plugins_queue", PluginQueue(options))
 
         if options.recursion:
             self.qmanager.add("recursive_queue", RecursiveQ(options))
 
-        if (options.get("script") or options.recursion) and options.get(
-            "transport"
-        ) == "http/s":
+        if (options.plugins_list or options.recursion) and not options.dry_run:
             rq = RoutingQ(
                 options,
                 {
@@ -94,7 +81,7 @@ class Fuzzer:
                 FilterQ(options, options["compiled_simple_filter"]),
             )
 
-        if options.get("hard_filter"):
+        if options.hard_filter:
             """
             This will push the plugins in the list after the FilterQ
             """

@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from wenum.options import FuzzSession
-import sys
 import warnings
 import traceback
 import logging
@@ -17,7 +16,8 @@ from .facade import Facade
 from .exception import FuzzException, FuzzExceptBadInstall
 from .ui.console.mvc import Controller, KeyPress
 from .ui.console.common import Term
-from .ui.console.clparser import CLParser, parse_args
+from .ui.console.clparser import parse_args
+from .options import FuzzSession
 
 from .fuzzobjects import FuzzStats
 
@@ -34,8 +34,8 @@ def main():
 
     try:
         # parse command line
-        #arguments = parse_args()
-        session_options: FuzzSession = CLParser(sys.argv).parse_cl().compile()
+        arguments = parse_args()
+        session_options: FuzzSession = FuzzSession(arguments).compile()
 
         fuzzer = Fuzzer(session_options)
 
@@ -67,8 +67,8 @@ def main():
         warnings.warn("Fatal exception: {}".format(str(e)))
     except KeyboardInterrupt:
         if term:
-            text = term.colour_string(term.fgYellow, "Finishing pending requests...")
-            (term.colour_string(term.fgYellow, "Finishing pending requests..."))
+            text = term.color_string(term.fgYellow, "Finishing pending requests...")
+            (term.color_string(term.fgYellow, "Finishing pending requests..."))
         else:
             text = "Finishing pending requests..."
         warnings.warn(text)
