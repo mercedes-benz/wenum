@@ -88,7 +88,7 @@ class Controller:
         self.printer_queue: FuzzQueue = self.fuzzer.qmanager["printer_cli"]
         self.view = view
         self.__paused = False
-        self.stats: FuzzStats = fuzzer.options.get("compiled_stats")
+        self.stats: FuzzStats = fuzzer.options.compiled_stats
 
         self.view.dispatcher.subscribe(self.on_help, "h")
         self.view.dispatcher.subscribe(self.on_pause, "p")
@@ -336,27 +336,27 @@ class View:
 
         if self.verbose:
             columns = [
-                ("ID", uncoloured),
-                ("C.Time", uncoloured),
-                ("Response", uncoloured),
-                ("Lines", uncoloured),
-                ("Word", uncoloured),
-                ("Chars", uncoloured),
-                ("Server", uncoloured),
-                ("Redirect", uncoloured),
-                ("URL", uncoloured),
+                ("ID", uncolored),
+                ("C.Time", uncolored),
+                ("Response", uncolored),
+                ("Lines", uncolored),
+                ("Word", uncolored),
+                ("Chars", uncolored),
+                ("Server", uncolored),
+                ("Redirect", uncolored),
+                ("URL", uncolored),
             ]
 
             widths = self.verbose_result_row_widths
         else:
             columns = [
-                ("ID", uncoloured),
-                ("Response", uncoloured),
-                ("Lines", uncoloured),
-                ("Word", uncoloured),
-                ("Chars", uncoloured),
-                ("Method", uncoloured),
-                ("URL", uncoloured),
+                ("ID", uncolored),
+                ("Response", uncolored),
+                ("Lines", uncolored),
+                ("Word", uncolored),
+                ("Chars", uncolored),
+                ("Method", uncolored),
+                ("URL", uncolored),
             ]
 
             widths = self.result_row_widths
@@ -372,8 +372,8 @@ class View:
         """Append the footer, which is a separator with the last discarded line"""
         terminal_size = shutil.get_terminal_size(fallback=(80, 25))
         print(f"")
-        green_processed = self.term.colour_string(self.term.fgGreen, str(stats.processed()))
-        yellow_total = self.term.colour_string(self.term.fgYellow, str(stats.total_req))
+        green_processed = self.term.color_string(self.term.fgGreen, str(stats.processed()))
+        yellow_total = self.term.color_string(self.term.fgYellow, str(stats.total_req))
         # Careful with this print! For this to work as it does right now, the code simply assumes
         # this line will not be longer than a single line, statically setting the total printed temp lines.
         # It currently is short enough to guarantee that in any reasonable terminal size.

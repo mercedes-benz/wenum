@@ -2,8 +2,7 @@ from ..helpers.obj_factory import ObjectFactory
 from ..exception import FuzzExceptBadOptions
 from wenum.wordlist_handler import File
 from ..dictionaries import (
-    TupleIt,
-    WrapperIt,
+    TupleIt
 )
 from wenum.iterators import Zip, Product, Chain
 

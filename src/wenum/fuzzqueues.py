@@ -52,7 +52,7 @@ class SeedQueue(FuzzQueue):
         return "SeedQueue"
 
     def cancel(self):
-        self.options["compiled_stats"].cancelled = True
+        self.options.compiled_stats.cancelled = True
 
     def items_to_process(self):
         return [FuzzType.STARTSEED, FuzzType.SEED]
@@ -77,7 +77,7 @@ class SeedQueue(FuzzQueue):
         """
         Assign the next seed that should be currently processed
         """
-        self.options["compiled_seed"] = seed
+        self.options.compiled_seed = seed
         self.options.compile_dictio()
 
     def process(self, fuzz_item: FuzzItem):
@@ -102,14 +102,9 @@ class SeedQueue(FuzzQueue):
         """
         Create FuzzResult object from FuzzWord
         """
-        if self.options["seed_payload"] and dictio_item[0].type == FuzzWordType.FUZZRES:
-            return resfactory.create(
-                "seed_from_options_and_dict", self.options, dictio_item
-            )
-        else:
-            return resfactory.create(
-                "fuzzres_from_options_and_dict", self.options, dictio_item
-            )
+        return resfactory.create(
+            "fuzzres_from_options_and_dict", self.options, dictio_item
+        )
 
     def add_initial_recursion_to_cache(self):
         """
@@ -139,7 +134,7 @@ class SeedQueue(FuzzQueue):
         # Enqueue requests
         try:
             while fuzz_word:
-                if self.options["compiled_stats"].cancelled:
+                if self.options.compiled_stats.cancelled:
                     break
                 if self.sleep:
                     time.sleep(self.sleep)
@@ -156,7 +151,7 @@ class SeedQueue(FuzzQueue):
 
     def end_seed(self):
         endseed_item = FuzzItem(item_type=FuzzType.ENDSEED)
-        endseed_item.priority = self.options["compiled_seed"].priority
+        endseed_item.priority = self.options.compiled_seed.priority
         self.send_last(endseed_item)
 
 
@@ -190,7 +185,7 @@ class CLIPrinterQ(FuzzQueue):
         else:
             self.printer.print_result(fuzz_result)
         if not self.options.quiet:
-            self.printer.append_temp_lines(self.options["compiled_stats"])
+            self.printer.append_temp_lines(self.options.compiled_stats)
         self.send(fuzz_result)
 
 
@@ -202,7 +197,7 @@ class FilePrinterQ(FuzzQueue):
     def __init__(self, options: FuzzSession):
         super().__init__(options)
 
-        self.printer: BasePrinter = options.get("compiled_printer")
+        self.printer: BasePrinter = options.compiled_printer
         self.printer.header(self.stats)
         # Counter to reduce unnecessary amounts of writes. Write every x requests
         self.counter = 0
@@ -253,7 +248,7 @@ class RoutingQ(FuzzQueue):
             # allow for fine-grained prioritization within the same seed
             fuzz_result.priority = priority_level
             self.stats.new_seed()
-            self.options["compiled_stats"].seed_list.append(fuzz_result.url)
+            self.options.compiled_stats.seed_list.append(fuzz_result.url)
             self.routes[FuzzType.SEED].put(fuzz_result)
         elif fuzz_result.item_type == FuzzType.BACKFEED:
             self.stats.new_backfeed()

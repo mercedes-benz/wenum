@@ -29,9 +29,9 @@ class Linkparser(BasePlugin):
     def __init__(self, options):
         BasePlugin.__init__(self, options)
         self.linkparser_log = None
-        # save to output file if self.options['printer'][0] is defined
+        # save to output file if file output active
         if self.options.output:
-            self.linkparser_log = '{0}_{1}'.format(self.options['printer'][0], self.name)
+            self.linkparser_log = '{0}_{1}'.format(self.options.output, self.name)
 
     def validate(self, fuzz_result):
         return fuzz_result.code in valid_codes

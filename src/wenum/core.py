@@ -70,15 +70,15 @@ class Fuzzer:
 
             self.qmanager.add("routing_queue", rq)
 
-        if options.get("compiled_filter").is_active():
+        if options.compiled_filter.is_active():
             self.qmanager.add(
-                "filter_queue", FilterQ(options, options["compiled_filter"])
+                "filter_queue", FilterQ(options, options.compiled_filter)
             )
 
-        if options.get("compiled_simple_filter").is_active():
+        if options.compiled_simple_filter.is_active():
             self.qmanager.add(
                 "simple_filter_queue",
-                FilterQ(options, options["compiled_simple_filter"]),
+                FilterQ(options, options.compiled_simple_filter),
             )
 
         if options.hard_filter:
@@ -93,7 +93,7 @@ class Fuzzer:
                 except KeyError:
                     continue
 
-        if options.get("compiled_printer"):
+        if options.compiled_printer:
             self.qmanager.add("printer_queue", FilePrinterQ(options))
 
         self.qmanager.add("printer_cli", CLIPrinterQ(options))
@@ -126,7 +126,7 @@ class Fuzzer:
         return dict(
             list(self.qmanager.get_stats().items())
             + list(self.qmanager["transport_queue"].http_pool.job_stats().items())
-            + list(self.options["compiled_stats"].get_runtime_stats().items())
+            + list(self.options.compiled_stats.get_runtime_stats().items())
         )
 
     def cancel_job(self):

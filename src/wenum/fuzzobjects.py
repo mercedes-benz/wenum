@@ -17,7 +17,6 @@ from collections import defaultdict, namedtuple
 from .filters.ppfilter import FuzzResFilter
 from .facade import ERROR_CODE
 from .helpers.str_func import convert_to_unicode
-from .helpers.obj_dyn import rgetattr
 from .helpers.utils import MyCounter
 
 FuzzWord = namedtuple("FuzzWord", ["content", "type"])
@@ -107,9 +106,9 @@ class FuzzStats:
     def from_options(options):
         tmp_stats = FuzzStats()
 
-        tmp_stats.url = options["compiled_seed"].history.url
+        tmp_stats.url = options.compiled_seed.history.url
         tmp_stats.wordlist_req = options["compiled_dictio"].count()
-        tmp_stats.seed = options["compiled_seed"]
+        tmp_stats.seed = options.compiled_seed
 
         return tmp_stats
 

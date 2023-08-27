@@ -88,7 +88,7 @@ def main():
     finally:
         if session_options:
             if logger:
-                _log_runtime_stats(logger, session_options["compiled_stats"])
+                _log_runtime_stats(logger, session_options.compiled_stats)
             session_options.close()
         if keypress:
             keypress.cancel_job()

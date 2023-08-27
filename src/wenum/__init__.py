@@ -7,15 +7,9 @@ import sys
 import warnings
 
 #TODO Refactor this file
-
-# define a logging Handler
-console = logging.StreamHandler()
-
-formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s", datefmt="%d.%m.%Y %H:%M:%S")
-console.setLevel(logging.WARNING)
-#formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
-console.setFormatter(formatter)
-logging.getLogger("runtime_log").addHandler(console)
+logger = logging.getLogger("runtime_log")
+logger.addHandler(logging.NullHandler())
+logger.propagate = False
 
 
 # define warnings format

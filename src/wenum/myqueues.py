@@ -70,7 +70,7 @@ class FuzzQueue(MyPriorityQueue, Thread, ABC):
         # Indicates whether the queue wants to process discarded fuzzresults
         self.process_discarded = False
 
-        self.stats: FuzzStats = options.get("compiled_stats")
+        self.stats: FuzzStats = options.compiled_stats
         self.options: FuzzSession = options
         self.logger = logging.getLogger("runtime_log")
         self.term = Term(options)
