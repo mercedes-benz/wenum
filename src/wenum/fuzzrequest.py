@@ -285,8 +285,8 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
 
         self.headers.request = options.header_dict
 
-        if options.poooost_data:
-            self.params.post = options.poooost_data
+        if options.data:
+            self.params.post = options.data
 
         if options.ip:
             self.wf_ip = options.ip

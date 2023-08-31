@@ -3,10 +3,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Optional
 
-from wenum.ui.console.common import Term
+from wenum.ui.console.term import Term
 
 if TYPE_CHECKING:
-    from wenum.options import FuzzSession
+    from wenum.runtime_session import FuzzSession
     from queue import Queue
 from wenum.fuzzobjects import FuzzPlugin, FuzzResult
 from wenum.exception import (

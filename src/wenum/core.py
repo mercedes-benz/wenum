@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from wenum.options import FuzzSession
+    from wenum.runtime_session import FuzzSession
 from .fuzzobjects import FuzzType
 
 from .myqueues import MyPriorityQueue, QueueManager

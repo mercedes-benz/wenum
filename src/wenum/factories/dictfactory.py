@@ -30,7 +30,10 @@ class BaseDictioBuilder:
             )
 
     @staticmethod
-    def get_dictio(options, selected_dic):
+    def init_iterator(options, selected_dic):
+        """
+        Returns an iterator according to the user options
+        """
         if len(selected_dic) == 1:
             return TupleIt(selected_dic[0])
         elif options.iterator:
@@ -54,7 +57,7 @@ class DictioFromPayloadBuilder(BaseDictioBuilder):
             selected_dic.append(dictionary)
 
         self.validate(options, selected_dic)
-        return self.get_dictio(options, selected_dic)
+        return self.init_iterator(options, selected_dic)
 
 
 class DictioFromOptions(BaseDictioBuilder):

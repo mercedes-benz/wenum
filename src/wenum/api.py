@@ -1,4 +1,4 @@
-from .options import FuzzSession
+from .runtime_session import FuzzSession
 from .facade import Facade
 
 """

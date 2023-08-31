@@ -5,7 +5,7 @@ from wenum.plugin_api.static_data import HEADERS_server_headers, HEADERS_common_
 
 import re
 
-from wenum.ui.console.common import Term
+from wenum.ui.console.term import Term
 
 KBASE_KEY = "http.servers"
 KBASE_KEY_RESP_UNCOMMON = "http.response.headers.uncommon"

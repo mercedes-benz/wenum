@@ -37,24 +37,12 @@ class SettingsBase:
         """
         raise NotImplementedError
 
-    def has_option(self, section, setting):
-        return self.cparser.has_option(section, setting)
-
     def set(self, section, setting, value):
         self.cparser.set(section, setting, value)
 
     def get(self, section, setting):
         value = self.cparser.get(section, setting)
         return value
-
-    def get_section(self, section):
-        return self.cparser.items(section)
-
-    def get_options(self, section):
-        return self.cparser.options(section)
-
-    def get_sections(self):
-        return self.cparser.sections()
 
     def get_all(self):
         sett = {}

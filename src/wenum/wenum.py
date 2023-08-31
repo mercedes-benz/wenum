@@ -6,7 +6,7 @@ import time
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from wenum.options import FuzzSession
+    from wenum.runtime_session import FuzzSession
 import warnings
 import traceback
 import logging
@@ -15,9 +15,10 @@ from .core import Fuzzer
 from .facade import Facade
 from .exception import FuzzException, FuzzExceptBadInstall
 from .ui.console.mvc import Controller, KeyPress
-from .ui.console.common import Term
+from .ui.console.term import Term
 from .ui.console.clparser import parse_args
-from .options import FuzzSession
+from .runtime_session import FuzzSession
+from .ui.console.clparser import Options
 
 from .fuzzobjects import FuzzStats
 
@@ -34,8 +35,9 @@ def main():
 
     try:
         # parse command line
-        arguments = parse_args()
-        session_options: FuzzSession = FuzzSession(arguments).compile()
+        options = Options()
+        options.read_args()
+        session_options: FuzzSession = FuzzSession(options).compile()
 
         fuzzer = Fuzzer(session_options)
 
@@ -56,8 +58,7 @@ def main():
 
         logger = logging.getLogger("runtime_log")
         # Logging startup options on startup
-        logger.info(f"""Runtime options:
-{session_options.export_active_options_dict()}""")
+        logger.info("Starting")
 
         # This loop causes the main loop of wenum to execute
         for res in fuzzer:
@@ -68,7 +69,6 @@ def main():
     except KeyboardInterrupt:
         if term:
             text = term.color_string(term.fgYellow, "Finishing pending requests...")
-            (term.color_string(term.fgYellow, "Finishing pending requests..."))
         else:
             text = "Finishing pending requests..."
         warnings.warn(text)
@@ -76,19 +76,16 @@ def main():
             fuzzer.cancel_job()
     except NotImplementedError as e:
         exception_message = "Fatal exception: Error importing wenum extensions: {}".format(str(e))
-        if logger:
-            logger.exception(exception_message)
+        logger.exception(exception_message)
         warnings.warn(exception_message)
     except Exception as e:
         exception_message = "Unhandled exception: {}".format(str(e))
-        if logger:
-            logger.exception(exception_message)
+        logger.exception(exception_message)
         warnings.warn(exception_message)
         traceback.print_exc()
     finally:
         if session_options:
-            if logger:
-                _log_runtime_stats(logger, session_options.compiled_stats)
+            _log_runtime_stats(logger, session_options.compiled_stats)
             session_options.close()
         if keypress:
             keypress.cancel_job()

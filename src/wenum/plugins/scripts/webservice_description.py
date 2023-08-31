@@ -1,7 +1,7 @@
 from urllib.parse import urlparse
 from wenum.externals.moduleman.plugin import moduleman_plugin
 from wenum.plugin_api.base import BasePlugin
-from wenum.ui.console.common import Term
+from wenum.ui.console.term import Term
 
 
 @moduleman_plugin

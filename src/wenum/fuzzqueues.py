@@ -11,7 +11,7 @@ from os.path import basename
 from .plugin_api.static_data import head_extensions
 
 if TYPE_CHECKING:
-    from wenum.options import FuzzSession
+    from wenum.runtime_session import FuzzSession
     from wenum.plugin_api.base import BasePlugin
     from wenum.printers import BasePrinter
     from wenum.externals.reqresp.cache import HttpCache
@@ -78,7 +78,7 @@ class SeedQueue(FuzzQueue):
         Assign the next seed that should be currently processed
         """
         self.options.compiled_seed = seed
-        self.options.compile_dictio()
+        self.options.compile_iterator()
 
     def process(self, fuzz_item: FuzzItem):
         # STARTSEED used by the first item when wenum starts
@@ -127,7 +127,7 @@ class SeedQueue(FuzzQueue):
 
         # Check if the payload dictionary is empty to begin with
         try:
-            fuzz_word = next(self.options["compiled_dictio"])
+            fuzz_word = next(self.options.compiled_iterator)
         except StopIteration:
             raise FuzzExceptBadOptions("Empty dictionary! Please check payload or filter.")
 
@@ -143,7 +143,7 @@ class SeedQueue(FuzzQueue):
                 if not self.options.cache.check_cache(fuzz_result.url):
                     self.stats.pending_fuzz.inc()
                     self.send(fuzz_result)
-                fuzz_word = next(self.options["compiled_dictio"])
+                fuzz_word = next(self.options.compiled_iterator)
         except StopIteration:
             pass
 

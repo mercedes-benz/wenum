@@ -40,4 +40,4 @@ except ImportError:
 
     sys.exit(1)
 
-from .options import FuzzSession
+from .runtime_session import FuzzSession

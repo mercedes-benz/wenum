@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from urllib.parse import urlparse
 
 if TYPE_CHECKING:
-    from wenum.options import FuzzSession
+    from wenum.runtime_session import FuzzSession
 import pycurl
 from io import BytesIO
 from threading import Thread, Lock

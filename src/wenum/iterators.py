@@ -6,12 +6,17 @@ from builtins import zip as builtinzip
 
 
 class BaseIterator(ABC):
+    """Classes inheriting from this base class are supposed to provide different
+    means of iterating through supplied FUZZ keywords"""
     @abstractmethod
     def count(self):
         raise NotImplementedError
 
     @abstractmethod
-    def width(self):
+    def width(self) -> int:
+        """
+        Returns amount of FUZZ keywords the iterator consumes
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -19,13 +24,15 @@ class BaseIterator(ABC):
         raise NotImplementedError
 
     def cleanup(self):
+        """
+        Called when runtime is shutting down
+        """
         for payload in self.payloads():
             payload.close()
 
 
 class Zip(BaseIterator):
-    name = "zip"
-    summary = "Returns an iterator that aggregates elements from each of the iterables."
+    """Returns an iterator that aggregates elements from each of the iterables."""
 
     def __init__(self, *i):
         self._payload_list = i
@@ -45,12 +52,8 @@ class Zip(BaseIterator):
     def __next__(self):
         return next(self.it)
 
-    def __iter__(self):
-        return self
-
 
 class Product(BaseIterator):
-    name = "product"
     summary = "Returns an iterator cartesian product of input iterables."
 
     def __init__(self, *i):
@@ -71,12 +74,8 @@ class Product(BaseIterator):
     def __next__(self):
         return next(self.it)
 
-    def __iter__(self):
-        return self
-
 
 class Chain(BaseIterator):
-    name = "chain"
     summary = "Returns an iterator returns elements from the first iterable until it is exhausted, then proceeds to the next iterable, until all of the iterables are exhausted."
 
     def __init__(self, *i):
@@ -96,5 +95,3 @@ class Chain(BaseIterator):
     def __next__(self):
         return (next(self.it),)
 
-    def __iter__(self):
-        return self

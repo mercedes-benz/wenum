@@ -66,6 +66,9 @@ class FuzzItem:
 
 
 class FuzzStats:
+    """
+    Object keeping track of runtime statistics
+    """
     def __init__(self):
         self.mutex = Lock()
 
@@ -107,7 +110,7 @@ class FuzzStats:
         tmp_stats = FuzzStats()
 
         tmp_stats.url = options.compiled_seed.history.url
-        tmp_stats.wordlist_req = options["compiled_dictio"].count()
+        tmp_stats.wordlist_req = options.compiled_iterator.count()
         tmp_stats.seed = options.compiled_seed
 
         return tmp_stats
@@ -240,6 +243,7 @@ class FuzzPayload:
 
 
 class FPayloadManager:
+    """#TODO What does this manage?"""
     def __init__(self):
         self.payloads = defaultdict(list)
 
@@ -429,7 +433,6 @@ class FuzzPlugin(FuzzItem):
     FuzzPlugins usually store result information of script plugins (which inherit from BasePlugin).
     Therefore, they are created by plugins, rather than representing the plugins themselves
     """
-    OUTPUT_SOURCE = "output"
     NONE, INFO, LOW, MEDIUM, HIGH, CRITICAL = range(6)
     MIN_VERBOSE = INFO
 

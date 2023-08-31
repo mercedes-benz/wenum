@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING
 
 from typing import Optional
 
-from .ui.console.common import Term
+from .ui.console.term import Term
 
 if TYPE_CHECKING:
-    from .options import FuzzSession
+    from .runtime_session import FuzzSession
 import collections
 from itertools import zip_longest
 from abc import ABC, abstractmethod

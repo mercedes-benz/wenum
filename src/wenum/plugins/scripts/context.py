@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from wenum.ui.console.common import Term
+from wenum.ui.console.term import Term
 
 if TYPE_CHECKING:
     from wenum.fuzzobjects import FuzzResult

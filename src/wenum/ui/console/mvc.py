@@ -10,7 +10,8 @@ from itertools import zip_longest
 
 from wenum.fuzzobjects import FuzzWordType, FuzzResult, FuzzStats
 
-from .common import exec_banner, Term
+from .term import Term
+from wenum import __version__ as version
 from wenum.plugin_api.urlutils import parse_url
 import wenum.ui.console.kbhit as kbhit
 from .output import wrap_always_list
@@ -324,6 +325,11 @@ class View:
 
     def header(self, summary):
         """Prints the wenum header"""
+        exec_banner = """********************************************************\r
+        * wenum {version} - A Web Fuzzer {align: <{width1}}*\r
+        ********************************************************\r\n""".format(
+            version=version, align=" ", width1=22 - len(version)
+        )
         print(exec_banner)
         if summary:
             print("Target: %s\r" % summary.url)

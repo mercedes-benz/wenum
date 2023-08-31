@@ -1,14 +1,8 @@
-import logging
-
-from .exception import FuzzExceptNoPluginError, FuzzExceptBadOptions
-from .facade import Facade
-from .fuzzobjects import FuzzWord, FuzzWordType
 from .iterators import BaseIterator
 
 
 class TupleIt(BaseIterator):
     def __init__(self, parent):
-        super().__init__()
         self.parent = parent
 
     def count(self):
