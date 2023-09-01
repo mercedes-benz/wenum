@@ -38,7 +38,7 @@ PRIORITY_STEP = 10
 
 
 class FuzzSession:
-    """Class designed to store runtime (user) options"""
+    """Class designed to carry runtime information relevant for conditional decisions"""
     def __init__(self, options: Options):
         self.options: Options = options
 

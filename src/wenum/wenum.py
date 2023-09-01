@@ -30,7 +30,7 @@ def main():
     keypress: Optional[KeyPress] = None
     fuzzer: Optional[Fuzzer] = None
     session_options: Optional[FuzzSession] = None
-    logger = None
+    logger = logging.getLogger("runtime_log")
     term = None
 
     try:
@@ -56,7 +56,6 @@ def main():
 
         term = Term(session_options)
 
-        logger = logging.getLogger("runtime_log")
         # Logging startup options on startup
         logger.info("Starting")
 

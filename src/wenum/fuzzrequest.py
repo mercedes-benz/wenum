@@ -283,7 +283,7 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
             self.url = options.url
             self.fuzzing_url = options.url
 
-        self.headers.request = options.header_dict
+        self.headers.request = options.header_list
 
         if options.data:
             self.params.post = options.data

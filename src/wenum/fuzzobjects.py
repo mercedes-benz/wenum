@@ -67,7 +67,7 @@ class FuzzItem:
 
 class FuzzStats:
     """
-    Object keeping track of runtime statistics
+    Class designed to carry diagnostic runtime information
     """
     def __init__(self):
         self.mutex = Lock()
