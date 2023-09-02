@@ -18,14 +18,13 @@ from .fuzzqueues import (
     DryRunQ,
     HttpQueue,
     CLIPrinterQ,
-    PassPayloadQ,
     AutofilterQ,
     RedirectQ
 )
 
 
 class Fuzzer:
-    def __init__(self, options: FuzzSession):
+    def __init__(self, session: FuzzSession):
         """
         Create queues. Usually
         genReq ---> seed_queue -> http_queue/dryrun -> [round_robin -> plugins_queue] * N
@@ -33,35 +32,35 @@ class Fuzzer:
         The order is dictated simply by the order in which they get added to the qmanager object
         """
 
-        self.options: FuzzSession = options
-        self.qmanager: QueueManager = QueueManager(options)
+        self.session: FuzzSession = session
+        self.qmanager: QueueManager = QueueManager(session)
         self.results_queue: MyPriorityQueue = MyPriorityQueue()
         self.logger = logging.getLogger("runtime_log")
 
-        self.qmanager.add("seed_queue", SeedQueue(options))
+        self.qmanager.add("seed_queue", SeedQueue(session))
 
-        if options.dry_run:
-            self.qmanager.add("transport_queue", DryRunQ(options))
+        if session.options.dry_run:
+            self.qmanager.add("transport_queue", DryRunQ(session))
         else:
-            self.qmanager.add("transport_queue", HttpQueue(options))
+            self.qmanager.add("transport_queue", HttpQueue(session))
 
-        if options.location:
-            self.qmanager.add("redirects_queue", RedirectQ(options))
+        if session.options.location:
+            self.qmanager.add("redirects_queue", RedirectQ(session))
 
-        if options.auto_filter:
+        if session.options.auto_filter:
             self.qmanager.add(
-                "autofilter_queue", AutofilterQ(options)
+                "autofilter_queue", AutofilterQ(session)
             )
 
-        if options.plugins_list:
-            self.qmanager.add("plugins_queue", PluginQueue(options))
+        if session.options.plugins_list:
+            self.qmanager.add("plugins_queue", PluginQueue(session))
 
-        if options.recursion:
-            self.qmanager.add("recursive_queue", RecursiveQ(options))
+        if session.options.recursion:
+            self.qmanager.add("recursive_queue", RecursiveQ(session))
 
-        if (options.plugins_list or options.recursion) and not options.dry_run:
+        if (session.options.plugins_list or session.options.recursion) and not session.options.dry_run:
             rq = RoutingQ(
-                options,
+                session,
                 {
                     FuzzType.SEED: self.qmanager["seed_queue"],
                     FuzzType.BACKFEED: self.qmanager["transport_queue"],
@@ -70,18 +69,18 @@ class Fuzzer:
 
             self.qmanager.add("routing_queue", rq)
 
-        if options.compiled_filter.is_active():
+        if session.compiled_filter.is_active():
             self.qmanager.add(
-                "filter_queue", FilterQ(options, options.compiled_filter)
+                "filter_queue", FilterQ(session, session.compiled_filter)
             )
 
-        if options.compiled_simple_filter.is_active():
+        if session.compiled_simple_filter.is_active():
             self.qmanager.add(
                 "simple_filter_queue",
-                FilterQ(options, options.compiled_simple_filter),
+                FilterQ(session, session.compiled_simple_filter),
             )
 
-        if options.hard_filter:
+        if session.options.hard_filter:
             """
             This will push the plugins in the list after the FilterQ
             """
@@ -93,10 +92,10 @@ class Fuzzer:
                 except KeyError:
                     continue
 
-        if options.compiled_printer:
-            self.qmanager.add("printer_queue", FilePrinterQ(options))
+        if session.compiled_printer:
+            self.qmanager.add("printer_queue", FilePrinterQ(session))
 
-        self.qmanager.add("printer_cli", CLIPrinterQ(options))
+        self.qmanager.add("printer_cli", CLIPrinterQ(session))
 
         self.qmanager.bind(self.results_queue)
 
@@ -126,7 +125,7 @@ class Fuzzer:
         return dict(
             list(self.qmanager.get_stats().items())
             + list(self.qmanager["transport_queue"].http_pool.job_stats().items())
-            + list(self.options.compiled_stats.get_runtime_stats().items())
+            + list(self.session.compiled_stats.get_runtime_stats().items())
         )
 
     def cancel_job(self):

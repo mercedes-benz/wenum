@@ -61,50 +61,37 @@ class FuzzResSimpleFilter(BaseFilter):
         return cond1 and cond2
 
     @staticmethod
-    def from_options(options):
+    def from_options(session):
         ffilter = FuzzResSimpleFilter()
 
         try:
-            if options.sr is not None:
+            if session.options.sr is not None:
                 ffilter.hideparams["regex_show"] = True
                 ffilter.hideparams["regex"] = re.compile(
-                    options.sr, re.MULTILINE | re.DOTALL
+                    session.options.sr, re.MULTILINE | re.DOTALL
                 )
 
-            elif options.hr is not None:
+            elif session.options.hr is not None:
                 ffilter.hideparams["regex_show"] = False
                 ffilter.hideparams["regex"] = re.compile(
-                    options.hr, re.MULTILINE | re.DOTALL
+                    session.options.hr, re.MULTILINE | re.DOTALL
                 )
         except Exception as e:
             raise FuzzExceptBadOptions(
                 "Invalid regex expression used in filter: %s" % str(e)
             )
 
-        if options.sc_list or options.sw_list or options.ss_list or options.sl_list:
+        if session.options.sc_list or session.options.sw_list or session.options.ss_list or session.options.sl_list:
             ffilter.hideparams["codes_show"] = True
-            ffilter.hideparams["codes"] = options.sc_list
-            ffilter.hideparams["words"] = options.sw_list
-            ffilter.hideparams["lines"] = options.sl_list
-            ffilter.hideparams["chars"] = options.ss_list
-        elif options.hc_list or options.hw_list or options.hs_list or options.hl_list:
+            ffilter.hideparams["codes"] = session.options.sc_list
+            ffilter.hideparams["words"] = session.options.sw_list
+            ffilter.hideparams["lines"] = session.options.sl_list
+            ffilter.hideparams["chars"] = session.options.ss_list
+        elif session.options.hc_list or session.options.hw_list or session.options.hs_list or session.options.hl_list:
             ffilter.hideparams["codes_show"] = False
-            ffilter.hideparams["codes"] = options.hc_list
-            ffilter.hideparams["words"] = options.hw_list
-            ffilter.hideparams["lines"] = options.hl_list
-            ffilter.hideparams["chars"] = options.hs_list
-
-        #if [x for x in ["sc", "sw", "sh", "sl"] if len(options[x]) > 0]:
-        #    ffilter.hideparams["codes_show"] = True
-        #    ffilter.hideparams["codes"] = options["sc"]
-        #    ffilter.hideparams["words"] = options["sw"]
-        #    ffilter.hideparams["lines"] = options["sl"]
-        #    ffilter.hideparams["chars"] = options["sh"]
-        #elif [x for x in ["hc", "hw", "hh", "hl"] if len(options[x]) > 0]:
-        #    ffilter.hideparams["codes_show"] = False
-        #    ffilter.hideparams["codes"] = options.hc_list
-        #    ffilter.hideparams["words"] = options["hw"]
-        #    ffilter.hideparams["lines"] = options["hl"]
-        #    ffilter.hideparams["chars"] = options["hh"]
+            ffilter.hideparams["codes"] = session.options.hc_list
+            ffilter.hideparams["words"] = session.options.hw_list
+            ffilter.hideparams["lines"] = session.options.hl_list
+            ffilter.hideparams["chars"] = session.options.hs_list
 
         return ffilter

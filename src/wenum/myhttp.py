@@ -38,7 +38,7 @@ MAX_AGE = datetime.datetime.now(pytz.utc) - datetime.timedelta(days=30)
 class HttpPool:
     newid = itertools.count(0)
 
-    def __init__(self, options):
+    def __init__(self, session: FuzzSession):
         self.processed = 0
 
         self.exit_job = False
@@ -52,7 +52,7 @@ class HttpPool:
         self.curlh_freelist: list[pycurl.Curl] = []
         # Queue object storing all the requests available for sending out. Maxsize avoids buffering tens of thousands of
         # requests beforehand, which would result in gigabytes of reserved memory
-        self.request_queue: Queue = Queue(maxsize=options.threads)
+        self.request_queue: Queue = Queue(maxsize=session.options.threads)
 
         # List containing the threads
         # TODO This list seems to only contain a single thread. Refactor into a single thread attribute?
@@ -60,8 +60,8 @@ class HttpPool:
 
         self.pool_map = {}
 
-        self.options: FuzzSession = options
-        self.cache = self.options.cache
+        self.session: FuzzSession = session
+        self.cache = self.session.cache
 
         self._registered = 0
         # Amount of total requests that have been queued. This is not a "remaining" requests counter
@@ -72,7 +72,7 @@ class HttpPool:
         self.curl_multi = pycurl.CurlMulti()
         self.handles = []
 
-        for i in range(self.options.threads):
+        for i in range(self.session.options.threads):
             curl_h = pycurl.Curl()
             self.handles.append(curl_h)
             self.curlh_freelist.append(curl_h)
@@ -116,9 +116,9 @@ class HttpPool:
         self.pool_map[poolid]["queue"] = Queue()
         self.pool_map[poolid]["proxy"] = None
 
-        if self.options.proxy_list:
+        if self.session.options.proxy_list:
             self.pool_map[poolid]["proxy"] = self._get_next_proxy(
-                self.options.proxy_list
+                self.session.options.proxy_list
             )
 
         return poolid
@@ -218,7 +218,7 @@ class HttpPool:
         else:
             c.setopt(pycurl.PROXY, "")
 
-        c.setopt(pycurl.TIMEOUT, self.options.request_timeout)
+        c.setopt(pycurl.TIMEOUT, self.session.options.request_timeout)
 
         return c
 
@@ -248,7 +248,7 @@ class HttpPool:
         Queue failed request another time if it is not considered unrecoverable
         and has not exceeded the maximum retry amount
         """
-        if errno in UNRECOVERABLE_PYCURL_EXCEPTIONS or fuzz_result.history.wf_retries >= self.options.get("retries"):
+        if errno in UNRECOVERABLE_PYCURL_EXCEPTIONS or fuzz_result.history.wf_retries >= 3:
             return False
         # Bool indicating whether the request should be queued for request again. Useful for exceptions
         requeue = True

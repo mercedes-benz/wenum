@@ -44,15 +44,15 @@ class SeedQueue(FuzzQueue):
     Queue used by default, handles reading payloads from wordlists
     """
 
-    def __init__(self, options: FuzzSession):
-        super().__init__(options)
-        self.sleep = options.sleep
+    def __init__(self, session: FuzzSession):
+        super().__init__(session)
+        self.sleep = session.options.sleep
 
     def get_name(self):
         return "SeedQueue"
 
     def cancel(self):
-        self.options.compiled_stats.cancelled = True
+        self.session.compiled_stats.cancelled = True
 
     def items_to_process(self):
         return [FuzzType.STARTSEED, FuzzType.SEED]
@@ -65,7 +65,7 @@ class SeedQueue(FuzzQueue):
             # (see HttpQueue docstring). If SeedQueue did put items without restraint,
             # HttpQueue would buffer all the seeds, allocating huge amounts of RAM
             while True:
-                if self.queue_out.qsize() > (self.options.threads * 5):
+                if self.queue_out.qsize() > (self.session.options.threads * 5):
                     # Wait a little and try again
                     time.sleep(0.5)
                     continue
@@ -77,8 +77,8 @@ class SeedQueue(FuzzQueue):
         """
         Assign the next seed that should be currently processed
         """
-        self.options.compiled_seed = seed
-        self.options.compile_iterator()
+        self.session.compiled_seed = seed
+        self.session.compile_iterator()
 
     def process(self, fuzz_item: FuzzItem):
         # STARTSEED used by the first item when wenum starts
@@ -90,8 +90,8 @@ class SeedQueue(FuzzQueue):
         else:
             raise FuzzExceptInternalError("SeedQueue: Unknown item type in queue!")
 
-        if self.options.limit_requests:
-            if not self.options.http_pool.queued_requests > self.options.limit_requests:
+        if self.session.options.limit_requests:
+            if not self.session.http_pool.queued_requests > self.session.options.limit_requests:
                 self.send_dictionary()
             else:
                 self.end_seed()
@@ -103,7 +103,7 @@ class SeedQueue(FuzzQueue):
         Create FuzzResult object from FuzzWord
         """
         return resfactory.create(
-            "fuzzres_from_options_and_dict", self.options, dictio_item
+            "fuzzres_from_options_and_dict", self.session, dictio_item
         )
 
     def add_initial_recursion_to_cache(self):
@@ -111,8 +111,8 @@ class SeedQueue(FuzzQueue):
         Since on startup there is always a recursion on the base FUZZ dir, it needs to be added to the cache
         to avoid e.g. plugins to enqueue a second recursion on it
         """
-        key = self.options.url.replace("FUZZ", "")
-        self.options.cache.check_cache(url_key=key, cache_type="recursion")
+        key = self.session.options.url.replace("FUZZ", "")
+        self.session.cache.check_cache(url_key=key, cache_type="recursion")
 
     def send_dictionary(self):
         """
@@ -121,29 +121,30 @@ class SeedQueue(FuzzQueue):
         # Ensure that a request is sent to the base of the FUZZ path
         fuzz_word = (FuzzWord("", FuzzWordType.WORD),)
         fuzz_result = self.get_fuzz_res(fuzz_word)
-        if not self.options.cache.check_cache(fuzz_result.url):
+        if not self.session.cache.check_cache(fuzz_result.url):
             self.stats.pending_fuzz.inc()
             self.send(fuzz_result)
 
         # Check if the payload dictionary is empty to begin with
+        #TODO Ensure it doesn't skip out on sending the first line of the wordlist
         try:
-            fuzz_word = next(self.options.compiled_iterator)
+            fuzz_word = next(self.session.compiled_iterator)
         except StopIteration:
             raise FuzzExceptBadOptions("Empty dictionary! Please check payload or filter.")
 
         # Enqueue requests
         try:
             while fuzz_word:
-                if self.options.compiled_stats.cancelled:
+                if self.session.compiled_stats.cancelled:
                     break
                 if self.sleep:
                     time.sleep(self.sleep)
                 fuzz_result = self.get_fuzz_res(fuzz_word)
                 # Only send out if it's not already in the cache
-                if not self.options.cache.check_cache(fuzz_result.url):
+                if not self.session.cache.check_cache(fuzz_result.url):
                     self.stats.pending_fuzz.inc()
                     self.send(fuzz_result)
-                fuzz_word = next(self.options.compiled_iterator)
+                fuzz_word = next(self.session.compiled_iterator)
         except StopIteration:
             pass
 
@@ -151,7 +152,7 @@ class SeedQueue(FuzzQueue):
 
     def end_seed(self):
         endseed_item = FuzzItem(item_type=FuzzType.ENDSEED)
-        endseed_item.priority = self.options.compiled_seed.priority
+        endseed_item.priority = self.session.compiled_seed.priority
         self.send_last(endseed_item)
 
 
@@ -161,9 +162,9 @@ class CLIPrinterQ(FuzzQueue):
     print to the CLI
     """
 
-    def __init__(self, options: FuzzSession):
-        super().__init__(options)
-        self.printer = View(self.options)
+    def __init__(self, session: FuzzSession):
+        super().__init__(session)
+        self.printer = View(self.session)
         self.process_discarded = True
 
     def mystart(self):
@@ -184,8 +185,8 @@ class CLIPrinterQ(FuzzQueue):
             print(fuzz_result.rlevel_desc)
         else:
             self.printer.print_result(fuzz_result)
-        if not self.options.quiet:
-            self.printer.append_temp_lines(self.options.compiled_stats)
+        if not self.session.options.quiet:
+            self.printer.append_temp_lines(self.session.compiled_stats)
         self.send(fuzz_result)
 
 
@@ -194,10 +195,10 @@ class FilePrinterQ(FuzzQueue):
     Queue designed to print to files.
     """
 
-    def __init__(self, options: FuzzSession):
-        super().__init__(options)
+    def __init__(self, session: FuzzSession):
+        super().__init__(session)
 
-        self.printer: BasePrinter = options.compiled_printer
+        self.printer: BasePrinter = session.compiled_printer
         self.printer.header(self.stats)
         # Counter to reduce unnecessary amounts of writes. Write every x requests
         self.counter = 0
@@ -227,8 +228,8 @@ class RoutingQ(FuzzQueue):
     Responsible for sending SEED and BACKFEED types of results to their corresponding queues.
     """
 
-    def __init__(self, options: FuzzSession, routes):
-        super().__init__(options)
+    def __init__(self, session: FuzzSession, routes):
+        super().__init__(session)
         self.routes = routes
 
     def get_name(self):
@@ -242,13 +243,13 @@ class RoutingQ(FuzzQueue):
 
     def process(self, fuzz_result: FuzzResult):
         if fuzz_result.item_type == FuzzType.SEED:
-            priority_level = self.options.assign_next_priority_level()
+            priority_level = self.session.assign_next_priority_level()
             # New seeds get less priority. This way an order of execution is maintained, whereas
             # processing items from the seed before is preferred. Goes in steps of 10 to additionally
             # allow for fine-grained prioritization within the same seed
             fuzz_result.priority = priority_level
             self.stats.new_seed()
-            self.options.compiled_stats.seed_list.append(fuzz_result.url)
+            self.session.compiled_stats.seed_list.append(fuzz_result.url)
             self.routes[FuzzType.SEED].put(fuzz_result)
         elif fuzz_result.item_type == FuzzType.BACKFEED:
             self.stats.new_backfeed()
@@ -262,8 +263,8 @@ class FilterQ(FuzzQueue):
     Queue designed to filter out unwanted requests
     """
 
-    def __init__(self, options: FuzzSession, ffilter: BaseFilter):
-        super().__init__(options)
+    def __init__(self, session: FuzzSession, ffilter: BaseFilter):
+        super().__init__(session)
 
         # ffilter either FuzzResFilter or FuzzResSimpleFilter, depending on what has been specified on cli
         self.ffilter: BaseFilter = ffilter
@@ -285,8 +286,8 @@ class AutofilterQ(FuzzQueue):
     recent kinds of results within a path, and if they repeat too often, will discard those if they occur in that dir.
     """
 
-    def __init__(self, options: FuzzSession):
-        super().__init__(options)
+    def __init__(self, session: FuzzSession):
+        super().__init__(session)
 
         # The filter that gets adjusted during runtime
         self.filter = FuzzResFilter()
@@ -353,14 +354,15 @@ class AutofilterQ(FuzzQueue):
                                   f"Recurring response detected. Filtering out "
                                   f"'{colored_identifier}'{redirect_string}", FuzzPlugin.INFO))
 
+
 class PluginQueue(FuzzListQueue):
     """
     Queue responsible for handling plugins
     """
 
-    def __init__(self, options: FuzzSession):
+    def __init__(self, session: FuzzSession):
         # Get active plugins
-        lplugins = [plugin(options) for plugin in Facade().scripts.get_plugins(options.plugins_list)]
+        lplugins = [plugin(session) for plugin in Facade().scripts.get_plugins(session.options.plugins_list)]
 
         if not lplugins:
             raise FuzzExceptBadOptions(
@@ -369,7 +371,7 @@ class PluginQueue(FuzzListQueue):
 
         concurrent = int(Facade().settings.get("general", "concurrent_plugins"))
         # Creating several PluginExecutors to enable several requests to be processed by plugins simultaneously
-        super().__init__(options, [PluginExecutor(options, lplugins) for i in range(concurrent)])
+        super().__init__(session, [PluginExecutor(session, lplugins) for i in range(concurrent)])
 
     def get_name(self):
         return "PluginQueue"
@@ -383,15 +385,15 @@ class PluginExecutor(FuzzQueue):
     Queue dedicated to handle the execution of plugins. Usually, several instances are created by PluginQueue.
     """
 
-    def __init__(self, options: FuzzSession, selected_plugins: list[BasePlugin]):
+    def __init__(self, session: FuzzSession, selected_plugins: list[BasePlugin]):
         # Usually, several PluginExecutors are initiated in a runtime, and one of them may longer than others.
         # Therefore, an arbitrary maxsize is provided, causing the PluginQueue to try the next one if one is full.
-        super().__init__(options, maxsize=30)
+        super().__init__(session, maxsize=30)
         self.__walking_threads: Queue = Queue()
         self.selected_plugins: list[BasePlugin] = selected_plugins
-        self.cache: HttpCache = options.cache
-        self.max_rlevel = options.recursion
-        self.max_plugin_rlevel = options.plugin_recursion
+        self.cache: HttpCache = session.cache
+        self.max_rlevel = session.options.recursion
+        self.max_plugin_rlevel = session.options.plugin_recursion
 
     def get_name(self) -> str:
         return "PluginExecutor"
@@ -448,8 +450,8 @@ class PluginExecutor(FuzzQueue):
             elif plugin.message and plugin.is_visible():
                 fuzz_result.plugins_res.append(plugin)
             # If it has a seed (BACKFEED/SEED) and goes over http
-            elif plugin.seed and not self.options.dry_run:
-                in_scope = fuzz_result.history.check_in_scope(plugin.seed.history.url, self.options.domain_scope)
+            elif plugin.seed and not self.session.options.dry_run:
+                in_scope = fuzz_result.history.check_in_scope(plugin.seed.history.url, self.session.options.domain_scope)
                 if in_scope:
                     if plugin.seed.item_type == FuzzType.BACKFEED:
                         cache_type = "processed"
@@ -475,7 +477,7 @@ class PluginExecutor(FuzzQueue):
                         if fuzz_result.plugin_rlevel >= self.max_plugin_rlevel:
                             continue
                         # If the URL is deemed a false positive, don't throw a recursion
-                        elif RecursiveQ.false_positive_hit(seed=plugin.seed, options=self.options, logger=self.logger):
+                        elif RecursiveQ.false_positive_hit(seed=plugin.seed, session=self.session, logger=self.logger):
                             continue
                         queued_dict[plugin.name]["queued_seeds"] += 1
                     else:
@@ -519,10 +521,10 @@ class RedirectQ(FuzzQueue):
     Queue designed to follow redirect URLs
     """
 
-    def __init__(self, options: FuzzSession):
-        super().__init__(options)
+    def __init__(self, session: FuzzSession):
+        super().__init__(session)
 
-        self.cache = options.cache
+        self.cache = session.cache
         self.regex_header = [
             ("Link", re.compile(r"<(.*)>;")),
             ("Location", re.compile(r"(.*)")),
@@ -551,7 +553,7 @@ class RedirectQ(FuzzQueue):
         # Join both URLs. If it's relative, will append to the base URL. Otherwise, will use link_url's netloc
         target_url = urljoin(fuzz_result.url, link_url)
 
-        in_scope = fuzz_result.history.check_in_scope(target_url, domain_based=self.options.domain_scope)
+        in_scope = fuzz_result.history.check_in_scope(target_url, domain_based=self.session.options.domain_scope)
         if not in_scope:
             fuzz_result.plugins_res.append(plugin_factory.create(
                 "plugin_from_finding", name=self.get_name(),
@@ -580,12 +582,12 @@ class RecursiveQ(FuzzQueue):
     it looks like an endpoint was found which acts as a directory.
     """
 
-    def __init__(self, options: FuzzSession):
-        super().__init__(options)
+    def __init__(self, session: FuzzSession):
+        super().__init__(session)
 
-        self.cache = options.cache
-        self.max_rlevel = options.recursion
-        self.max_plugin_rlevel = options.plugin_recursion
+        self.cache = session.cache
+        self.max_rlevel = session.options.recursion
+        self.max_plugin_rlevel = session.options.plugin_recursion
 
     def get_name(self):
         return "RecursiveQ"
@@ -605,8 +607,8 @@ class RecursiveQ(FuzzQueue):
         if self.cache.check_cache(recursion_url, cache_type="recursion", update=False):
             pass
         # Don't recurse if request limiting is active and threshold is reached
-        elif self.options.limit_requests and self.options.http_pool.queued_requests > \
-                self.options.limit_requests:
+        elif self.session.options.limit_requests and self.session.http_pool.queued_requests > \
+                self.session.options.limit_requests:
             fuzz_result.plugins_res.append(
                 plugin_factory.create("plugin_from_finding", self.get_name(),
                                       f"Skipped recursion - limiting requests as per argument for "
@@ -618,7 +620,7 @@ class RecursiveQ(FuzzQueue):
                                       f"Skipped recursion - " + max_recursion_condition +
                                       f" for {recursion_url}", FuzzPlugin.INFO))
         # Or if the recursion URL is deemed a false positive. This check should be the last, as it is the costliest.
-        elif self.false_positive_hit(seed, self.options, self.logger):
+        elif self.false_positive_hit(seed, self.session, self.logger):
             fuzz_result.plugins_res.append(
                 plugin_factory.create("plugin_from_finding", self.get_name(),
                                       f"Permanent redirect detected for "
@@ -651,20 +653,20 @@ class RecursiveQ(FuzzQueue):
             return ""
 
     @staticmethod
-    def false_positive_hit(seed: FuzzResult, options: FuzzSession, logger: logging.Logger) -> bool:
+    def false_positive_hit(seed: FuzzResult, session: FuzzSession, logger: logging.Logger) -> bool:
         """
         Checks whether server responds with something that looks like a hit an endpoint that does not exist,
         based on the URL of the FuzzResult
         Returns True if it is a false positive, False if it is legitimate
         """
-        if options.proxy_list:
-            proxy_string = options.proxy_list[0]
+        if session.options.proxy_list:
+            proxy_string = session.options.proxy_list[0]
             proxy_dict = {"http": proxy_string,
                           "https": proxy_string}
         else:
             proxy_dict = ""
-        if options.header_dict:
-            headers_dict = {options.header_dict}
+        if session.options.header_dict():
+            headers_dict = {session.options.header_dict()}
         else:
             headers_dict = {
                 "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0"
@@ -724,36 +726,14 @@ class RecursiveQ(FuzzQueue):
         return junk_response.status_code, junk_words
 
 
-class PassPayloadQ(FuzzQueue):
-    """
-    Queue used as transport_queue when 'payload' option is used
-    """
-
-    def __init__(self, options: FuzzSession):
-        super().__init__(options)
-        self.pause = Event()
-
-    def get_name(self):
-        return "PassPayloadQ"
-
-    def process(self, fuzz_result: FuzzResult):
-        if fuzz_result.payload_man.get_payload_type(1) == FuzzWordType.FUZZRES:
-            fuzz_result = fuzz_result.payload_man.get_payload_content(1)
-            if not fuzz_result.payload_man:
-                fuzz_result.payload_man = payman_factory.create(
-                    "empty_payloadman", FuzzWord(fuzz_result.url, FuzzWordType.WORD)
-                )
-        self.send(fuzz_result)
-
-
 class DryRunQ(FuzzQueue):
     """
     Queue used as transport_queue when 'dryrun' option is used. Sends no requests, does nothing, simply passes
     the item.
     """
 
-    def __init__(self, options: FuzzSession):
-        super().__init__(options)
+    def __init__(self, session: FuzzSession):
+        super().__init__(session)
         self.pause = Event()
 
     def get_name(self):
@@ -773,13 +753,13 @@ class HttpQueue(FuzzQueue):
     already big.
     """
 
-    def __init__(self, options: FuzzSession):
+    def __init__(self, session: FuzzSession):
         # The HttpQ gets initialized with a maxsize to ensure that queues intending to generate requests wait
         # in case the HttpQueue lags behind. This prevents rapid RAM allocation.
-        super().__init__(options)
+        super().__init__(session)
 
         self.poolid = None
-        self.http_pool = options.http_pool
+        self.http_pool = session.http_pool
 
         self.pause = Event()
         self.pause.set()
@@ -819,7 +799,7 @@ class HttpQueue(FuzzQueue):
                 if requeue:
                     self.http_pool.enqueue(fuzz_result, self.poolid)
                 else:
-                    if fuzz_result.exception and self.options.stop_error:
+                    if fuzz_result.exception and self.session.options.stop_error:
                         self._throw(fuzz_result.exception)
                     else:
                         self.send(fuzz_result)

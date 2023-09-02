@@ -3,8 +3,8 @@ import sys
 
 class Term:
     """Class designed to handle terminal matters. Provides convenience functions."""
-    def __init__(self, options):
-        if options.colorless:
+    def __init__(self, session):
+        if session.options.colorless:
             self.reset = self.bright = self.dim = self.underscore = self.blink = self.reverse = self.hidden \
                 = self.fgBlack = self.fgRed = self.fgGreen = self.fgYellow = self.fgBlue = \
                 self.fgMagenta = self.fgCyan = self.fgWhite = self.bgBlack = self.bgRed = self.bgGreen \

@@ -89,14 +89,14 @@ class Controller:
         self.printer_queue: FuzzQueue = self.fuzzer.qmanager["printer_cli"]
         self.view = view
         self.__paused = False
-        self.stats: FuzzStats = fuzzer.options.compiled_stats
+        self.stats: FuzzStats = fuzzer.session.compiled_stats
 
         self.view.dispatcher.subscribe(self.on_help, "h")
         self.view.dispatcher.subscribe(self.on_pause, "p")
         self.view.dispatcher.subscribe(self.on_stats, "s")
         self.view.dispatcher.subscribe(self.on_seeds, "r")
         self.view.dispatcher.subscribe(self.on_debug, "d")
-        self.term = Term(fuzzer.options)
+        self.term = Term(fuzzer.session)
 
     def on_help(self, **event):
         message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", usage)
@@ -203,10 +203,10 @@ class View:
     result_row_widths = [10, 8, 6, 8, 10, 6, shutil.get_terminal_size(fallback=(80, 25))[0] - 66]
     verbose_result_row_widths = [10, 10, 8, 8, 6, 9, 30, 30, shutil.get_terminal_size(fallback=(80, 25))[0] - 145]
 
-    def __init__(self, session_options):
+    def __init__(self, session):
         self.last_discarded_result = None
-        self.verbose = session_options.verbose
-        self.term = Term(session_options)
+        self.verbose = session.options.verbose
+        self.term = Term(session)
         # Keeps track of the line count of the print for discarded responses (to then overwrite these lines with the
         # next print)
         self.printed_temp_lines = 0

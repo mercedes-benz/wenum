@@ -20,26 +20,26 @@ class DictionaryFactory(ObjectFactory):
 
 class BaseDictioBuilder:
     @staticmethod
-    def validate(options, selected_dic):
+    def validate(session, selected_dic):
         if not selected_dic:
             raise FuzzExceptBadOptions("Empty dictionary! Check payload and filter")
 
-        if len(selected_dic) == 1 and options.iterator:
+        if len(selected_dic) == 1 and session.options.iterator:
             raise FuzzExceptBadOptions(
                 "Several dictionaries must be used when specifying an iterator"
             )
 
     @staticmethod
-    def init_iterator(options, selected_dic):
+    def init_iterator(session, selected_dic):
         """
         Returns an iterator according to the user options
         """
         if len(selected_dic) == 1:
             return TupleIt(selected_dic[0])
-        elif options.iterator:
-            if options.iterator == "zip":
+        elif session.options.iterator:
+            if session.options.iterator == "zip":
                 return Zip(*selected_dic)
-            elif options.iterator == "chain":
+            elif session.options.iterator == "chain":
                 return Chain(*selected_dic)
             # Using product as the fallback, as it's the most common (and therefore default) anyways
             else:
@@ -49,20 +49,20 @@ class BaseDictioBuilder:
 
 
 class DictioFromPayloadBuilder(BaseDictioBuilder):
-    def __call__(self, options):
+    def __call__(self, session):
         selected_dic = []
 
-        for wordlist in options.wordlist_list:
+        for wordlist in session.options.wordlist_list:
             dictionary = File(wordlist)
             selected_dic.append(dictionary)
 
-        self.validate(options, selected_dic)
-        return self.init_iterator(options, selected_dic)
+        self.validate(session, selected_dic)
+        return self.init_iterator(session, selected_dic)
 
 
 class DictioFromOptions(BaseDictioBuilder):
-    def __call__(self, options):
-        return DictioFromPayloadBuilder()(options)
+    def __call__(self, session):
+        return DictioFromPayloadBuilder()(session)
 
 
 dictionary_factory = DictionaryFactory()

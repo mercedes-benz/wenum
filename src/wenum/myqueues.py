@@ -60,7 +60,7 @@ class MyPriorityQueue(PriorityQueue):
 
 
 class FuzzQueue(MyPriorityQueue, Thread, ABC):
-    def __init__(self, options: FuzzSession, queue_out=None, maxsize=0):
+    def __init__(self, session: FuzzSession, queue_out=None, maxsize=0):
         MyPriorityQueue.__init__(self, maxsize)
         self.queue_out: Optional[FuzzQueue] = queue_out
         # Next queue in line that intends to process discarded fuzz_results
@@ -70,10 +70,10 @@ class FuzzQueue(MyPriorityQueue, Thread, ABC):
         # Indicates whether the queue wants to process discarded fuzzresults
         self.process_discarded = False
 
-        self.stats: FuzzStats = options.compiled_stats
-        self.options: FuzzSession = options
+        self.stats: FuzzStats = session.compiled_stats
+        self.session: FuzzSession = session
         self.logger = logging.getLogger("runtime_log")
-        self.term = Term(options)
+        self.term = Term(session)
 
         Thread.__init__(self)
         self.name = self.get_name()
@@ -231,8 +231,8 @@ class LastFuzzQueue(FuzzQueue):
     """
     Very last queue in the chain, always present when wenum runs
     """
-    def __init__(self, options, queue_out=None, maxsize=0):
-        super().__init__(options, queue_out, maxsize)
+    def __init__(self, session, queue_out=None, maxsize=0):
+        super().__init__(session, queue_out, maxsize)
         self.process_discarded = True
 
     def get_name(self):
@@ -301,8 +301,8 @@ class FuzzListQueue(FuzzQueue, ABC):
 
     If the FuzzListQueue doesn't need to process discarded items but its children should do so, the parent should
     forward the items in the process() method with send_to_any()/send_to_all(), depending on the current use case."""
-    def __init__(self, options, queues_out: list[FuzzQueue], maxsize=0):
-        super().__init__(options=options, maxsize=maxsize)
+    def __init__(self, session, queues_out: list[FuzzQueue], maxsize=0):
+        super().__init__(session=session, maxsize=maxsize)
         # Tuple containing the outqueue and a bool indicating whether it is currently blocking
         self.queues_out: list[FuzzQueue] = queues_out
 
@@ -452,13 +452,13 @@ class FuzzListQueue(FuzzQueue, ABC):
 
 
 class QueueManager:
-    def __init__(self, options):
+    def __init__(self, session):
         self._queues = collections.OrderedDict()
         self._lastqueue = None
         self._syncq = None
         self._mutex = RLock()
 
-        self.options = options
+        self.session = session
 
     def add(self, name, queue):
         """
@@ -483,7 +483,7 @@ class QueueManager:
             self._lastqueue = lastq
 
             # The syncq connection isn't utilized much (yet), but it's a LastFuzzQueue that every queue gets a handle to
-            self._syncq: LastFuzzQueue = LastFuzzQueue(self.options, lastq)
+            self._syncq: LastFuzzQueue = LastFuzzQueue(self.session, lastq)
             self._syncq.qmanager = self
 
             # Set the next queue for each queue

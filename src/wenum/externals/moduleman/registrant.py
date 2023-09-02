@@ -91,16 +91,24 @@ class BRegistrant(IRegistrant):
     def plugin_state(self, identifier, state):
         self.__active_plugins[identifier] = state
 
-    def __get_plugins(self, category, sorting):
-        def plugin_filter(x):
-            plgid, plg = x
+    def __get_plugins(self, plugin_list: list[str], sorting):
+        def plugin_filter(plugin_tuple) -> bool:
+            """
+            Takes a plugin tuple and checks if it is within the user supplied plugin_list
 
-            if category == "$all$":
+            Returns False if it isn't, and true if it is
+
+            :param plugin_tuple:
+            :return:
+            """
+            plugin_name, plugin_class = plugin_tuple
+
+            if plugin_list == "$all$":
                 return True
-            elif not self.__active_plugins[plgid]:
+            elif not self.__active_plugins[plugin_name]:
                 return False
             else:
-                return self.plg_filter.is_visible(plg, category)
+                return self.plg_filter.is_visible(plugin_class, plugin_list)
 
         def key_funtion(x):
             return x[1].priority

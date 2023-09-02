@@ -378,7 +378,7 @@ class Options:
             self.url = self.pop_toml_string(toml_dict, self.opt_name_url)
 
         if self.opt_name_wordlist in toml_dict:
-            self.wordlist_list = self.wordlist_list + self.pop_toml_list_str(toml_dict, self.opt_name_wordlist)
+            self.wordlist_list += self.pop_toml_list_str(toml_dict, self.opt_name_wordlist)
 
         if self.opt_name_colorless in toml_dict:
             self.colorless = self.pop_toml_bool(toml_dict, self.opt_name_colorless)
@@ -399,7 +399,7 @@ class Options:
             self.debug_log = self.pop_toml_string(toml_dict, self.opt_name_debug_log)
 
         if self.opt_name_proxy in toml_dict:
-            self.proxy_list = self.proxy_list + self.pop_toml_list_str(toml_dict, self.opt_name_proxy)
+            self.proxy_list += self.pop_toml_list_str(toml_dict, self.opt_name_proxy)
 
         if self.opt_name_threads in toml_dict:
             self.threads = self.pop_toml_int(toml_dict, self.opt_name_threads)
@@ -423,7 +423,7 @@ class Options:
             self.data = self.pop_toml_string(toml_dict, self.opt_name_data)
 
         if self.opt_name_header in toml_dict:
-            self.header_list = self.pop_toml_list_str(toml_dict, self.opt_name_header)
+            self.header_list += self.pop_toml_list_str(toml_dict, self.opt_name_header)
 
         if self.opt_name_cookie in toml_dict:
             self.cookie = self.pop_toml_string(toml_dict, self.opt_name_cookie)
@@ -432,31 +432,31 @@ class Options:
             self.opt_name_stop_error = self.pop_toml_bool(toml_dict, self.opt_name_stop_error)
 
         if self.opt_name_hc in toml_dict:
-            self.hc_list = self.hc_list + self.pop_toml_list_int(toml_dict, self.opt_name_hc)
+            self.hc_list += self.pop_toml_list_int(toml_dict, self.opt_name_hc)
 
         if self.opt_name_hw in toml_dict:
-            self.hw_list = self.hw_list + self.pop_toml_list_int(toml_dict, self.opt_name_hw)
+            self.hw_list += self.pop_toml_list_int(toml_dict, self.opt_name_hw)
 
         if self.opt_name_hl in toml_dict:
-            self.hl_list = self.hl_list + self.pop_toml_list_int(toml_dict, self.opt_name_hl)
+            self.hl_list += self.pop_toml_list_int(toml_dict, self.opt_name_hl)
 
         if self.opt_name_hs in toml_dict:
-            self.hs_list = self.hs_list + self.pop_toml_list_int(toml_dict, self.opt_name_hs)
+            self.hs_list += self.pop_toml_list_int(toml_dict, self.opt_name_hs)
 
         if self.opt_name_hr in toml_dict:
             self.hr = self.pop_toml_string(toml_dict, self.opt_name_hr)
 
         if self.opt_name_sc in toml_dict:
-            self.sc_list = self.sc_list + self.pop_toml_list_int(toml_dict, self.opt_name_sc)
+            self.sc_list += self.pop_toml_list_int(toml_dict, self.opt_name_sc)
 
         if self.opt_name_sw in toml_dict:
-            self.sw_list = self.sw_list + self.pop_toml_list_int(toml_dict, self.opt_name_sw)
+            self.sw_list += self.pop_toml_list_int(toml_dict, self.opt_name_sw)
 
         if self.opt_name_sl in toml_dict:
-            self.sl_list = self.sl_list + self.pop_toml_list_int(toml_dict, self.opt_name_sl)
+            self.sl_list += self.pop_toml_list_int(toml_dict, self.opt_name_sl)
 
         if self.opt_name_ss in toml_dict:
-            self.ss_list = self.ss_list + self.pop_toml_list_int(toml_dict, self.opt_name_ss)
+            self.ss_list += self.pop_toml_list_int(toml_dict, self.opt_name_ss)
 
         if self.opt_name_sr in toml_dict:
             self.sr = self.pop_toml_string(toml_dict, self.opt_name_sr)
@@ -486,7 +486,7 @@ class Options:
             self.domain_scope = self.pop_toml_bool(toml_dict, self.opt_name_domain_scope)
 
         if self.opt_name_plugins in toml_dict:
-            self.plugins_list = self.plugins_list + self.pop_toml_list_str(toml_dict, self.opt_name_plugins)
+            self.plugins_list += self.pop_toml_list_str(toml_dict, self.opt_name_plugins)
 
         if self.opt_name_iterator in toml_dict:
             self.iterator = self.pop_toml_string(toml_dict, self.opt_name_iterator)
@@ -791,3 +791,15 @@ class Options:
         # parser.add_argument("info", help="Print information about the specified topic and exit.", choices=["plugins", "iterators", "filter"])#TODO implement, and this feels like a good positional argument. Probably because by design the user should not use it in combination with anything else
         parser.add_argument("-V", f"--{self.opt_name_version}", action="store_true", help="Print version and exit.")
         return parser.parse_args()
+
+    def header_dict(self):
+        """
+        Returns the headers in dict instead of list form. Returns None if no headers have been set
+        """
+        header_dict: dict = {}
+        if not self.header_list:
+            return None
+        for header in self.header_list:
+            split_header = header.split(":", maxsplit=1)
+            header_dict[split_header[0]] = split_header[1].strip()
+        return header_dict

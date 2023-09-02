@@ -30,6 +30,10 @@ class BaseIterator(ABC):
         for payload in self.payloads():
             payload.close()
 
+    @abstractmethod
+    def __next__(self):
+        raise NotImplementedError
+
 
 class Zip(BaseIterator):
     """Returns an iterator that aggregates elements from each of the iterables."""

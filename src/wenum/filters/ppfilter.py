@@ -109,7 +109,6 @@ class FuzzResFilter(BaseFilter):
     def _compute_fuzz_symbol(self, tokens):
         match_dict = tokens[0].groupdict()
         p_index = int(match_dict["index"]) if match_dict["index"] is not None else 1
-        fuzz_val = None
 
         try:
             fuzz_val = self.fuzz_result.payload_man.get_payload_content(p_index)
@@ -192,7 +191,6 @@ class FuzzResFilter(BaseFilter):
         elif op == "lower" or op == "l":
             return fuzz_val.lower()
         elif op == "gregex" or op == "gre":
-            search_res = None
             try:
                 regex = re.compile(param1)
                 search_res = regex.search(fuzz_val)
@@ -331,6 +329,9 @@ class FuzzResFilter(BaseFilter):
             )
 
     def get_fuzz_words(self):
-        fuzz_words = self.FUZZ_MARKER_REGEX.findall(self.filter_string)
+        if self.filter_string:
+            fuzz_words = self.FUZZ_MARKER_REGEX.findall(self.filter_string)
+        else:
+            fuzz_words = []
 
         return fuzz_words

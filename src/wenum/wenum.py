@@ -28,7 +28,7 @@ def main():
     """
     keypress: Optional[KeyPress] = None
     fuzzer: Optional[Fuzzer] = None
-    session_options: Optional[FuzzSession] = None
+    session: Optional[FuzzSession] = None
     logger = logging.getLogger("runtime_log")
     term = None
 
@@ -36,11 +36,11 @@ def main():
         # parse command line
         options = Options()
         options.read_args()
-        session_options: FuzzSession = FuzzSession(options).compile()
+        session: FuzzSession = FuzzSession(options).compile()
 
-        fuzzer = Fuzzer(session_options)
+        fuzzer = Fuzzer(session)
 
-        if not session_options.noninteractive:
+        if not session.options.noninteractive:
             # initialise controller
             try:
                 keypress = KeyPress()
@@ -53,7 +53,7 @@ def main():
                 Controller(fuzzer, keypress)
                 keypress.start()
 
-        term = Term(session_options)
+        term = Term(session)
 
         # Logging startup options on startup
         logger.info("Starting")
@@ -82,9 +82,9 @@ def main():
         warnings.warn(exception_message)
         traceback.print_exc()
     finally:
-        if session_options:
-            _log_runtime_stats(logger, session_options.compiled_stats)
-            session_options.close()
+        if session:
+            _log_runtime_stats(logger, session.compiled_stats)
+            session.close()
         if keypress:
             keypress.cancel_job()
         Facade().settings.save()

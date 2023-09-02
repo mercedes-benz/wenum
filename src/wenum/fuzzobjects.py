@@ -106,12 +106,12 @@ class FuzzStats:
         self._cancelled = False
 
     @staticmethod
-    def from_options(options):
+    def from_options(session):
         tmp_stats = FuzzStats()
 
-        tmp_stats.url = options.compiled_seed.history.url
-        tmp_stats.wordlist_req = options.compiled_iterator.count()
-        tmp_stats.seed = options.compiled_seed
+        tmp_stats.url = session.compiled_seed.history.url
+        tmp_stats.wordlist_req = session.compiled_iterator.count()
+        tmp_stats.seed = session.compiled_seed
 
         return tmp_stats
 

@@ -29,7 +29,7 @@ class Headers:
         return Headers.Header(self._req._headers)
 
     @request.setter
-    def request(self, values_dict):
+    def request(self, values_dict: dict):
         self._req._headers.update(values_dict)
         if "Content-Type" in values_dict:
             self._req.ContentType = values_dict["Content-Type"]
@@ -278,21 +278,21 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
 
     # methods wenum needs for substituting payloads and building dictionaries
 
-    def update_from_options(self, options):
-        if options.url != "FUZZ":
-            self.url = options.url
-            self.fuzzing_url = options.url
+    def update_from_options(self, session):
+        if session.options.url != "FUZZ":
+            self.url = session.options.url
+            self.fuzzing_url = session.options.url
 
-        self.headers.request = options.header_list
+        self.headers.request = session.options.header_dict()
 
-        if options.data:
-            self.params.post = options.data
+        if session.options.data:
+            self.params.post = session.options.data
 
-        if options.ip:
-            self.wf_ip = options.ip
+        if session.options.ip:
+            self.wf_ip = session.options.ip
 
-        if options.method:
-            self.method = options.method
+        if session.options.method:
+            self.method = session.options.method
 
-        if options.cookie:
-            self.cookies.request = options.cookie
+        if session.options.cookie:
+            self.cookies.request = session.options.cookie

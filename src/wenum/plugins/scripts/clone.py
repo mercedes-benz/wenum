@@ -23,11 +23,11 @@ class Clone(BasePlugin):
     parameters = (
     )
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
         self.safe_chars = string.ascii_lowercase + string.ascii_uppercase + string.digits + '._/'
-        output_dir = f"{options.data['printer'][0]}_{self.name}"
-        if options.data['printer'][0]:
+        output_dir = f"{session.options.data['printer'][0]}_{self.name}"
+        if session.data['printer'][0]:
             os.makedirs(output_dir, exist_ok=True)
             self.output_dir = output_dir
         else:

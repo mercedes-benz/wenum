@@ -29,7 +29,6 @@ class FuzzSession:
     def __init__(self, options: Options):
         self.options: Options = options
 
-        # Attributes derived during the runtime
         self.compiled_stats: Optional[FuzzStats] = None
         self.compiled_filter: Optional[FuzzResFilter] = None
         self.compiled_simple_filter: Optional[FuzzResSimpleFilter] = None
