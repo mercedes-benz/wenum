@@ -45,10 +45,6 @@ class FuzzRequestParse(ParseResult):
             "kbase", "discovery.blacklist"
         ).split("-")
 
-    @property
-    def hasquery(self):
-        return self.query != ""
-
     def cache_key(self, base_urlp=None):
         scheme = self.scheme
         netloc = self.netloc

@@ -16,9 +16,8 @@ from .facade import Facade
 from .exception import FuzzException, FuzzExceptBadInstall
 from .ui.console.mvc import Controller, KeyPress
 from .ui.console.term import Term
-from .ui.console.clparser import parse_args
 from .runtime_session import FuzzSession
-from .ui.console.clparser import Options
+from wenum.user_opts import Options
 
 from .fuzzobjects import FuzzStats
 

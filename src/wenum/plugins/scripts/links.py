@@ -121,6 +121,7 @@ class Links(BasePlugin, DiscoveryPluginMixin):
             or parsed_link.scheme == "http"
             or parsed_link.scheme == "https"
         ) and self.from_domain(parsed_link):
+            #TODO Cache key does not need to be manually checked. PluginManager handles centrally
             cache_key = parsed_link.cache_key(self.base_fuzz_res.history.urlparse)
             if cache_key not in self.list_links:
                 self.list_links.add(cache_key)
