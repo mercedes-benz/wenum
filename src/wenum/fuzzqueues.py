@@ -274,10 +274,10 @@ class FilterQ(FuzzQueue):
 
     def process(self, fuzz_result: FuzzResult):
 
-        if self.ffilter.is_visible(fuzz_result):
-            self.send(fuzz_result)
-        else:
+        if self.ffilter.is_filtered(fuzz_result):
             self.discard(fuzz_result)
+        else:
+            self.send(fuzz_result)
 
 
 class AutofilterQ(FuzzQueue):
@@ -304,8 +304,9 @@ class AutofilterQ(FuzzQueue):
             self.send(fuzz_result)
             return
 
+
         # Only process if there isn't a filter (yet) or isn't filtered out by the path's filter
-        if not self.filter.filter_string or self.filter.is_visible(fuzz_result):
+        if not self.filter.filter_string or not self.filter.is_filtered(fuzz_result):
             self.update_response_tracker(fuzz_result)
             self.send(fuzz_result)
         else:

@@ -10,15 +10,10 @@ class BaseFilter(ABC):
         pass
 
     @abstractmethod
-    def is_active(self):
+    def is_filtered(self, fuzz_result) -> bool:
         """
-        Returns the currently active filter condition
-        """
-        raise NotImplementedError
+        Check if the fuzz_result should be filtered out.
 
-    @abstractmethod
-    def is_visible(self, fuzz_result):
-        """
-        Check if the fuzz_result should be filtered out
+        Returns True if it should be, and False if not.
         """
         raise NotImplementedError

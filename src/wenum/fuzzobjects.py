@@ -311,7 +311,6 @@ class FuzzError(FuzzItem):
 
 class FuzzResult(FuzzItem):
     newid = itertools.count(0)
-    FUZZRESULT_SHARED_FILTER = FuzzResFilter()
 
     def __init__(self, history=None, exception=None, track_id=True):
         FuzzItem.__init__(self, FuzzType.RESULT)
@@ -397,9 +396,6 @@ class FuzzResult(FuzzItem):
                 return self.rlevel_desc
 
         return ret_str
-
-    def eval(self, expr):
-        return self.FUZZRESULT_SHARED_FILTER.is_visible(self, expr)
 
     # parameters in common with fuzzrequest
     @property

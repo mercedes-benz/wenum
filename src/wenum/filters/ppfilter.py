@@ -42,6 +42,7 @@ class FuzzResFilter(BaseFilter):
     FUZZ_MARKER_REGEX = re.compile(r"FUZ\d*Z", re.MULTILINE | re.DOTALL)
 
     def __init__(self, filter_string=None):
+        super().__init__()
         self.filter_string = filter_string
 
         quoted_str_value = QuotedString("'", unquoteResults=True, escChar="\\")
@@ -309,15 +310,12 @@ class FuzzResFilter(BaseFilter):
     def __compute_formula(self, tokens):
         return self.__myreduce(tokens[0])
 
-    def is_active(self):
-        return self.filter_string
-
-    def is_visible(self, fuzz_result, filter_string=None):
+    def is_filtered(self, fuzz_result, filter_string=None):
         if filter_string is None:
             filter_string = self.filter_string
         self.fuzz_result = fuzz_result
         try:
-            return self.finalformula.parseString(filter_string, parseAll=True)[0]
+            return not self.finalformula.parseString(filter_string, parseAll=True)[0]
         except ParseException as e:
             raise FuzzExceptIncorrectFilter(
                 f"Incorrect filter expression \"{filter_string}\", check documentation. \n{str(e)}"

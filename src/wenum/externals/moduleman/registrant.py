@@ -108,7 +108,7 @@ class BRegistrant(IRegistrant):
             elif not self.__active_plugins[plugin_name]:
                 return False
             else:
-                return self.plg_filter.is_visible(plugin_class, plugin_list)
+                return self.plg_filter.is_filtered(plugin_class, plugin_list)
 
         def key_funtion(x):
             return x[1].priority

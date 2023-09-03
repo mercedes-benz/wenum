@@ -113,7 +113,8 @@ class FuzzSession:
 
         # filter options
         self.compiled_simple_filter = FuzzResSimpleFilter.from_options(self)
-        self.compiled_filter = FuzzResFilter(self.options.filter)
+        if self.options.filter:
+            self.compiled_filter = FuzzResFilter(self.options.filter)
 
         self.compiled_stats = FuzzStats.from_options(self)
 

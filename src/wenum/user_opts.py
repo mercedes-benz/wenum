@@ -159,6 +159,10 @@ class Options:
         self.version: Optional[bool] = None
         self.opt_name_version: str = "version"
 
+    def __str__(self):
+        #TODO Implement
+        return ""
+
     def read_args(self) -> None:
         """Checks all options for their validity, parses and assigns them."""
 

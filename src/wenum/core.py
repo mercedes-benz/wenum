@@ -69,12 +69,12 @@ class Fuzzer:
 
             self.qmanager.add("routing_queue", rq)
 
-        if session.compiled_filter.is_active():
+        if session.compiled_filter:
             self.qmanager.add(
                 "filter_queue", FilterQ(session, session.compiled_filter)
             )
 
-        if session.compiled_simple_filter.is_active():
+        if session.compiled_simple_filter:
             self.qmanager.add(
                 "simple_filter_queue",
                 FilterQ(session, session.compiled_simple_filter),
