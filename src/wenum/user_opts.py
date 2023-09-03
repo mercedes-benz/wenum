@@ -1,5 +1,6 @@
 import argparse
 import logging
+import re
 import sys
 from typing import Optional
 from urllib.parse import urlparse
@@ -163,10 +164,8 @@ class Options:
         #TODO Implement
         return ""
 
-    def read_args(self) -> None:
+    def read_args(self, parsed_args: argparse.Namespace) -> None:
         """Checks all options for their validity, parses and assigns them."""
-
-        parsed_args = self.parse_args()
 
         if parsed_args.config:
             self.config = parsed_args.config
@@ -219,10 +218,9 @@ class Options:
 
         if parsed_args.recursion:
             self.recursion = parsed_args.recursion
+
         if parsed_args.plugin_recursion:
             self.plugin_recursion = parsed_args.plugin_recursion
-        else:
-            self.plugin_recursion = self.recursion
 
         if parsed_args.method:
             self.method = parsed_args.method
@@ -578,6 +576,12 @@ class Options:
         if not self.request_timeout:
             self.request_timeout = 20
 
+        if not self.recursion:
+            self.recursion = 0
+
+        if not self.plugin_recursion:
+            self.plugin_recursion = self.recursion
+
         if self.url is None:
             raise FuzzExceptBadOptions(f"Specify the URL with --{self.opt_name_url}")
 
@@ -622,16 +626,21 @@ class Options:
                 raise FuzzExceptBadOptions("Please ensure that the proxy string's port is numeric.")
 
         if self.ip:
-            parsed_ip = urlparse(self.ip)
-            split_netloc = parsed_ip.netloc.split(":")
-            if ":" not in parsed_ip.netloc:
-                self.ip = parsed_ip.netloc + ":80"
-            elif len(split_netloc) == 2:
+            # Regex for validating an IP address
+            regex = "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$"
+
+            ip = self.ip
+
+            split_ip = ip.split(":")
+
+            if len(split_ip) == 2:
                 try:
-                    int(split_netloc[1])
-                    self.ip = parsed_ip.netloc
+                    int(split_ip[1])
                 except ValueError:
                     raise FuzzExceptBadOptions(f"Please ensure that the port of the --{self.opt_name_ip} argument is numeric.")
+                if not (re.search(regex, split_ip[0])):
+                    raise FuzzExceptBadOptions(f"Please ensure that the IP address of the --{self.opt_name_ip} argument is valid")
+                self.ip = ip
             else:
                 raise FuzzExceptBadOptions(f"Please ensure that the --{self.opt_name_ip} argument string contains one colon.")
 
@@ -670,7 +679,7 @@ class Options:
         if value:
             doc.add(key, value)
 
-    def parse_args(self) -> argparse.Namespace:
+    def configure_parser(self) -> argparse.ArgumentParser:
         """
         argparse setup.
         Default values should not be set here. The session reads from a config file, and overwrites the file options
@@ -794,7 +803,9 @@ class Options:
                                             choices=["product", "zip", "chain"])
         # parser.add_argument("info", help="Print information about the specified topic and exit.", choices=["plugins", "iterators", "filter"])#TODO implement, and this feels like a good positional argument. Probably because by design the user should not use it in combination with anything else
         parser.add_argument("-V", f"--{self.opt_name_version}", action="store_true", help="Print version and exit.")
-        return parser.parse_args()
+
+        return parser
+        #return parser.parse_args()
 
     def header_dict(self):
         """
@@ -802,7 +813,7 @@ class Options:
         """
         header_dict: dict = {}
         if not self.header_list:
-            return None
+            return {}
         for header in self.header_list:
             split_header = header.split(":", maxsplit=1)
             header_dict[split_header[0]] = split_header[1].strip()

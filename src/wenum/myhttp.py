@@ -248,12 +248,12 @@ class HttpPool:
         Queue failed request another time if it is not considered unrecoverable
         and has not exceeded the maximum retry amount
         """
-        if errno in UNRECOVERABLE_PYCURL_EXCEPTIONS or fuzz_result.history.wf_retries >= 3:
+        if errno in UNRECOVERABLE_PYCURL_EXCEPTIONS or fuzz_result.history.retries >= 3:
             return False
         # Bool indicating whether the request should be queued for request again. Useful for exceptions
         requeue = True
 
-        fuzz_result.history.wf_retries += 1
+        fuzz_result.history.retries += 1
 
         self.pool_map[poolid]["queue"].put((fuzz_result, requeue))
         return True

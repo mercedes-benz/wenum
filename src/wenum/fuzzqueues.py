@@ -22,7 +22,6 @@ from wenum.externals.reqresp.Response import get_encoding_from_headers
 
 from .factories.fuzzresfactory import resfactory
 from .factories.plugin_factory import plugin_factory
-from .factories.payman import payman_factory
 from .helpers.obj_dic import FixSizeOrderedDict
 from .fuzzobjects import FuzzType, FuzzItem, FuzzWord, FuzzWordType, FuzzResult, FuzzPlugin
 from .myqueues import FuzzQueue, FuzzListQueue
@@ -32,7 +31,7 @@ from .exception import (
     FuzzExceptPluginLoadError,
 )
 from .filters.base_filter import BaseFilter
-from .filters.ppfilter import FuzzResFilter
+from .filters.complexfilter import FuzzResFilter
 from .facade import Facade, ERROR_CODE
 from .ui.console.mvc import View
 import requests
@@ -303,7 +302,6 @@ class AutofilterQ(FuzzQueue):
         if (fuzz_result.history.method == "HEAD" and fuzz_result.code == 200) or fuzz_result.code == ERROR_CODE:
             self.send(fuzz_result)
             return
-
 
         # Only process if there isn't a filter (yet) or isn't filtered out by the path's filter
         if not self.filter.filter_string or not self.filter.is_filtered(fuzz_result):

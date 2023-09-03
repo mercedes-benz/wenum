@@ -37,24 +37,9 @@ class SettingsBase:
         """
         raise NotImplementedError
 
-    def set(self, section, setting, value):
-        self.cparser.set(section, setting, value)
-
     def get(self, section, setting):
         value = self.cparser.get(section, setting)
         return value
-
-    def get_all(self):
-        sett = {}
-
-        # dump entire config file
-        for section in self.cparser.sections():
-            for option in self.cparser.options(section):
-                if section not in sett:
-                    sett[section] = []
-                sett[section].append((option, self.cparser.get(section, option)))
-
-        return sett
 
     def set_all(self, sett):
         self.cparser = ConfigParser()
@@ -62,14 +47,6 @@ class SettingsBase:
             self.cparser.add_section(section)
             for key, value in settings:
                 self.cparser.set(section, key, value)
-
-    def save(self):
-        try:
-            with open(self.filename, "w") as iniFile:
-                self.cparser.write(iniFile)
-        except Exception:
-            return False
-        return True
 
     def _path_to_program_dir(self):
         """

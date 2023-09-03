@@ -1,3 +1,3 @@
-from .wenum import main
+from .main import main
 
 main()

@@ -12,7 +12,6 @@ import traceback
 import logging
 
 from .core import Fuzzer
-from .facade import Facade
 from .exception import FuzzException, FuzzExceptBadInstall
 from .ui.console.mvc import Controller, KeyPress
 from .ui.console.term import Term
@@ -35,7 +34,8 @@ def main():
     try:
         # parse command line
         options = Options()
-        options.read_args()
+        parsed_args = options.configure_parser().parse_args()
+        options.read_args(parsed_args)
         session: FuzzSession = FuzzSession(options).compile()
 
         fuzzer = Fuzzer(session)
@@ -87,7 +87,6 @@ def main():
             session.close()
         if keypress:
             keypress.cancel_job()
-        Facade().settings.save()
 
 
 def _log_runtime_stats(logger: logging.Logger, stats: FuzzStats):

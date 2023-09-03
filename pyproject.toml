@@ -19,7 +19,7 @@ python-dateutil = "^2.8.2"
 pytz = "^2022.6"
 
 [tool.poetry.scripts]
-wenum = 'wenum.wenum:main'
+wenum = 'wenum.main:main'
 
 [tool.poetry.dev-dependencies]
 

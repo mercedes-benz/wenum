@@ -7,7 +7,7 @@ from .exception import (
 from .factories.fuzzresfactory import resfactory
 from .factories.dictfactory import dictionary_factory
 from .fuzzobjects import FuzzStats, FuzzResult
-from .filters.ppfilter import FuzzResFilter
+from .filters.complexfilter import FuzzResFilter
 from .filters.simplefilter import FuzzResSimpleFilter
 
 from .core import Fuzzer
@@ -83,7 +83,10 @@ class FuzzSession:
         """
         #TODO Verify this is polling the amount of FUZZ words supplied by the user
         """
-        fuzz_words = self.compiled_filter.get_fuzz_words()
+        if self.compiled_filter:
+            fuzz_words = self.compiled_filter.get_fuzz_words()
+        else:
+            fuzz_words = []
 
         if self.compiled_seed:
             fuzz_words += self.compiled_seed.payload_man.get_fuzz_words()

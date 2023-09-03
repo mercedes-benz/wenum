@@ -1,5 +1,3 @@
-import os.path
-import pickle
 from collections import defaultdict
 
 from wenum.fuzzrequest import FuzzRequest

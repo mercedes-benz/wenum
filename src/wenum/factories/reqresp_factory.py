@@ -55,11 +55,13 @@ class ReqRespRequestFactory:
         # The requests inbetween in a modular way
         pycurl_c.setopt(pycurl.FOLLOWLOCATION, 0)
 
-        if fuzz_request.wf_ip:
+        if fuzz_request.ip:
             pycurl_c.setopt(
                 pycurl.CONNECT_TO,
-                [f"::{fuzz_request.wf_ip}"],
+                [f"::{fuzz_request.ip}"],
             )
+        #for i in range(10):
+        #    print(fuzz_request.ip)
 
         return pycurl_c
 

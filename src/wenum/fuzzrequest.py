@@ -134,8 +134,8 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
         self._request: Request = Request()
 
         self._proxy = None
-        self.wf_retries = 0
-        self.wf_ip = None
+        self.retries = 0
+        self.ip = None
         # Original url retains the URL that has been specified for fuzzing, such as http://example.com/FUZZ
         self.fuzzing_url = ""
 
@@ -289,7 +289,7 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
             self.params.post = session.options.data
 
         if session.options.ip:
-            self.wf_ip = session.options.ip
+            self.ip = session.options.ip
 
         if session.options.method:
             self.method = session.options.method

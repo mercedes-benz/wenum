@@ -14,7 +14,7 @@ from enum import Enum
 from threading import Lock
 from collections import defaultdict, namedtuple
 
-from .filters.ppfilter import FuzzResFilter
+from .filters.complexfilter import FuzzResFilter
 from .facade import ERROR_CODE
 from .helpers.str_func import convert_to_unicode
 from .helpers.utils import MyCounter
