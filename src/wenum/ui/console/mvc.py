@@ -326,8 +326,8 @@ class View:
     def header(self, summary):
         """Prints the wenum header"""
         exec_banner = """********************************************************\r
-        * wenum {version} - A Web Fuzzer {align: <{width1}}*\r
-        ********************************************************\r\n""".format(
+* wenum {version} - A Web Fuzzer {align: <{width1}}*\r
+********************************************************\r\n""".format(
             version=version, align=" ", width1=22 - len(version)
         )
         print(exec_banner)

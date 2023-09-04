@@ -161,8 +161,7 @@ class Options:
         self.opt_name_version: str = "version"
 
     def __str__(self):
-        #TODO Implement
-        return ""
+        return str(vars(self))
 
     def read_args(self, parsed_args: argparse.Namespace) -> None:
         """Checks all options for their validity, parses and assigns them."""
@@ -805,7 +804,6 @@ class Options:
         parser.add_argument("-V", f"--{self.opt_name_version}", action="store_true", help="Print version and exit.")
 
         return parser
-        #return parser.parse_args()
 
     def header_dict(self):
         """
