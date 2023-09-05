@@ -2,6 +2,7 @@ import unittest
 from wenum.user_opts import Options
 import logging
 import os
+from tomllib import load, TOMLDecodeError
 
 
 class OptionsTest(unittest.TestCase):
@@ -46,7 +47,8 @@ class OptionsTest(unittest.TestCase):
         parsed_args = parser.parse_args(
             [f"--{options.opt_name_url}", "http://example.com", f"--{options.opt_name_wordlist}",
              "this_doesnt_exist.txt"])
-        self._invalid_path(options, parsed_args)
+        options.read_args(parsed_args)
+        self._invalid_path(options)
 
         options.wordlist_list = ["dummy_wordlist.txt"]
         self.assertIsNone(options.basic_validate())
@@ -66,7 +68,7 @@ class OptionsTest(unittest.TestCase):
             options.basic_validate()
         self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))
 
-        # TODO output, debuglog, dumpconfig, config
+        # TODO config
 
     def test_output_access(self):
         self.longMessage = True
@@ -75,19 +77,104 @@ class OptionsTest(unittest.TestCase):
 
         parsed_args = parser.parse_args(
             [f"--{options.opt_name_url}", "http://example.com", f"--{options.opt_name_wordlist}",
-             "dummy_wordlist.txt", f"--{options.opt_name_output}", "dummy_wordlist.txt"])
+             "dummy_wordlist.txt", f"--{options.opt_name_output}", "dummy_output.txt"])
         options.read_args(parsed_args)
 
         self.assertIsNone(options.basic_validate())
 
-        options.output = "/qweqwe"
+        options.output = "/invalidpath/invalidfile.txtt"
         with self.assertRaises(Exception) as exc:
             options.basic_validate()
         self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))
 
+        options.output = f"{os.getcwd()}/dummy_output.txt"
+        self.assertIsNone(options.basic_validate())
 
-    def _invalid_path(self, options, parsed_args):
+        os.chmod("dummy_output.txt", 0o000)
+        with self.assertRaises(Exception) as exc:
+            options.basic_validate()
+        self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))
+        os.chmod("dummy_output.txt", 0o666)
+
+    def test_debug_log(self):
+        self.longMessage = True
+        options = Options()
+        parser = options.configure_parser()
+
+        parsed_args = parser.parse_args(
+            [f"--{options.opt_name_url}", "http://example.com", f"--{options.opt_name_wordlist}",
+             "dummy_wordlist.txt", f"--{options.opt_name_debug_log}", "dummy_debuglog.txt"])
         options.read_args(parsed_args)
+
+        self.assertIsNone(options.basic_validate())
+
+        options.debug_log = "/invalidpath/invalidfile.txtt"
+        with self.assertRaises(Exception) as exc:
+            options.basic_validate()
+        self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))
+
+        options.debug_log = f"{os.getcwd()}/dummy_debuglog.txt"
+        self.assertIsNone(options.basic_validate())
+
+        os.chmod("dummy_debuglog.txt", 0o000)
+        with self.assertRaises(Exception) as exc:
+            options.basic_validate()
+        self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))
+        os.chmod("dummy_debuglog.txt", 0o666)
+
+    def test_dump_config(self):
+        self.longMessage = True
+        options = Options()
+        parser = options.configure_parser()
+
+        parsed_args = parser.parse_args(
+            [f"--{options.opt_name_url}", "http://example.com", f"--{options.opt_name_wordlist}",
+             "dummy_wordlist.txt", f"--{options.opt_name_dump_config}", "dummy_config_dump.toml"])
+        options.read_args(parsed_args)
+
+        self.assertIsNone(options.basic_validate())
+
+        options.dump_config = "/invalidpath/invalidfile.txtt"
+        with self.assertRaises(Exception) as exc:
+            options.basic_validate()
+        self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))
+
+        options.dump_config = f"{os.getcwd()}/dummy_config_dump.toml"
+        self.assertIsNone(options.basic_validate())
+
+        os.chmod("dummy_config_dump.toml", 0o000)
+        with self.assertRaises(Exception) as exc:
+            options.basic_validate()
+        self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))
+        os.chmod("dummy_config_dump.toml", 0o666)
+
+        parsed_args = parser.parse_args(
+            [f"--{options.opt_name_url}", "http://example.com/FUZZ/FUZ2Z/FUZ3Z", f"--{options.opt_name_wordlist}",
+             "dummy_wordlist.txt" "dummy_wordlist", f"--{options.opt_name_wordlist}",
+             "dummy_wordlist.txt", f"--{options.opt_name_proxy}", "http://127.0.0.1:8080",
+             f"--{options.opt_name_method}", "POST", f"--{options.opt_name_dump_config}", "dummy_config_dump.toml",
+             f"--{options.opt_name_data}", "{\"jsontest\":2}", f"--{options.opt_name_header}", "Test: asd", "Testtwo: qweq",
+             f"--{options.opt_name_header}", "Test3: qweqwe", f"--{options.opt_name_cookie}", "Cookie=123",
+             f"--{options.opt_name_ip}", "127.0.0.1:443", f"--{options.opt_name_iterator}", "product",
+             f"--{options.opt_name_threads}", "30", f"--{options.opt_name_sleep}", "2",
+             f"--{options.opt_name_location}", f"--{options.opt_name_recursion}", "3",
+             f"--{options.opt_name_stop_error}", f"--{options.opt_name_dry_run}",
+             f"--{options.opt_name_limit_requests}", "20000", f"--{options.opt_name_request_timeout}", "40",
+             f"--{options.opt_name_domain_scope}", f"--{options.opt_name_output}", "dummy_output.txt",
+             f"--{options.opt_name_debug_log}", "dummy_debuglog.txt", f"--{options.opt_name_plugins}", "default",
+             "robots", f"--{options.opt_name_plugins}", "active", f"--{options.opt_name_colorless}",
+             f"--{options.opt_name_quiet}", f"--{options.opt_name_noninteractive}", f"--{options.opt_name_hc}", "200",
+             "403", f"--{options.opt_name_hc}", "302", f"--{options.opt_name_filter}", "code=200",
+             f"--{options.opt_name_hard_filter}", f"--{options.opt_name_auto_filter}"
+             ])
+        options.read_args(parsed_args)
+        options.export_config()
+        print(options)
+
+        with open(options.dump_config, "rb") as file:
+            self.assertTrue(load(file))
+
+    def _invalid_path(self, options):
         with self.assertRaises(Exception) as exc:
             options.basic_validate()
         self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))

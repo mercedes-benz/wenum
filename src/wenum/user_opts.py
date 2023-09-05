@@ -594,6 +594,20 @@ class Options:
                 raise FuzzExceptBadFile(f"Wordlist {wordlist} can not be opened. Please ensure it "
                                         f"exists and the permissions are correct.")
 
+        if self.output:
+            try:
+                open(self.output, "w")
+            except OSError:
+                raise FuzzExceptBadFile(f"Output file {self.output} can not be opened. Please ensure it is a valid path"
+                                        f"with valid permissions.")
+
+        if self.debug_log:
+            try:
+                open(self.debug_log, "a")
+            except OSError:
+                raise FuzzExceptBadFile(f"Debug file {self.debug_log} can not be opened. "
+                                        f"Please ensure it is a valid path with valid permissions.")
+
         if self.sleep and self.sleep < 0:
             raise FuzzExceptBadOptions("Can not sleep for a negative time.")
 
@@ -665,12 +679,8 @@ class Options:
             try:
                 open(self.dump_config, "w")
             except OSError:
-                raise FuzzExceptBadFile(f"Config export file could not be opened. Please ensure it is a valid path"
+                raise FuzzExceptBadFile(f"Config export file can not be opened. Please ensure it is a valid path"
                                         f"and the permissions to the path are correct.")
-
-            self.export_config()
-            print(f"Config written into {self.dump_config}.")
-            sys.exit(0)
 
     @staticmethod
     def add_toml_if_exists(doc: TOMLDocument, key: str, value):
@@ -710,7 +720,7 @@ class Options:
                                                  "Protocols SOCKS4, SOCKS5 and HTTP are supported. If "
                                                  "supplied multiple"
                                                  "times, the requests will be split between all "
-                                                 "supplied proxies.")
+                                                 "supplied proxies.", nargs="*")
         # request_building_group.add_argument("-P", "--replay-proxy", help="Send requests that were not filtered through the specified proxy. Format and conditions match -p.")#TODO implement
         request_proessing_group.add_argument("-t", f"--{self.opt_name_threads}", type=int,
                                              help="Modify the number of concurrent \"threads\"/connections for requests (default: 40)",

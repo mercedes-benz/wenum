@@ -1,3 +1,4 @@
+import sys
 from typing import Optional
 
 from .exception import (
@@ -107,6 +108,11 @@ class FuzzSession:
         """
 
         self.options.basic_validate()
+
+        if self.options.dump_config:
+            self.options.export_config()
+            print(f"Config written into {self.options.dump_config}.")
+            sys.exit(0)
 
         if self.options.output:
             self.compiled_printer = JSON(self.options.output, self.options.verbose)
