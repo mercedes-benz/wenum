@@ -174,6 +174,39 @@ class OptionsTest(unittest.TestCase):
         with open(options.dump_config, "rb") as file:
             self.assertTrue(load(file))
 
+    def test_config(self):
+        self.longMessage = True
+        options = Options()
+        parser = options.configure_parser()
+
+        parsed_args = parser.parse_args(
+            [f"--{options.opt_name_url}", "http://example.com", f"--{options.opt_name_wordlist}",
+             "dummy_wordlist.txt", f"--{options.opt_name_config}", "dummy_config.toml"])
+        options.read_args(parsed_args)
+
+        self.assertIsNone(options.basic_validate())
+
+        options.config = "/invalidpath/invalidfile.txtt"
+        with self.assertRaises(Exception) as exc:
+            options.import_config()
+        self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))
+
+        options.config = f"{os.getcwd()}/dummy_config.toml"
+        self.assertIsNone(options.import_config())
+
+        os.chmod("dummy_config.toml", 0o000)
+        with self.assertRaises(Exception) as exc:
+            options.import_config()
+        self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))
+        os.chmod("dummy_config.toml", 0o666)
+
+        # Assert valid toml parses without exception
+
+        # Assert different kinds of invalid toml throw the right error (faulty datatypes, faulty keys, unknown keys)
+
+
+
+
     def _invalid_path(self, options):
         with self.assertRaises(Exception) as exc:
             options.basic_validate()
@@ -197,12 +230,6 @@ class OptionsTest(unittest.TestCase):
 
     def test_domain_scope(self):
         # Ensure scope check is IP by default and triggers on domain change if activated
-        pass
-
-    def test_import(self):
-        pass
-
-    def test_export(self):
         pass
 
     def test_multiple_wordlists(self):

@@ -370,7 +370,7 @@ class Options:
             with open(self.config, "rb") as file:
                 toml_dict: dict = load(file)
         except OSError:
-            raise FuzzExceptBadFile(f"Could not open config file {self.config}")
+            raise FuzzExceptBadFile(f"Config {self.config} can not be opened.")
         except TOMLDecodeError as e:
             raise FuzzExceptBadOptions(f"The config file {self.config} does not contain valid TOML. "
                                        f"Please check the syntax. Exception: {e}")
