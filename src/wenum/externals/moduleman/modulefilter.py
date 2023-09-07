@@ -111,6 +111,10 @@ class Filter:
         else:
             return False
 
-    def is_visible(self, plugin, filter_string):
+    def is_visible(self, plugin, plugin_list) -> bool:
         self.plugin = plugin
-        return self.finalformula.parseString(filter_string)[0]
+        for plugin in plugin_list:
+            if self.finalformula.parseString(plugin)[0]:
+                return True
+        else:
+            return False

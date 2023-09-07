@@ -6,22 +6,19 @@ import time
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from wenum.options import FuzzSession
-import sys
+    from wenum.runtime_session import FuzzSession
 import warnings
 import traceback
 import logging
 
 from .core import Fuzzer
-from .facade import Facade
 from .exception import FuzzException, FuzzExceptBadInstall
 from .ui.console.mvc import Controller, KeyPress
-from .ui.console.common import (
-    Term, UncolouredTerm,
-)
-from .ui.console.clparser import CLParser
+from .ui.console.term import Term
+from .runtime_session import FuzzSession
+from wenum.user_opts import Options
 
-from .fuzzobjects import FuzzWordType, FuzzStats
+from .fuzzobjects import FuzzStats
 
 
 def main():
@@ -30,17 +27,20 @@ def main():
     """
     keypress: Optional[KeyPress] = None
     fuzzer: Optional[Fuzzer] = None
-    session_options: Optional[FuzzSession] = None
-    logger = None
+    session: Optional[FuzzSession] = None
+    logger = logging.getLogger("runtime_log")
     term = None
 
     try:
         # parse command line
-        session_options: FuzzSession = CLParser(sys.argv).parse_cl().compile()
+        options = Options()
+        parsed_args = options.configure_parser().parse_args()
+        options.read_args(parsed_args)
+        session: FuzzSession = FuzzSession(options).compile()
 
-        fuzzer = Fuzzer(session_options)
+        fuzzer = Fuzzer(session)
 
-        if session_options["interactive"]:
+        if not session.options.noninteractive:
             # initialise controller
             try:
                 keypress = KeyPress()
@@ -53,15 +53,10 @@ def main():
                 Controller(fuzzer, keypress)
                 keypress.start()
 
-        if session_options["colour"]:
-            term = Term()
-        else:
-            term = UncolouredTerm()
+        term = Term(session)
 
-        logger = logging.getLogger("runtime_log")
         # Logging startup options on startup
-        logger.info(f"""Runtime options:
-{session_options.export_active_options_dict()}""")
+        logger.info("Starting")
 
         # This loop causes the main loop of wenum to execute
         for res in fuzzer:
@@ -71,8 +66,7 @@ def main():
         warnings.warn("Fatal exception: {}".format(str(e)))
     except KeyboardInterrupt:
         if term:
-            text = term.colour_string(term.fgYellow, "Finishing pending requests...")
-            (term.colour_string(term.fgYellow, "Finishing pending requests..."))
+            text = term.color_string(term.fgYellow, "Finishing pending requests...")
         else:
             text = "Finishing pending requests..."
         warnings.warn(text)
@@ -80,23 +74,19 @@ def main():
             fuzzer.cancel_job()
     except NotImplementedError as e:
         exception_message = "Fatal exception: Error importing wenum extensions: {}".format(str(e))
-        if logger:
-            logger.exception(exception_message)
+        logger.exception(exception_message)
         warnings.warn(exception_message)
     except Exception as e:
         exception_message = "Unhandled exception: {}".format(str(e))
-        if logger:
-            logger.exception(exception_message)
+        logger.exception(exception_message)
         warnings.warn(exception_message)
         traceback.print_exc()
     finally:
-        if session_options:
-            if logger:
-                _log_runtime_stats(logger, session_options["compiled_stats"])
-            session_options.close()
+        if session:
+            _log_runtime_stats(logger, session.compiled_stats)
+            session.close()
         if keypress:
             keypress.cancel_job()
-        Facade().settings.save()
 
 
 def _log_runtime_stats(logger: logging.Logger, stats: FuzzStats):

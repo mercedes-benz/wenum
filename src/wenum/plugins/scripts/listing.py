@@ -3,7 +3,7 @@ import re
 from wenum.plugin_api.base import BasePlugin
 from wenum.plugin_api.static_data import LISTING_dir_indexing_regexes
 from wenum.externals.moduleman.plugin import moduleman_plugin
-from wenum.ui.console.common import Term
+from wenum.ui.console.term import Term
 
 
 @moduleman_plugin
@@ -31,5 +31,5 @@ class Listing(BasePlugin):
     def process(self, fuzz_result):
         for r in self.regex:
             if len(r.findall(fuzz_result.history.content)) > 0:
-                self.add_information(f"{self.term.colour_string(self.term.fgYellow, 'Directory listing')} identified")
+                self.add_information(f"{self.term.color_string(self.term.fgYellow, 'Directory listing')} identified")
                 break

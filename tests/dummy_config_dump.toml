@@ -1,0 +1,32 @@
+# All keys are named equal to the command line options.
+# If you are unsure about the syntax of an option,
+# you can use the command line option to export the specified options to a config file
+# and use it as a reference.
+# 
+url = "http://example.com/FUZZ/FUZ2Z/FUZ3Z"
+wordlist = ["dummy_wordlist.txt", "dummy_wordlist.txtdummy_wordlist", "dummy_wordlist.txt"]
+colorless = true
+quiet = true
+noninteractive = true
+output = "dummy_output.txt"
+debug-log = "dummy_debuglog.txt"
+proxy = ["http://127.0.0.1:8080"]
+threads = 30
+sleep = 2
+location = true
+recursion = 3
+method = "POST"
+data = "{\"jsontest\":2}"
+header = ["Test: asd", "Testtwo: qweq", "Test3: qweqwe"]
+stop-error = true
+hc = [200, 403, 302]
+filter = "code=200"
+auto-filter = true
+hard-filter = true
+dry-run = true
+limit-requests = 20000
+ip = "127.0.0.1:443"
+request-timeout = 40
+domain-scope = true
+plugins = ["default", "robots", "active"]
+iterator = "product"

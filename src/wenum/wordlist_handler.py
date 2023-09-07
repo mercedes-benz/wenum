@@ -53,7 +53,8 @@ class File:
 
     @staticmethod
     def find_file(name):
-        """Find file of the provided payload's file path in the file system"""
+        """#TODO Verify and phase out, as os.path.isfile() should do this instead. No custom implementation where the stdlib suffices.
+        Find file of the provided payload's file path in the file system"""
         if os.path.exists(name):
             return name
 

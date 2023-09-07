@@ -1,0 +1,42 @@
+05.09.2023 21:52:44 | ERROR | Debug file /invalidpath/invalidfile.txtt can not be opened. Please ensure it is a valid path with valid permissions.
+05.09.2023 21:52:44 | ERROR | Debug file /home/kali/wenum/tests/dummy_debuglog.txt can not be opened. Please ensure it is a valid path with valid permissions.
+05.09.2023 21:52:44 | ERROR | Config export file can not be opened. Please ensure it is a valid pathand the permissions to the path are correct.
+05.09.2023 21:52:44 | ERROR | Config export file can not be opened. Please ensure it is a valid pathand the permissions to the path are correct.
+05.09.2023 21:52:44 | ERROR | Please ensure that the IP address of the --ip argument is valid
+05.09.2023 21:52:44 | ERROR | Please ensure that the port of the --ip argument is numeric.
+05.09.2023 21:52:44 | ERROR | Please ensure that the port of the --ip argument is numeric.
+05.09.2023 21:52:44 | ERROR | Please ensure that the --ip argument string contains one colon.
+05.09.2023 21:52:44 | ERROR | Please ensure that the --ip argument string contains one colon.
+05.09.2023 21:52:44 | ERROR | Output file /invalidpath/invalidfile.txtt can not be opened. Please ensure it is a valid pathwith valid permissions.
+05.09.2023 21:52:44 | ERROR | Output file /home/kali/wenum/tests/dummy_output.txt can not be opened. Please ensure it is a valid pathwith valid permissions.
+05.09.2023 21:52:44 | ERROR | Wordlist this_doesnt_exist.txt can not be opened. Please ensure it exists and the permissions are correct.
+05.09.2023 21:52:44 | ERROR | Wordlist /home/kali/wenum/tests/dummy_wordlist.txt can not be opened. Please ensure it exists and the permissions are correct.
+05.09.2023 21:52:44 | ERROR | Wordlist /qweqwe can not be opened. Please ensure it exists and the permissions are correct.
+05.09.2023 22:07:30 | ERROR | Debug file /invalidpath/invalidfile.txtt can not be opened. Please ensure it is a valid path with valid permissions.
+05.09.2023 22:07:30 | ERROR | Debug file /home/kali/wenum/tests/dummy_debuglog.txt can not be opened. Please ensure it is a valid path with valid permissions.
+05.09.2023 22:07:30 | ERROR | Config export file can not be opened. Please ensure it is a valid pathand the permissions to the path are correct.
+05.09.2023 22:07:30 | ERROR | Config export file can not be opened. Please ensure it is a valid pathand the permissions to the path are correct.
+05.09.2023 22:07:30 | ERROR | Please ensure that the IP address of the --ip argument is valid
+05.09.2023 22:07:30 | ERROR | Please ensure that the port of the --ip argument is numeric.
+05.09.2023 22:07:30 | ERROR | Please ensure that the port of the --ip argument is numeric.
+05.09.2023 22:07:30 | ERROR | Please ensure that the --ip argument string contains one colon.
+05.09.2023 22:07:30 | ERROR | Please ensure that the --ip argument string contains one colon.
+05.09.2023 22:07:30 | ERROR | Output file /invalidpath/invalidfile.txtt can not be opened. Please ensure it is a valid pathwith valid permissions.
+05.09.2023 22:07:30 | ERROR | Output file /home/kali/wenum/tests/dummy_output.txt can not be opened. Please ensure it is a valid pathwith valid permissions.
+05.09.2023 22:07:30 | ERROR | Wordlist this_doesnt_exist.txt can not be opened. Please ensure it exists and the permissions are correct.
+05.09.2023 22:07:30 | ERROR | Wordlist /home/kali/wenum/tests/dummy_wordlist.txt can not be opened. Please ensure it exists and the permissions are correct.
+05.09.2023 22:07:30 | ERROR | Wordlist /qweqwe can not be opened. Please ensure it exists and the permissions are correct.
+07.09.2023 20:08:38 | ERROR | Debug file /invalidpath/invalidfile.txtt can not be opened. Please ensure it is a valid path with valid permissions.
+07.09.2023 20:08:38 | ERROR | Debug file /home/kali/wenum/tests/dummy_debuglog.txt can not be opened. Please ensure it is a valid path with valid permissions.
+07.09.2023 20:08:38 | ERROR | Config export file can not be opened. Please ensure it is a valid pathand the permissions to the path are correct.
+07.09.2023 20:08:38 | ERROR | Config export file can not be opened. Please ensure it is a valid pathand the permissions to the path are correct.
+07.09.2023 20:08:38 | ERROR | Please ensure that the IP address of the --ip argument is valid
+07.09.2023 20:08:38 | ERROR | Please ensure that the port of the --ip argument is numeric.
+07.09.2023 20:08:38 | ERROR | Please ensure that the port of the --ip argument is numeric.
+07.09.2023 20:08:38 | ERROR | Please ensure that the --ip argument string contains one colon.
+07.09.2023 20:08:38 | ERROR | Please ensure that the --ip argument string contains one colon.
+07.09.2023 20:08:38 | ERROR | Output file /invalidpath/invalidfile.txtt can not be opened. Please ensure it is a valid pathwith valid permissions.
+07.09.2023 20:08:38 | ERROR | Output file /home/kali/wenum/tests/dummy_output.txt can not be opened. Please ensure it is a valid pathwith valid permissions.
+07.09.2023 20:08:38 | ERROR | Wordlist this_doesnt_exist.txt can not be opened. Please ensure it exists and the permissions are correct.
+07.09.2023 20:08:38 | ERROR | Wordlist /home/kali/wenum/tests/dummy_wordlist.txt can not be opened. Please ensure it exists and the permissions are correct.
+07.09.2023 20:08:38 | ERROR | Wordlist /qweqwe can not be opened. Please ensure it exists and the permissions are correct.

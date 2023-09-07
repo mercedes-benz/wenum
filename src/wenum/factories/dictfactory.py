@@ -1,14 +1,10 @@
-from itertools import zip_longest
-
 from ..helpers.obj_factory import ObjectFactory
 from ..exception import FuzzExceptBadOptions
-from ..facade import Facade
 from wenum.wordlist_handler import File
 from ..dictionaries import (
-    TupleIt,
-    WrapperIt,
-    EncodeIt,
+    TupleIt
 )
+from wenum.iterators import Zip, Product, Chain
 
 
 class DictionaryFactory(ObjectFactory):
@@ -16,7 +12,6 @@ class DictionaryFactory(ObjectFactory):
         ObjectFactory.__init__(
             self,
             {
-                "dictio_from_iterable": DictioFromIterableBuilder(),
                 "dictio_from_payload": DictioFromPayloadBuilder(),
                 "dictio_from_options": DictioFromOptions(),
             },
@@ -25,58 +20,49 @@ class DictionaryFactory(ObjectFactory):
 
 class BaseDictioBuilder:
     @staticmethod
-    def validate(options, selected_dic):
+    def validate(session, selected_dic):
         if not selected_dic:
             raise FuzzExceptBadOptions("Empty dictionary! Check payload and filter")
 
-        if len(selected_dic) == 1 and options["iterator"]:
+        if len(selected_dic) == 1 and session.options.iterator:
             raise FuzzExceptBadOptions(
                 "Several dictionaries must be used when specifying an iterator"
             )
 
     @staticmethod
-    def get_dictio(options, selected_dic):
+    def init_iterator(session, selected_dic):
+        """
+        Returns an iterator according to the user options
+        """
         if len(selected_dic) == 1:
             return TupleIt(selected_dic[0])
-        elif options["iterator"]:
-            return Facade().iterators.get_plugin(options["iterator"])(*selected_dic)
+        elif session.options.iterator:
+            if session.options.iterator == "zip":
+                return Zip(*selected_dic)
+            elif session.options.iterator == "chain":
+                return Chain(*selected_dic)
+            # Using product as the fallback, as it's the most common (and therefore default) anyways
+            else:
+                return Product(*selected_dic)
         else:
-            return Facade().iterators.get_plugin("product")(*selected_dic)
-
-
-class DictioFromIterableBuilder(BaseDictioBuilder):
-    def __call__(self, options):
-        selected_dic = []
-        self._payload_list = []
-
-        for d in [WrapperIt(x) for x in options["dictio"]]:
-            selected_dic.append(d)
-
-        self.validate(options, selected_dic)
-
-        return self.get_dictio(options, selected_dic)
+            return Product(*selected_dic)
 
 
 class DictioFromPayloadBuilder(BaseDictioBuilder):
-    def __call__(self, options):
+    def __call__(self, session):
         selected_dic = []
 
-        for payload in options["payloads"]:
-
-            dictionary = File(payload)
-
+        for wordlist in session.options.wordlist_list:
+            dictionary = File(wordlist)
             selected_dic.append(dictionary)
 
-        self.validate(options, selected_dic)
-        return self.get_dictio(options, selected_dic)
+        self.validate(session, selected_dic)
+        return self.init_iterator(session, selected_dic)
 
 
 class DictioFromOptions(BaseDictioBuilder):
-    def __call__(self, options):
-        if options["dictio"]:
-            return DictioFromIterableBuilder()(options)
-        else:
-            return DictioFromPayloadBuilder()(options)
+    def __call__(self, session):
+        return DictioFromPayloadBuilder()(session)
 
 
 dictionary_factory = DictionaryFactory()

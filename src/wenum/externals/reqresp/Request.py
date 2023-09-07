@@ -1,6 +1,3 @@
-# Covered by GPL V2.0
-# Coded by Carlos del Ojo Elias (deepbit@gmail.com)
-# Lately maintained by Xavi Mendez (xmendez@edge-security.com)
 from typing import Optional
 from urllib.parse import urlparse
 from urllib.parse import urlunparse
@@ -130,14 +127,6 @@ class Request:
 
         if variables:
             self.__variablesGET.parseUrlEncoded(variables)
-
-    # ############# Authentication ###########################
-    def set_auth(self, method, string):
-        self._authMethod = method
-        self._userpass = string
-
-    def get_auth(self):
-        return self._authMethod, self._userpass
 
     def set_variable_post(self, key, value):
         v = self._variablesPOST.getVariable(key)

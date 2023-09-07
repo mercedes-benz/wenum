@@ -3,7 +3,7 @@ import re
 from wenum.plugin_api.base import BasePlugin
 from wenum.plugin_api.static_data import ERRORS_regex_list
 from wenum.externals.moduleman.plugin import moduleman_plugin
-from wenum.ui.console.common import Term
+from wenum.ui.console.term import Term
 
 
 @moduleman_plugin
@@ -34,5 +34,5 @@ class Errors(BasePlugin):
             # but logging them more than once would not be of interest and clutters the log instead
             unique_regex_matches = set(regex.findall(fuzz_result.history.content))
             for regex_match in unique_regex_matches:
-                coloured_part = self.term.colour_string(self.term.fgRed, regex_match)
-                self.add_information(f"{coloured_part}")
+                colored_part = self.term.color_string(self.term.fgRed, regex_match)
+                self.add_information(f"{colored_part}")

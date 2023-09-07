@@ -42,6 +42,7 @@ class FuzzResFilter(BaseFilter):
     FUZZ_MARKER_REGEX = re.compile(r"FUZ\d*Z", re.MULTILINE | re.DOTALL)
 
     def __init__(self, filter_string=None):
+        super().__init__()
         self.filter_string = filter_string
 
         quoted_str_value = QuotedString("'", unquoteResults=True, escChar="\\")
@@ -109,7 +110,6 @@ class FuzzResFilter(BaseFilter):
     def _compute_fuzz_symbol(self, tokens):
         match_dict = tokens[0].groupdict()
         p_index = int(match_dict["index"]) if match_dict["index"] is not None else 1
-        fuzz_val = None
 
         try:
             fuzz_val = self.fuzz_result.payload_man.get_payload_content(p_index)
@@ -192,7 +192,6 @@ class FuzzResFilter(BaseFilter):
         elif op == "lower" or op == "l":
             return fuzz_val.lower()
         elif op == "gregex" or op == "gre":
-            search_res = None
             try:
                 regex = re.compile(param1)
                 search_res = regex.search(fuzz_val)
@@ -311,15 +310,12 @@ class FuzzResFilter(BaseFilter):
     def __compute_formula(self, tokens):
         return self.__myreduce(tokens[0])
 
-    def is_active(self):
-        return self.filter_string
-
-    def is_visible(self, fuzz_result, filter_string=None):
+    def is_filtered(self, fuzz_result, filter_string=None):
         if filter_string is None:
             filter_string = self.filter_string
         self.fuzz_result = fuzz_result
         try:
-            return self.finalformula.parseString(filter_string, parseAll=True)[0]
+            return not self.finalformula.parseString(filter_string, parseAll=True)[0]
         except ParseException as e:
             raise FuzzExceptIncorrectFilter(
                 f"Incorrect filter expression \"{filter_string}\", check documentation. \n{str(e)}"
@@ -331,6 +327,9 @@ class FuzzResFilter(BaseFilter):
             )
 
     def get_fuzz_words(self):
-        fuzz_words = self.FUZZ_MARKER_REGEX.findall(self.filter_string)
+        if self.filter_string:
+            fuzz_words = self.FUZZ_MARKER_REGEX.findall(self.filter_string)
+        else:
+            fuzz_words = []
 
         return fuzz_words

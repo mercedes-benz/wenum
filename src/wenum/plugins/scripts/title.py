@@ -1,6 +1,6 @@
 from wenum.plugin_api.base import BasePlugin
 from wenum.externals.moduleman.plugin import moduleman_plugin
-from wenum.ui.console.common import Term
+from wenum.ui.console.term import Term
 
 
 @moduleman_plugin
@@ -27,4 +27,4 @@ class Title(BasePlugin):
 
         if title and title != "" and title not in self.kbase["title"]:
             self.kbase["title"] = title
-            self.add_information(f"{self.term.colour_string(self.term.fgYellow, title)}")
+            self.add_information(f"{self.term.color_string(self.term.fgYellow, title)}")

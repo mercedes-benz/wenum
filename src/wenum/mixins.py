@@ -190,7 +190,7 @@ class FuzzRequestUrlMixing:
 
         Returns True if the URL is in scope, and False if it is not
 
-          #TODO The fuzzing URL is currently stored in options["url"], in FuzzStats.url, and in FuzzRequest.fuzzing_url.
+          #TODO The fuzzing URL is currently stored in options.url, in FuzzStats.url, and in FuzzRequest.fuzzing_url.
             This is unnecessary and should be refactored, which may result in this function
             being moved to another class as well
         """

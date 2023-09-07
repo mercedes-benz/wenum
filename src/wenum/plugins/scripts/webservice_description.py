@@ -1,7 +1,7 @@
 from urllib.parse import urlparse
 from wenum.externals.moduleman.plugin import moduleman_plugin
 from wenum.plugin_api.base import BasePlugin
-from wenum.ui.console.common import Term
+from wenum.ui.console.term import Term
 
 
 @moduleman_plugin
@@ -42,5 +42,5 @@ class WebserviceDescription(BasePlugin):
         # If the URL that has been found ends with one of the web service URLs
         if split_path[-1] in self.webservice_endpoint_list:
             if "<application" in fuzz_result.content:
-                self.add_information(f"{self.term.colour_string(self.term.fgYellow, 'REST description discovered.')}"
+                self.add_information(f"{self.term.color_string(self.term.fgYellow, 'REST description discovered.')}"
                                      f" Inspect endpoint")

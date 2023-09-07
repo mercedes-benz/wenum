@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from wenum.ui.console.common import Term
+from wenum.ui.console.term import Term
 
 if TYPE_CHECKING:
     from wenum.fuzzobjects import FuzzResult
@@ -106,7 +106,7 @@ class Context(BasePlugin):
             split_path = parsed_url.path.split("/")
             original_path = '/'.join(split_path[:-1]) + "/"
 
-        self.add_information(f"Detected tech {self.term.colour_string(Term.fgYellow, tech)} in path {original_path}")
+        self.add_information(f"Detected tech {self.term.color_string(self.term.fgYellow, tech)} in path {original_path}")
         extensions = extension_list[tech]
 
         try:

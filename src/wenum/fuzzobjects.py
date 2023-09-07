@@ -14,10 +14,9 @@ from enum import Enum
 from threading import Lock
 from collections import defaultdict, namedtuple
 
-from .filters.ppfilter import FuzzResFilter
+from .filters.complexfilter import FuzzResFilter
 from .facade import ERROR_CODE
 from .helpers.str_func import convert_to_unicode
-from .helpers.obj_dyn import rgetattr
 from .helpers.utils import MyCounter
 
 FuzzWord = namedtuple("FuzzWord", ["content", "type"])
@@ -67,6 +66,9 @@ class FuzzItem:
 
 
 class FuzzStats:
+    """
+    Class designed to carry diagnostic runtime information
+    """
     def __init__(self):
         self.mutex = Lock()
 
@@ -104,12 +106,12 @@ class FuzzStats:
         self._cancelled = False
 
     @staticmethod
-    def from_options(options):
+    def from_options(session):
         tmp_stats = FuzzStats()
 
-        tmp_stats.url = options["compiled_seed"].history.url
-        tmp_stats.wordlist_req = options["compiled_dictio"].count()
-        tmp_stats.seed = options["compiled_seed"]
+        tmp_stats.url = session.compiled_seed.history.url
+        tmp_stats.wordlist_req = session.compiled_iterator.count()
+        tmp_stats.seed = session.compiled_seed
 
         return tmp_stats
 
@@ -241,6 +243,7 @@ class FuzzPayload:
 
 
 class FPayloadManager:
+    """#TODO What does this manage?"""
     def __init__(self):
         self.payloads = defaultdict(list)
 
@@ -308,7 +311,6 @@ class FuzzError(FuzzItem):
 
 class FuzzResult(FuzzItem):
     newid = itertools.count(0)
-    FUZZRESULT_SHARED_FILTER = FuzzResFilter()
 
     def __init__(self, history=None, exception=None, track_id=True):
         FuzzItem.__init__(self, FuzzType.RESULT)
@@ -395,9 +397,6 @@ class FuzzResult(FuzzItem):
 
         return ret_str
 
-    def eval(self, expr):
-        return self.FUZZRESULT_SHARED_FILTER.is_visible(self, expr)
-
     # parameters in common with fuzzrequest
     @property
     def content(self):
@@ -430,7 +429,6 @@ class FuzzPlugin(FuzzItem):
     FuzzPlugins usually store result information of script plugins (which inherit from BasePlugin).
     Therefore, they are created by plugins, rather than representing the plugins themselves
     """
-    OUTPUT_SOURCE = "output"
     NONE, INFO, LOW, MEDIUM, HIGH, CRITICAL = range(6)
     MIN_VERBOSE = INFO
 

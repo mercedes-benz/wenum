@@ -19,14 +19,13 @@ class FuzzResultFactory(ObjectFactory):
                 "seed_from_recursion": FuzzResSeedBuilder(),
                 "seed_from_plugin": FuzzResPluginSeedBuilder(),
                 "seed_from_options": FuzzResOptionsSeedBuilder(),
-                "seed_from_options_and_dict": FuzzResultDictSeedBuilder(),
             },
         )
 
 
 class FuzzResultDictioBuilder:
     def __call__(self, options, dictio_item):
-        fuzz_result: FuzzResult = copy.deepcopy(options["compiled_seed"])
+        fuzz_result: FuzzResult = copy.deepcopy(options.compiled_seed)
         fuzz_result.item_type = FuzzType.RESULT
         fuzz_result.payload_man.update_from_dictio(dictio_item)
         fuzz_result.from_plugin = False
@@ -42,17 +41,6 @@ class FuzzResOptionsSeedBuilder:
         seed = reqfactory.create("seed_from_options", options)
         fuzz_result = FuzzResult(seed)
         fuzz_result.payload_man = payman_factory.create("payloadman_from_request", seed)
-        fuzz_result.from_plugin = False
-
-        return fuzz_result
-
-
-class FuzzResultDictSeedBuilder:
-    def __call__(self, options, dictio) -> FuzzResult:
-        fuzz_result = copy.deepcopy(dictio[0].content)
-        fuzz_result.history.update_from_options(options)
-        fuzz_result.payload_man = payman_factory.create("empty_payloadman", dictio[0])
-        fuzz_result.payload_man.update_from_dictio(dictio)
         fuzz_result.from_plugin = False
 
         return fuzz_result

@@ -23,17 +23,7 @@ class ReqRespRequestFactory:
             pycurl.URL, convert_to_unicode(fuzz_request._request.complete_url)
         )
 
-        authMethod, userpass = fuzz_request._request.get_auth()
-        if authMethod or userpass:
-            if authMethod == "basic":
-                pycurl_c.setopt(pycurl.HTTPAUTH, pycurl.HTTPAUTH_BASIC)
-            elif authMethod == "ntlm":
-                pycurl_c.setopt(pycurl.HTTPAUTH, pycurl.HTTPAUTH_NTLM)
-            elif authMethod == "digest":
-                pycurl_c.setopt(pycurl.HTTPAUTH, pycurl.HTTPAUTH_DIGEST)
-            pycurl_c.setopt(pycurl.USERPWD, convert_to_unicode(userpass))
-        else:
-            pycurl_c.unsetopt(pycurl.USERPWD)
+        pycurl_c.unsetopt(pycurl.USERPWD)
 
         pycurl_c.setopt(
             pycurl.HTTPHEADER, convert_to_unicode(fuzz_request._request.get_headers())
@@ -65,11 +55,13 @@ class ReqRespRequestFactory:
         # The requests inbetween in a modular way
         pycurl_c.setopt(pycurl.FOLLOWLOCATION, 0)
 
-        if fuzz_request.wf_ip:
+        if fuzz_request.ip:
             pycurl_c.setopt(
                 pycurl.CONNECT_TO,
-                ["::{}:{}".format(fuzz_request.wf_ip["ip"], fuzz_request.wf_ip["port"])],
+                [f"::{fuzz_request.ip}"],
             )
+        #for i in range(10):
+        #    print(fuzz_request.ip)
 
         return pycurl_c
 

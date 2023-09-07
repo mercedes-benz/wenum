@@ -14,19 +14,18 @@ class FuzzRequestFactory(ObjectFactory):
 
 
 class RequestBuilder:
-    def __call__(self, options) -> FuzzRequest:
+    def __call__(self, session) -> FuzzRequest:
         fuzz_request = FuzzRequest()
 
-        fuzz_request.url = options["url"]
-        fuzz_request.wf_fuzz_methods = options["method"]
-        fuzz_request.update_from_options(options)
+        fuzz_request.url = session.options.url
+        fuzz_request.update_from_options(session)
 
         return fuzz_request
 
 
 class SeedBuilder:
-    def __call__(self, options) -> FuzzRequest:
-        seed: FuzzRequest = reqfactory.create("request_from_options", options)
+    def __call__(self, session) -> FuzzRequest:
+        seed: FuzzRequest = reqfactory.create("request_from_options", session)
 
         return seed
 

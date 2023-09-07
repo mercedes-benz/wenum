@@ -5,25 +5,66 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from wenum.fuzzobjects import FuzzResult, FuzzStats
-import json as jjson
+import json
+from .exception import FuzzExceptBadFile, FuzzExceptPluginError
+from .facade import Facade
+import sys
+from abc import abstractmethod, ABC
 
-from wenum.externals.moduleman.plugin import moduleman_plugin
-from wenum.plugin_api.base import BasePrinter
+
+class BasePrinter(ABC):
+    def __init__(self, output, verbose):
+        self.outputfile_handle = None
+        # List containing every result information
+        self.result_list = []
+        if output:
+            try:
+                self.outputfile_handle = open(output, "w")
+            except IOError as e:
+                raise FuzzExceptBadFile("Error opening file. %s" % str(e))
+        else:
+            self.outputfile_handle = sys.stdout
+
+        self.verbose = verbose
+
+    @abstractmethod
+    def header(self, summary: FuzzStats):
+        """
+        Print at the beginning of the file
+        """
+        raise FuzzExceptPluginError("Method header not implemented")
+
+    @abstractmethod
+    def footer(self, summary: FuzzStats):
+        """
+        Print at the end of the file. Will also be called when runtime is done
+        """
+        raise FuzzExceptPluginError("Method footer not implemented")
+
+    @abstractmethod
+    def update_results(self, fuzz_result: FuzzResult, stats: FuzzStats):
+        """
+        Update the result list and return result information (response of request).
+        """
+        raise FuzzExceptPluginError("Method result not implemented")
+
+    @abstractmethod
+    def print_to_file(self, data_to_write):
+        """
+        Overwrite file contents with data
+        """
+        raise FuzzExceptPluginError("Method result not implemented")
 
 
-@moduleman_plugin
 class JSON(BasePrinter):
     name = "json"
     summary = "Results in json format"
-    author = ("Federico (@misterade)", "Minor rework by Ilya Glotov (@ilyaglow)")
-    version = "0.2"
-    category = ["default"]
-    priority = 99
 
-    def __init__(self, output):
-        BasePrinter.__init__(self, output)
+    def __init__(self, output, verbose):
+        BasePrinter.__init__(self, output, verbose)
 
     def header(self, stats: FuzzStats):
+        # Empty JSON header to avoid messing up the file structure
         pass
 
     def update_results(self, fuzz_result: FuzzResult, stats: FuzzStats):
@@ -76,11 +117,11 @@ class JSON(BasePrinter):
         return self.result_list
 
     def print_to_file(self, data_to_write):
-        self.outputfile_handle.write(jjson.dumps(data_to_write))
+        self.outputfile_handle.write(json.dumps(data_to_write))
         self.outputfile_handle.flush()
         # Resetting the file pointer so that the next file write overwrites the content
         self.outputfile_handle.seek(0)
 
     def footer(self, stats: FuzzStats):
+        # Empty JSON footer to avoid messing up the file structure
         pass
-        #self.outputfile_handle.write(jjson.dumps(self.json_res))

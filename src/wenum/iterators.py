@@ -1,20 +1,42 @@
-from wenum.externals.moduleman.plugin import moduleman_plugin
-from wenum.dictionaries import BaseIterator
-
 import itertools
 from functools import reduce
+from abc import ABC, abstractmethod
 
 from builtins import zip as builtinzip
 
 
-@moduleman_plugin
-class zip(BaseIterator):
-    name = "zip"
-    author = ("Xavi Mendez (@xmendez)",)
-    version = "0.1"
-    summary = "Returns an iterator that aggregates elements from each of the iterables."
-    category = ["default"]
-    priority = 99
+class BaseIterator(ABC):
+    """Classes inheriting from this base class are supposed to provide different
+    means of iterating through supplied FUZZ keywords"""
+    @abstractmethod
+    def count(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def width(self) -> int:
+        """
+        Returns amount of FUZZ keywords the iterator consumes
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def payloads(self):
+        raise NotImplementedError
+
+    def cleanup(self):
+        """
+        Called when runtime is shutting down
+        """
+        for payload in self.payloads():
+            payload.close()
+
+    @abstractmethod
+    def __next__(self):
+        raise NotImplementedError
+
+
+class Zip(BaseIterator):
+    """Returns an iterator that aggregates elements from each of the iterables."""
 
     def __init__(self, *i):
         self._payload_list = i
@@ -34,18 +56,9 @@ class zip(BaseIterator):
     def __next__(self):
         return next(self.it)
 
-    def __iter__(self):
-        return self
 
-
-@moduleman_plugin
-class product(BaseIterator):
-    name = "product"
-    author = ("Xavi Mendez (@xmendez)",)
-    version = "0.1"
+class Product(BaseIterator):
     summary = "Returns an iterator cartesian product of input iterables."
-    category = ["default"]
-    priority = 99
 
     def __init__(self, *i):
         self._payload_list = i
@@ -65,18 +78,9 @@ class product(BaseIterator):
     def __next__(self):
         return next(self.it)
 
-    def __iter__(self):
-        return self
 
-
-@moduleman_plugin
-class chain(BaseIterator):
-    name = "chain"
-    author = ("Xavi Mendez (@xmendez)",)
-    version = "0.1"
+class Chain(BaseIterator):
     summary = "Returns an iterator returns elements from the first iterable until it is exhausted, then proceeds to the next iterable, until all of the iterables are exhausted."
-    category = ["default"]
-    priority = 99
 
     def __init__(self, *i):
         self._payload_list = i
@@ -95,5 +99,3 @@ class chain(BaseIterator):
     def __next__(self):
         return (next(self.it),)
 
-    def __iter__(self):
-        return self

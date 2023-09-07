@@ -29,7 +29,7 @@ class Headers:
         return Headers.Header(self._req._headers)
 
     @request.setter
-    def request(self, values_dict):
+    def request(self, values_dict: dict):
         self._req._headers.update(values_dict)
         if "Content-Type" in values_dict:
             self._req.ContentType = values_dict["Content-Type"]
@@ -71,7 +71,7 @@ class Cookies:
 
     @request.setter
     def request(self, values):
-        self.req._headers["Cookie"] = "; ".join(values)
+        self.req._headers["Cookie"] = values
 
     @property
     def all(self):
@@ -134,9 +134,8 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
         self._request: Request = Request()
 
         self._proxy = None
-        self.wf_fuzz_methods = None
-        self.wf_retries = 0
-        self.wf_ip = None
+        self.retries = 0
+        self.ip = None
         # Original url retains the URL that has been specified for fuzzing, such as http://example.com/FUZZ
         self.fuzzing_url = ""
 
@@ -242,33 +241,12 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
         self._request.response.code = int(c)
 
     @property
-    def auth(self) -> DotDict:
-        method, creds = self._request.get_auth()
-
-        return DotDict({"method": method, "credentials": creds})
-
-    @auth.setter
-    def auth(self, creds_dict):
-        self._request.set_auth(creds_dict["method"], creds_dict["credentials"])
-        method, creds = self._request.get_auth()
-
-        return DotDict({"method": method, "credentials": creds})
-
-    @property
     def reqtime(self):
         return self._request.totaltime
 
     @reqtime.setter
     def reqtime(self, time):
         self._request.totaltime = time
-
-    @property
-    def wf_proxy(self):
-        return self._proxy
-
-    @wf_proxy.setter
-    def wf_proxy(self, proxy_tuple):
-        self._proxy = proxy_tuple
 
     @property
     def date(self):
@@ -300,26 +278,21 @@ class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
 
     # methods wenum needs for substituting payloads and building dictionaries
 
-    def update_from_options(self, options):
-        if options["url"] != "FUZZ":
-            self.url = options["url"]
-            self.fuzzing_url = options["url"]
+    def update_from_options(self, session):
+        if session.options.url != "FUZZ":
+            self.url = session.options.url
+            self.fuzzing_url = session.options.url
 
-        # headers must be parsed first as they might affect how reqresp parases other params
-        self.headers.request = dict(options["headers"])
+        self.headers.request = session.options.header_dict()
 
-        if options["auth"].get("method") is not None:
-            self.auth = options["auth"]
+        if session.options.data:
+            self.params.post = session.options.data
 
-        if options["postdata"] is not None:
-            self.params.post = options["postdata"]
+        if session.options.ip:
+            self.ip = session.options.ip
 
-        if options["connect_to_ip"]:
-            self.wf_ip = options["connect_to_ip"]
+        if session.options.method:
+            self.method = session.options.method
 
-        if options["method"]:
-            self.method = options["method"]
-            self.wf_fuzz_methods = options["method"]
-
-        if options["cookie"]:
-            self.cookies.request = options["cookie"]
+        if session.options.cookie:
+            self.cookies.request = session.options.cookie

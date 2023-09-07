@@ -58,7 +58,7 @@ class SeedBuilderHelper:
         #TODO field value is probably irrelevant. Should be phased out after verifying
         r"(?P<full_marker>(?P<word>FUZ(?P<index>\d)*Z)(?P<nonfuzz_marker>(?:\[(?P<field>.*?)\])?))"
     )
-    REQ_ATTR = ["raw_request", "scheme", "method", "auth.credentials"]
+    REQ_ATTR = ["raw_request", "scheme", "method"]
 
     @staticmethod
     def _get_markers(text):
@@ -100,22 +100,15 @@ class SeedBuilderHelper:
         rawReq = str(freq)
         rawUrl = freq.url
         scheme = freq.scheme
-        old_auth = freq.auth
 
         for payload in [
             payload for payload in fpm.get_payloads() if payload.marker is not None
         ]:
-            if old_auth.method:
-                old_auth["credentials"] = old_auth["credentials"].replace(
-                    payload.marker, str(payload.value)
-                )
             rawUrl = rawUrl.replace(payload.marker, str(payload.value))
             rawReq = rawReq.replace(payload.marker, str(payload.value))
             scheme = scheme.replace(payload.marker, str(payload.value))
 
         freq.update_from_raw_http(rawReq, scheme)
         freq.url = rawUrl
-        if old_auth.method:
-            freq.auth = old_auth
 
         return freq
