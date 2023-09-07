@@ -321,7 +321,7 @@ class Options:
         self.add_toml_if_exists(doc, self.opt_name_debug_log, self.debug_log)
         self.add_toml_if_exists(doc, self.opt_name_proxy, self.proxy_list)
         self.add_toml_if_exists(doc, self.opt_name_threads, self.threads)
-        self.add_toml_if_exists(doc, self.opt_name_sleep, self.sleep)
+        self.add_toml_if_exists(doc, self.opt_name_sleep, int(self.sleep))  # For some reason converted to float
         self.add_toml_if_exists(doc, self.opt_name_location, self.location)
         self.add_toml_if_exists(doc, self.opt_name_recursion, self.recursion)
         self.add_toml_if_exists(doc, self.opt_name_plugin_recursion, self.plugin_recursion)
@@ -358,7 +358,7 @@ class Options:
             raise FuzzExceptBadFile("Specified file path could not be opened for exporting the config. Please ensure "
                                     "it is a valid path and it is accessible.")
 
-    def import_config(self):
+    def import_config(self) -> None:
         """
         Imports the config from the given option path.
 
@@ -430,7 +430,7 @@ class Options:
             self.cookie = self.pop_toml_string(toml_dict, self.opt_name_cookie)
 
         if self.opt_name_stop_error in toml_dict:
-            self.opt_name_stop_error = self.pop_toml_bool(toml_dict, self.opt_name_stop_error)
+            self.stop_error = self.pop_toml_bool(toml_dict, self.opt_name_stop_error)
 
         if self.opt_name_hc in toml_dict:
             self.hc_list += self.pop_toml_list_int(toml_dict, self.opt_name_hc)
@@ -463,7 +463,7 @@ class Options:
             self.sr = self.pop_toml_string(toml_dict, self.opt_name_sr)
 
         if self.opt_name_filter in toml_dict:
-            self.filter = self.pop_toml_string(toml_dict, self.filter)
+            self.filter = self.pop_toml_string(toml_dict, self.opt_name_filter)
 
         if self.opt_name_hard_filter in toml_dict:
             self.hard_filter = self.pop_toml_bool(toml_dict, self.opt_name_hard_filter)

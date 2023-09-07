@@ -1,0 +1,27 @@
+
+url = "http://example.com/FUZZ/FUZ2Z/FUZ3Z"
+wordlist = ["dummy_wordlist.txt"]
+colorless = false
+quiet = true
+noninteractive = true
+output = "dummy_output.txt"
+debug-log = "dummy_debuglog.txt"
+proxy = ["http://127.0.0.1:8080"]
+threads = true
+sleep = 2
+location = true
+recursion = 3
+method = "POST"
+data = "{\"jsontest\":2}"
+header = ["Test: asd", "Testtwo: qweq", "Test3: qweqwe"]
+stop-error = true
+hc = [200, 403, 302]
+filter = "code=200"
+auto-filter = true
+hard-filter = true
+limit-requests = 20000
+ip = "127.0.0.1:443"
+request-timeout = 40
+domain-scope = true
+plugins = ["default", "robots", "active"]
+iterator = "product"
