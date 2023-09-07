@@ -60,15 +60,13 @@ class OptionsTest(unittest.TestCase):
         with self.assertRaises(Exception) as exc:
             options.basic_validate()
         self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))
-        os.chmod("dummy_wordlist.txt", 0o444)
+        os.chmod("dummy_wordlist.txt", 0o664)
 
         # Multiple wordlists with one faulty
         options.wordlist_list.append("/qweqwe")
         with self.assertRaises(Exception) as exc:
             options.basic_validate()
         self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))
-
-        # TODO config
 
     def test_output_access(self):
         self.longMessage = True
@@ -169,7 +167,6 @@ class OptionsTest(unittest.TestCase):
              ])
         options.read_args(parsed_args)
         options.export_config()
-        print(options)
 
         with open(options.dump_config, "rb") as file:
             self.assertTrue(load(file))
@@ -483,3 +480,22 @@ doesnt_exist = true
 
     def test_plugin_name(self):
         pass
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        with open("dummy_wordlist.txt", "w") as file:
+            file.write("example")
+
+    @classmethod
+    def tearDownClass(cls):
+        # release resources
+        with open("dummy_debuglog.txt", "w") as file:
+            file.write("")
+        with open("dummy_config.toml", "w") as file:
+            file.write("")
+        with open("dummy_config_dump.toml", "w") as file:
+            file.write("")
+        with open("dummy_output.txt", "w") as file:
+            file.write("")
+        with open("dummy_wordlist.txt", "w") as file:
+            file.write("")
