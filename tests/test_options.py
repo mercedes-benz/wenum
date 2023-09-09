@@ -155,6 +155,7 @@ class OptionsTest(unittest.TestCase):
              f"--{options.opt_name_header}", "Test3: qweqwe", f"--{options.opt_name_cookie}", "Cookie=123",
              f"--{options.opt_name_ip}", "127.0.0.1:443", f"--{options.opt_name_iterator}", "product",
              f"--{options.opt_name_threads}", "30", f"--{options.opt_name_sleep}", "2",
+             f"--{options.opt_name_plugin_executors}", "4",
              f"--{options.opt_name_location}", f"--{options.opt_name_recursion}", "3",
              f"--{options.opt_name_stop_error}", f"--{options.opt_name_dry_run}",
              f"--{options.opt_name_limit_requests}", "20000", f"--{options.opt_name_request_timeout}", "40",
@@ -188,6 +189,7 @@ class OptionsTest(unittest.TestCase):
 {options.opt_name_debug_log} = "dummy_debuglog.txt"
 {options.opt_name_proxy} = ["http://127.0.0.1:8080"]
 {options.opt_name_threads} = 30
+{options.opt_name_plugin_executors} = 4
 {options.opt_name_sleep} = 2
 {options.opt_name_location} = true
 {options.opt_name_recursion} = 3
@@ -242,6 +244,7 @@ class OptionsTest(unittest.TestCase):
 {options.opt_name_debug_log} = "dummy_debuglog.txt"
 {options.opt_name_proxy} = ["http://127.0.0.1:8080"]
 {options.opt_name_threads} = 30
+{options.opt_name_plugin_executors} = 4
 {options.opt_name_sleep} = 2
 {options.opt_name_location} = true
 {options.opt_name_recursion} = 3
@@ -279,6 +282,7 @@ doesnt_exist = true
 {options.opt_name_debug_log} = "dummy_debuglog.txt"
 {options.opt_name_proxy} = ["http://127.0.0.1:8080"]
 {options.opt_name_threads} = 30
+{options.opt_name_plugin_executors} = 4
 {options.opt_name_sleep} = 2
 {options.opt_name_location} = true
 {options.opt_name_recursion} = 3
@@ -315,6 +319,7 @@ doesnt_exist = true
 {options.opt_name_debug_log} = "dummy_debuglog.txt"
 {options.opt_name_proxy} = ["http://127.0.0.1:8080"]
 {options.opt_name_threads} = 30
+{options.opt_name_plugin_executors} = 4
 {options.opt_name_sleep} = 2
 {options.opt_name_location} = true
 {options.opt_name_recursion} = 3
@@ -351,6 +356,7 @@ doesnt_exist = true
 {options.opt_name_debug_log} = "dummy_debuglog.txt"
 {options.opt_name_proxy} = ["http://127.0.0.1:8080"]
 {options.opt_name_threads} = 30
+{options.opt_name_plugin_executors} = 4
 {options.opt_name_sleep} = 2
 {options.opt_name_location} = true
 {options.opt_name_recursion} = 3
@@ -387,6 +393,7 @@ doesnt_exist = true
 {options.opt_name_debug_log} = "dummy_debuglog.txt"
 {options.opt_name_proxy} = ["http://127.0.0.1:8080"]
 {options.opt_name_threads} = 30
+{options.opt_name_plugin_executors} = 4
 {options.opt_name_sleep} = 2
 {options.opt_name_location} = true
 {options.opt_name_recursion} = 3
