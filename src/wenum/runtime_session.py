@@ -16,7 +16,7 @@ from .iterators import BaseIterator
 from .myhttp import HttpPool
 
 from .externals.reqresp.cache import HttpCache
-from .printers import JSON, BasePrinter
+from .printers import JSON, HTML, BasePrinter
 from wenum.user_opts import Options
 
 # The priority moves in steps of 10 to allow a buffer zone for future finegrained control. This way, one group of
@@ -115,7 +115,13 @@ class FuzzSession:
             sys.exit(0)
 
         if self.options.output:
-            self.compiled_printer = JSON(self.options.output, self.options.verbose)
+            if self.options.output_format == "html":
+                self.compiled_printer = HTML(self.options.output, self.options.verbose)
+            elif self.options.output_format == "json":
+                self.compiled_printer = JSON(self.options.output, self.options.verbose)
+            else:
+                #TODO Reimplement as list; that way printing can be done for all formats that are activated
+                self.compiled_printer = JSON(self.options.output, self.options.verbose)
 
         self.compile_seeds()
         self.compile_iterator()

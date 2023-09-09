@@ -6,22 +6,18 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from wenum.fuzzobjects import FuzzResult, FuzzStats
 import json
-from .exception import FuzzExceptBadFile, FuzzExceptPluginError
-from .facade import Facade
+from .exception import FuzzExceptPluginError
 import sys
 from abc import abstractmethod, ABC
 
 
 class BasePrinter(ABC):
-    def __init__(self, output, verbose):
+    def __init__(self, output: str, verbose: bool):
         self.outputfile_handle = None
         # List containing every result information
         self.result_list = []
         if output:
-            try:
-                self.outputfile_handle = open(output, "w")
-            except IOError as e:
-                raise FuzzExceptBadFile("Error opening file. %s" % str(e))
+            self.outputfile_handle = open(output, "w")
         else:
             self.outputfile_handle = sys.stdout
 
@@ -56,12 +52,29 @@ class BasePrinter(ABC):
         raise FuzzExceptPluginError("Method result not implemented")
 
 
+class HTML(BasePrinter):
+    def __init__(self, output, verbose):
+        super().__init__(output, verbose)
+
+    def header(self, stats):
+        pass
+
+    def update_results(self, fuzz_result, stats):
+        pass
+
+    def print_to_file(self, data_to_write):
+        pass
+
+    def footer(self, summary: FuzzStats):
+        pass
+
+
 class JSON(BasePrinter):
     name = "json"
     summary = "Results in json format"
 
     def __init__(self, output, verbose):
-        BasePrinter.__init__(self, output, verbose)
+        super().__init__(output, verbose)
 
     def header(self, stats: FuzzStats):
         # Empty JSON header to avoid messing up the file structure

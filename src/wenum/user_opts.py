@@ -16,6 +16,8 @@ default_request_timeout = 40
 default_plugin_threads = 3
 default_method = "GET"
 default_iterator = "product"
+default_output_format = "json"
+valid_format_choices = ["json", "html", "all"]
 
 
 def flatten_list(list_of_lists: list[list[str]]) -> list[str]:
@@ -57,6 +59,9 @@ class Options:
 
         self.output: Optional[str] = None
         self.opt_name_output: str = "output"
+
+        self.output_format: Optional[str] = None
+        self.opt_name_output_format = "output-format"
 
         self.debug_log: Optional[str] = None
         self.opt_name_debug_log: str = "debug-log"
@@ -327,6 +332,7 @@ class Options:
         self.add_toml_if_exists(doc, self.opt_name_noninteractive, self.noninteractive)
         self.add_toml_if_exists(doc, self.opt_name_verbose, self.verbose)
         self.add_toml_if_exists(doc, self.opt_name_output, self.output)
+        self.add_toml_if_exists(doc, self.opt_name_output_format, self.output_format)
         self.add_toml_if_exists(doc, self.opt_name_debug_log, self.debug_log)
         self.add_toml_if_exists(doc, self.opt_name_proxy, self.proxy_list)
         self.add_toml_if_exists(doc, self.opt_name_threads, self.threads)
@@ -405,6 +411,9 @@ class Options:
 
         if self.opt_name_output in toml_dict:
             self.output = self.pop_toml_string(toml_dict, self.opt_name_output)
+
+        if self.opt_name_output_format in toml_dict:
+            self.output_format = self.pop_toml_string(toml_dict, self.opt_name_output_format)
 
         if self.opt_name_debug_log in toml_dict:
             self.debug_log = self.pop_toml_string(toml_dict, self.opt_name_debug_log)
@@ -597,6 +606,11 @@ class Options:
         if not self.plugin_recursion:
             self.plugin_recursion = self.recursion
 
+        if not self.output_format:
+            if self.output_format not in valid_format_choices:
+                raise FuzzExceptBadOptions(f"Output format does not exist")
+            self.output_format = default_output_format
+
         if self.url is None:
             raise FuzzExceptBadOptions(f"Specify the URL with --{self.opt_name_url}")
 
@@ -736,7 +750,9 @@ class Options:
                               help="Specify a wordlist file.", nargs="*")
         io_group.add_argument("-o", f"--{self.opt_name_output}",
                               help="Store results in the specified output file as JSON.")
-        # io_group.add_argument("-f", "--output-format", help="Set the format of the output file. Note: Currently only json, html will come.", choices=["json", "html", "all"], default="json")#TODO Check and reimplement html output
+        io_group.add_argument("-f", f"--{self.opt_name_output_format}",
+                              help=f"Set the format of the output file. (default: {default_output_format}",
+                              choices=valid_format_choices,)
         io_group.add_argument("-l", f"--{self.opt_name_debug_log}",
                               help="Save runtime information to a file.")
         io_group.add_argument(f"--{self.opt_name_dump_config}",
