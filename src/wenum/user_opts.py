@@ -13,7 +13,7 @@ from wenum.exception import FuzzExceptBadOptions, FuzzExceptBadFile
 
 default_threads = 40
 default_request_timeout = 40
-default_plugin_executors = 3
+default_plugin_threads = 3
 default_method = "GET"
 default_iterator = "product"
 
@@ -67,8 +67,8 @@ class Options:
         self.threads: Optional[int] = None
         self.opt_name_threads: str = "threads"
 
-        self.plugin_executors: Optional[int] = None
-        self.opt_name_plugin_executors: str = "plugin-executors"
+        self.plugin_threads: Optional[int] = None
+        self.opt_name_plugin_threads: str = "plugin-threads"
 
         self.sleep: Optional[int] = None
         self.opt_name_sleep: str = "sleep"
@@ -330,7 +330,7 @@ class Options:
         self.add_toml_if_exists(doc, self.opt_name_debug_log, self.debug_log)
         self.add_toml_if_exists(doc, self.opt_name_proxy, self.proxy_list)
         self.add_toml_if_exists(doc, self.opt_name_threads, self.threads)
-        self.add_toml_if_exists(doc, self.opt_name_plugin_executors, self.plugin_executors)
+        self.add_toml_if_exists(doc, self.opt_name_plugin_threads, self.plugin_threads)
         self.add_toml_if_exists(doc, self.opt_name_sleep, int(self.sleep))  # For some reason converted to float
         self.add_toml_if_exists(doc, self.opt_name_location, self.location)
         self.add_toml_if_exists(doc, self.opt_name_recursion, self.recursion)
@@ -415,8 +415,8 @@ class Options:
         if self.opt_name_threads in toml_dict:
             self.threads = self.pop_toml_int(toml_dict, self.opt_name_threads)
 
-        if self.opt_name_plugin_executors in toml_dict:
-            self.plugin_executors = self.pop_toml_int(toml_dict, self.opt_name_plugin_executors)
+        if self.opt_name_plugin_threads in toml_dict:
+            self.plugin_threads = self.pop_toml_int(toml_dict, self.opt_name_plugin_threads)
 
         if self.opt_name_sleep in toml_dict:
             self.sleep = self.pop_toml_int(toml_dict, self.opt_name_sleep)
@@ -582,8 +582,8 @@ class Options:
         if not self.threads:
             self.threads = default_threads
 
-        if not self.plugin_executors:
-            self.plugin_executors = default_plugin_executors
+        if not self.plugin_threads:
+            self.plugin_threads = default_plugin_threads
 
         if not self.method:
             self.method = default_method
@@ -717,16 +717,12 @@ class Options:
         parser = argparse.ArgumentParser(prog="wenum",
                                          description="A Web Fuzzer. The options follow the curl schema where possible.",
                                          epilog="Examples")
+
         request_building_group = parser.add_argument_group("Request building options")
         response_proessing_group = parser.add_argument_group("Response processing options")
-        request_building_group.add_argument("-u", f"--{self.opt_name_url}", help="Specify a URL for the request.")
-        # argparse offers a way of directly reading in a file, but that feature seems unstable
-        # (file handle supposedly kept open for the entire runtime?) - see https://bugs.python.org/issue13824
-        # Unsure if should be used, therefore simply reading in a string and manually checking instead
         io_group = parser.add_argument_group("Input/Output options")
-        io_group.add_argument("-w", f"--{self.opt_name_wordlist}", action="append", help="Specify a wordlist file.",
-                              nargs="*")
         terminal_group = parser.add_argument_group("Terminal options")
+
         terminal_group.add_argument("-c", f"--{self.opt_name_colorless}", action="store_true",
                                     help="Disable colors in CLI output.", )
         terminal_group.add_argument("-q", f"--{self.opt_name_quiet}", action="store_true",
@@ -735,11 +731,24 @@ class Options:
                                     help="Disable runtime interactions.")
         terminal_group.add_argument("-v", f"--{self.opt_name_verbose}", action="store_true",
                                     help="Enable verbose information in CLI output.")
+
+        io_group.add_argument("-w", f"--{self.opt_name_wordlist}", action="append",
+                              help="Specify a wordlist file.", nargs="*")
         io_group.add_argument("-o", f"--{self.opt_name_output}",
                               help="Store results in the specified output file as JSON.")
         # io_group.add_argument("-f", "--output-format", help="Set the format of the output file. Note: Currently only json, html will come.", choices=["json", "html", "all"], default="json")#TODO Check and reimplement html output
         io_group.add_argument("-l", f"--{self.opt_name_debug_log}",
                               help="Save runtime information to a file.")
+        io_group.add_argument(f"--{self.opt_name_dump_config}",
+                              help="Print all supplied options to a config file and exit.")
+        io_group.add_argument("-K", f"--{self.opt_name_config}",
+                              help="Read config from specified path. ")
+        io_group.add_argument(f"--{self.opt_name_plugins}", action="append",
+                              help="Plugins to be run, supplied as a list of plugin-files or plugin-categories",
+                              nargs="*")
+        # io_group.add_argument("--cache-file", help="Read in a cache file from a previous run, and post process the results without sending the requests.")#TODO implement
+
+        request_building_group.add_argument("-u", f"--{self.opt_name_url}", help="Specify a URL for the request.")
         request_building_group.add_argument("-p", f"--{self.opt_name_proxy}", action="append",
                                             help="Proxy requests. Use format 'protocol://ip:port'. "
                                                  "Protocols SOCKS4, SOCKS5 and HTTP are supported. If "
@@ -750,19 +759,8 @@ class Options:
         request_building_group.add_argument("-t", f"--{self.opt_name_threads}", type=int,
                                             help="Modify the number of concurrent \"threads\"/connections "
                                                  f"for requests. (default: {default_threads})")
-        request_building_group.add_argument(f"--{self.opt_name_plugin_executors}", type=int,
-                                            help="Modify the amount of threads used for concurrent "
-                                                 f"execution of plugins. (default: {default_plugin_executors})")
         request_building_group.add_argument("-s", f"--{self.opt_name_sleep}", type=float,
                                             help="Wait supplied seconds between requests.")
-        response_proessing_group.add_argument("-L", f"--{self.opt_name_location}", action="store_true",
-                                              help="Follow redirections by sending "
-                                                   "an additional request to the redirection URL.")
-        response_proessing_group.add_argument("-R", f"--{self.opt_name_recursion}", type=int,
-                                              help="Enable recursive path discovery by specifying a maximum depth.")
-        response_proessing_group.add_argument("-r", f"--{self.opt_name_plugin_recursion}", type=int,
-                                              help="Adjust the max depth for recursions originating from plugins. "
-                                                   f"Matches --{self.opt_name_recursion} by default.")
         request_building_group.add_argument("-X", f"--{self.opt_name_method}",
                                             help=f"Set the HTTP method used for requests. (default: {default_method}")
         request_building_group.add_argument("-d", f"--{self.opt_name_data}",
@@ -773,9 +771,21 @@ class Options:
                                                  "Multiple flags accepted.", nargs="*")
         request_building_group.add_argument("-b", f"--{self.opt_name_cookie}",
                                             help="Add cookies, e.g. \"Cookie1=foo; Cookie2=bar\".")
-        # request_processing_group.add_argument("-e", "--stop-errors", action="store_true", help="Stop when 10 errors were detected")#TODO Implement
-        response_proessing_group.add_argument("-E", f"--{self.opt_name_stop_error}", action="store_true",
-                                              help="Stop on any connection error.")
+        request_building_group.add_argument(f"--{self.opt_name_dry_run}", action="store_true",
+                                            help="Test run without actually making any HTTP request.")
+        request_building_group.add_argument(f"--{self.opt_name_ip}",
+                                            help="Specify an IP to connect to. Format ip:port. "
+                                                 "Uses port 80 if none specified. "
+                                                 "This can help if you want to force connecting to a specific "
+                                                 "IP and still present a "
+                                                 "host name in the SNI, which will remain the URL's host.")  # TODO Change from --ip to --sni, which allows for same featureset and feels less convoluted next to --url
+        request_building_group.add_argument("-i", f"--{self.opt_name_iterator}",
+                                            help="Set the iterator used when combining "
+                                                 f"multiple wordlists. (default: {default_iterator})",
+                                            choices=["product", "zip", "chain"])
+        request_building_group.add_argument(f"--{self.opt_name_plugin_threads}", type=int,
+                                            help="Modify the amount of threads used for concurrent "
+                                                 f"execution of plugins. (default: {default_plugin_threads})")
 
         filter_group = parser.add_argument_group("Filter options")
         filter_group.add_argument(f"--{self.opt_name_hc}", action="append",
@@ -812,36 +822,30 @@ class Options:
         filter_group.add_argument(f"--{self.opt_name_auto_filter}", action="store_true",
                                   help="Filter automatically during runtime. "
                                        "If a response occurs too often, it will get filtered out.")
-        io_group.add_argument(f"--{self.opt_name_dump_config}",
-                              help="Print all supplied options to a config file and exit.")
-        io_group.add_argument("-K", f"--{self.opt_name_config}",
-                              help="Read config from specified path. ")
-        # io_group.add_argument("--cache-file", help="Read in a cache file from a previous run, and post process the results without sending the requests.")#TODO implement
-        request_building_group.add_argument(f"--{self.opt_name_dry_run}", action="store_true",
-                                            help="Test run without actually making any HTTP request.")
+
+        response_proessing_group.add_argument("-L", f"--{self.opt_name_location}", action="store_true",
+                                              help="Follow redirections by sending "
+                                                   "an additional request to the redirection URL.")
+        response_proessing_group.add_argument("-R", f"--{self.opt_name_recursion}", type=int,
+                                              help="Enable recursive path discovery by specifying a maximum depth.")
+        response_proessing_group.add_argument("-r", f"--{self.opt_name_plugin_recursion}", type=int,
+                                              help="Adjust the max depth for recursions originating from plugins. "
+                                                   f"Matches --{self.opt_name_recursion} by default.")
+        # request_processing_group.add_argument("-e", "--stop-errors", action="store_true", help="Stop when 10 errors were detected")#TODO Implement
+        response_proessing_group.add_argument("-E", f"--{self.opt_name_stop_error}", action="store_true",
+                                              help="Stop on any connection error.")
         response_proessing_group.add_argument(f"--{self.opt_name_limit_requests}", type=int,
                                               help="Limit recursions. Once specified amount of requests are sent, "
                                                    "recursions will be deactivated")
-        request_building_group.add_argument(f"--{self.opt_name_ip}",
-                                            help="Specify an IP to connect to. Format ip:port. "
-                                                 "Uses port 80 if none specified. "
-                                                 "This can help if you want to force connecting to a specific "
-                                                 "IP and still present a "
-                                                 "host name in the SNI, which will remain the URL's host.")  # TODO Change from --ip to --sni, which allows for same featureset and feels less convoluted next to --url
         response_proessing_group.add_argument(f"--{self.opt_name_request_timeout}", type=int,
                                               help="Change the maximum seconds the request is allowed to take. "
                                                    f"(default: {default_request_timeout}")
         response_proessing_group.add_argument(f"--{self.opt_name_domain_scope}", action="store_true",
                                               help="Base the scope check on the domain name instead of IP.")
+
         # parser.add_argument("--list-plugins", help="List all plugins and categories")#TODO implement, though maybe this falls off with the info option
-        io_group.add_argument(f"--{self.opt_name_plugins}", action="append",
-                              help="Plugins to be run, supplied as a list of plugin-files or plugin-categories",
-                              nargs="*")
         # parser.add_argument("--plugin-args", help="Provide arguments to scripts. e.g. --plugin-args grep.regex=\"<A href=\\\"(.*?)\\\">\"", nargs="*")#TODO Maybe remove? Really no plugin utilizes this except for regex.py, and I dont know if they ever will
-        request_building_group.add_argument("-i", f"--{self.opt_name_iterator}",
-                                            help="Set the iterator used when combining "
-                                                 f"multiple wordlists. (default: {default_iterator})",
-                                            choices=["product", "zip", "chain"])
+
         # parser.add_argument("info", help="Print information about the specified topic and exit.", choices=["plugins", "iterators", "filter"])#TODO implement, and this feels like a good positional argument. Probably because by design the user should not use it in combination with anything else
         parser.add_argument("-V", f"--{self.opt_name_version}", action="store_true", help="Print version and exit.")
 
