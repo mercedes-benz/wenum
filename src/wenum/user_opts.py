@@ -783,9 +783,6 @@ class Options:
                                             help="Set the iterator used when combining "
                                                  f"multiple wordlists. (default: {default_iterator})",
                                             choices=["product", "zip", "chain"])
-        request_building_group.add_argument(f"--{self.opt_name_plugin_threads}", type=int,
-                                            help="Modify the amount of threads used for concurrent "
-                                                 f"execution of plugins. (default: {default_plugin_threads})")
 
         filter_group = parser.add_argument_group("Filter options")
         filter_group.add_argument(f"--{self.opt_name_hc}", action="append",
@@ -842,6 +839,9 @@ class Options:
                                                    f"(default: {default_request_timeout}")
         response_proessing_group.add_argument(f"--{self.opt_name_domain_scope}", action="store_true",
                                               help="Base the scope check on the domain name instead of IP.")
+        response_proessing_group.add_argument(f"--{self.opt_name_plugin_threads}", type=int,
+                                              help="Modify the amount of threads used for concurrent "
+                                              f"execution of plugins. (default: {default_plugin_threads})")
 
         # parser.add_argument("--list-plugins", help="List all plugins and categories")#TODO implement, though maybe this falls off with the info option
         # parser.add_argument("--plugin-args", help="Provide arguments to scripts. e.g. --plugin-args grep.regex=\"<A href=\\\"(.*?)\\\">\"", nargs="*")#TODO Maybe remove? Really no plugin utilizes this except for regex.py, and I dont know if they ever will
