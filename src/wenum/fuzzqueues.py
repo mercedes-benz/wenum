@@ -368,7 +368,7 @@ class PluginQueue(FuzzListQueue):
                 "No plugin selected, check the --script name or category introduced."
             )
 
-        concurrent = session.options.plugin_executors
+        concurrent = session.options.plugin_threads
         # Creating several PluginExecutors to enable several requests to be processed by plugins simultaneously
         super().__init__(session, [PluginExecutor(session, lplugins) for i in range(concurrent)])
 
