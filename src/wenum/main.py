@@ -42,16 +42,9 @@ def main():
 
         if not session.options.noninteractive:
             # initialise controller
-            try:
-                keypress = KeyPress()
-            except ImportError as e:
-                raise FuzzExceptBadInstall(
-                    "Error importing necessary modules for interactive mode: %s"
-                    % str(e)
-                )
-            else:
-                Controller(fuzzer, keypress)
-                keypress.start()
+            keypress = KeyPress()
+            Controller(fuzzer, keypress)
+            keypress.start()
 
         term = Term(session)
 
