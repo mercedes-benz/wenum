@@ -63,13 +63,17 @@ def main():
             pass
 
     except FuzzException as e:
-        warnings.warn("Fatal exception: {}".format(str(e)))
-    except KeyboardInterrupt:
+        exception_message = "Fatal exception: {}".format(str(e))
+        warnings.warn(exception_message)
+        logger.exception(exception_message)
+    except KeyboardInterrupt as e:
+        exception_message = "Keyboard interrupt registered."
         if term:
-            text = term.color_string(term.fgYellow, "Finishing pending requests...")
+            text = term.color_string(term.fgYellow, exception_message)
         else:
-            text = "Finishing pending requests..."
+            text = "Keyboard interrupt registered."
         warnings.warn(text)
+        logger.exception(exception_message)
         if fuzzer:
             fuzzer.cancel_job()
     except NotImplementedError as e:
