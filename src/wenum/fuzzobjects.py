@@ -27,7 +27,7 @@ class FuzzWordType(Enum):
 
 
 class FuzzType(Enum):
-    (SEED, BACKFEED, RESULT, ERROR, STARTSEED, ENDSEED, CANCEL, PLUGIN, MESSAGE) = range(9)
+    (SEED, BACKFEED, RESULT, ERROR, STARTSEED, ENDSEED, PLUGIN, MESSAGE) = range(8)
 
 
 class FuzzItem:

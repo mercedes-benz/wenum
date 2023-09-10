@@ -166,7 +166,7 @@ class CLIPrinterQ(FuzzQueue):
         self.printer = View(self.session)
         self.process_discarded = True
 
-    def mystart(self):
+    def pre_start(self):
         self.printer.header(self.stats)
 
     def items_to_process(self):
@@ -389,8 +389,6 @@ class PluginExecutor(FuzzQueue):
     """
 
     def __init__(self, session: FuzzSession, selected_plugins: list[BasePlugin]):
-        # Usually, several PluginExecutors are initiated in a runtime, and one of them may longer than others.
-        # Therefore, an arbitrary maxsize is provided, causing the PluginQueue to try the next one if one is full.
         super().__init__(session, maxsize=30)
         self.__walking_threads: Queue = Queue()
         self.selected_plugins: list[BasePlugin] = selected_plugins
@@ -430,7 +428,22 @@ class PluginExecutor(FuzzQueue):
                 raise FuzzExceptPluginLoadError(f"Error initialising plugin {plugin.name}: {str(e)}")
             self.__walking_threads.put(thread)
             thread.start()
-        self.__walking_threads.join()
+        #TODO Fix. Either use this control queue, but the problem is it doesnt have a timeout to listen
+        # for the signal. Therefore would always have to wait for whatever the sleeping time is before joining it.
+        # If this was handled without the control queue and the threads were directly in a dict for the Executor,
+        # the executor could use a timeout wait. That way after the timeout it could check for the signal, and otherwise
+        # try to join one of the threads (and cascade until all of them are joined). By utilizing the timeout join,
+        # it would prevent sleeping a fixed time during the runtime. Sleeping during the runtime would be quite costly,
+        # as it would affect every single response process time.
+        while True:
+            if self.stopped:
+                self.logger.debug("Interrupting")
+                return
+            if self.__walking_threads.qsize() > 0:
+                time.sleep(0.5)
+            else:
+                self.__walking_threads.join()
+                break
         self.process_results(fuzz_result, plugins_res_queue, queued_dict)
 
         self.send(fuzz_result)
@@ -748,20 +761,17 @@ class DryRunQ(FuzzQueue):
 
 class HttpQueue(FuzzQueue):
     """
-    Queue used as transport_queue if no special params change behavior. Responsible for sending and receiving requests.
+    Queue Responsible for sending and receiving requests.
     Accepts items from SeedQueue and RoutingQueue. RoutingQueue might handle a lot of BACKFEED-objects, which take
     precedence over items coming from the SeedQueue. There is no maxsize, as the RoutingQueue would get blocked and
     compete with SeedQueue over putting items (ultimately preventing the prioritization of items). Therefore, it
-    accepts items without a limit, and SeedQueue manually makes sure not to put into HttpQueue if it's qsize() is
+    accepts items without a maxsize, and SeedQueue manually makes sure not to put into HttpQueue if it's qsize() is
     already big.
     """
 
     def __init__(self, session: FuzzSession):
-        # The HttpQ gets initialized with a maxsize to ensure that queues intending to generate requests wait
-        # in case the HttpQueue lags behind. This prevents rapid RAM allocation.
         super().__init__(session)
 
-        self.poolid = None
         self.http_pool = session.http_pool
 
         self.pause = Event()
@@ -771,26 +781,29 @@ class HttpQueue(FuzzQueue):
     def cancel(self):
         self.pause.set()
 
-    def mystart(self):
-        self.poolid = self.http_pool.register()
+    def pre_start(self):
+        self.http_pool.initialize()
 
-        th2 = Thread(target=self.__read_http_results)
-        th2.name = "__read_http_results"
-        th2.start()
+        thread = Thread(target=self.__read_http_results)
+        thread.name = "__read_http_results"
+        thread.start()
 
     def get_name(self):
         return "HttpQueue"
 
     def _cleanup(self):
-        self.http_pool.deregister()
+        self.logger.debug(f"HttpQueue cleaning up")
+        self.http_pool.cleanup()
         self.exit_job = True
+
+        self.logger.debug(f"HttpQueue cleaned up")
 
     def items_to_process(self):
         return [FuzzType.RESULT, FuzzType.BACKFEED]
 
     def process(self, fuzz_result: FuzzResult):
         self.pause.wait()
-        self.http_pool.enqueue(fuzz_result, self.poolid)
+        self.http_pool.enqueue(fuzz_result)
 
     def __read_http_results(self):
         """
@@ -798,13 +811,14 @@ class HttpQueue(FuzzQueue):
         """
         try:
             while not self.exit_job:
-                fuzz_result, requeue = next(self.http_pool.iter_results(self.poolid))
+                fuzz_result, requeue = next(self.http_pool.iter_results())
                 if requeue:
-                    self.http_pool.enqueue(fuzz_result, self.poolid)
+                    self.http_pool.enqueue(fuzz_result)
                 else:
                     if fuzz_result.exception and self.session.options.stop_error:
                         self._throw(fuzz_result.exception)
                     else:
                         self.send(fuzz_result)
+            print("Stopping")
         except StopIteration:
             pass

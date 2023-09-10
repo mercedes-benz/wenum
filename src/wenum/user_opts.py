@@ -206,7 +206,7 @@ class Options:
             self.output = parsed_args.output
 
         if parsed_args.debug_log:
-            logger = logging.getLogger("runtime_log")
+            logger = logging.getLogger("debug_log")
             logger.propagate = False
             logger.setLevel(logging.DEBUG)
             formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s", datefmt="%d.%m.%Y %H:%M:%S")

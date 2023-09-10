@@ -34,8 +34,8 @@ class Fuzzer:
 
         self.session: FuzzSession = session
         self.qmanager: QueueManager = QueueManager(session)
-        self.results_queue: MyPriorityQueue = MyPriorityQueue()
-        self.logger = logging.getLogger("runtime_log")
+        self.last_queue: MyPriorityQueue = MyPriorityQueue()
+        self.logger = logging.getLogger("debug_log")
 
         self.qmanager.add("seed_queue", SeedQueue(session))
 
@@ -97,7 +97,7 @@ class Fuzzer:
 
         self.qmanager.add("printer_cli", CLIPrinterQ(session))
 
-        self.qmanager.bind(self.results_queue)
+        self.qmanager.bind(self.last_queue)
 
         # initial seed request
         self.qmanager.start()
@@ -110,13 +110,18 @@ class Fuzzer:
         This function is called by the for loop in the main function when going over it
         """
         # http://bugs.python.org/issue1360
-        fuzz_result = self.results_queue.get()
-        self.results_queue.task_done()
+        print("getting")
+        fuzz_result = self.last_queue.get()
+        print("got")
+        self.last_queue.task_done()
 
-        # done! (None sent has gone through all queues).
+        # done!
         if not fuzz_result:
             raise StopIteration
         elif fuzz_result.item_type == FuzzType.ERROR:
+            for i in range(10):
+                print(fuzz_result.exception)
+                print(fuzz_result.item_type)
             raise fuzz_result.exception
 
         return fuzz_result

@@ -36,7 +36,7 @@ class BasePlugin:
         self.base_fuzz_res: Optional[FuzzResult] = None
         self.cache = HttpCache()
         self.session: FuzzSession = session
-        self.logger = logging.getLogger("runtime_log")
+        self.logger = logging.getLogger("debug_log")
         self.term = Term(session)
 
         # check mandatory params, assign default values

@@ -28,7 +28,7 @@ def main():
     keypress: Optional[KeyPress] = None
     fuzzer: Optional[Fuzzer] = None
     session: Optional[FuzzSession] = None
-    logger = logging.getLogger("runtime_log")
+    logger = logging.getLogger("debug_log")
     term = None
 
     try:
@@ -60,13 +60,13 @@ def main():
         warnings.warn(exception_message)
         logger.exception(exception_message)
     except KeyboardInterrupt as e:
-        exception_message = "Keyboard interrupt registered."
+        user_message = "Keyboard interrupt registered."
         if term:
-            text = term.color_string(term.fgYellow, exception_message)
+            text = term.color_string(term.fgYellow, user_message)
         else:
             text = "Keyboard interrupt registered."
         warnings.warn(text)
-        logger.exception(exception_message)
+        logger.info(user_message)
         if fuzzer:
             fuzzer.cancel_job()
     except NotImplementedError as e:

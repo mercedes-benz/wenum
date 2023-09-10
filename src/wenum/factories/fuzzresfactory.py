@@ -74,7 +74,7 @@ class FuzzResSeedBuilder:
                 "payloadman_from_request", new_seed.history
             )
         except RuntimeError as exception:
-            logger = logging.getLogger("runtime_log")
+            logger = logging.getLogger("debug_log")
             logger.exception("An exception occured in FuzzResSeedBuilder")
             exit()
 
@@ -106,7 +106,7 @@ class FuzzResPluginSeedBuilder:
                 "payloadman_from_request", new_seed.history
             )
         except RuntimeError as exception:
-            logger = logging.getLogger("runtime_log")
+            logger = logging.getLogger("debug_log")
             logger.exception("An exception occured in FuzzResPluginSeedBuilder")
             exit()
         return new_seed
@@ -139,7 +139,7 @@ class FuzzResBackfeedBuilder:
             backfeed_fuzzresult.payload_man = payman_factory.create("empty_payloadman",
                                                                     FuzzWord(url, FuzzWordType.WORD))
         except RuntimeError as exception:
-            logger = logging.getLogger("runtime_log")
+            logger = logging.getLogger("debug_log")
             logger.exception("An exception occured in FuzzResBackfeedBuilder")
             exit()
 

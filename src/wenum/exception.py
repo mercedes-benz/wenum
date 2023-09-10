@@ -4,7 +4,7 @@ import logging
 class FuzzException(Exception):
     def __init__(self, message):
         super().__init__(message)
-        logger = logging.getLogger("runtime_log")
+        logger = logging.getLogger("debug_log")
         logger.error(message)
 
 
