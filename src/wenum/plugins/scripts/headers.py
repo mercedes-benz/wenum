@@ -5,8 +5,6 @@ from wenum.plugin_api.static_data import HEADERS_server_headers, HEADERS_common_
 
 import re
 
-from wenum.ui.console.term import Term
-
 KBASE_KEY = "http.servers"
 KBASE_KEY_RESP_UNCOMMON = "http.response.headers.uncommon"
 KBASE_KEY_REQ_UNCOMMON = "http.request.headers.uncommon"
@@ -37,8 +35,8 @@ class Headers(BasePlugin):
     priority = 99
     parameters = ()
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
 
     def validate(self, fuzz_result):
         return True

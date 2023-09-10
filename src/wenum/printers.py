@@ -6,22 +6,26 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from wenum.fuzzobjects import FuzzResult, FuzzStats
 import json
-from .exception import FuzzExceptBadFile, FuzzExceptPluginError
-from .facade import Facade
+from .exception import FuzzExceptPluginError
 import sys
 from abc import abstractmethod, ABC
 
 
 class BasePrinter(ABC):
-    def __init__(self, output, verbose):
+    """
+    Base class from which all printers should inherit.
+
+    The design of splitting up the methods for printing to file and updating results serves two purposes:
+    - Allow for reducing the amount of file writes, which may become costly (though admittedly untested assumption)
+    - Ensure that the user has a valid output file even *during* the runtime, instead of an architecture where
+      the file is only valid after the footer has been inserted at the end of a properly closed runtime
+    """
+    def __init__(self, output: str, verbose: bool):
         self.outputfile_handle = None
         # List containing every result information
         self.result_list = []
         if output:
-            try:
-                self.outputfile_handle = open(output, "w")
-            except IOError as e:
-                raise FuzzExceptBadFile("Error opening file. %s" % str(e))
+            self.outputfile_handle = open(output, "w")
         else:
             self.outputfile_handle = sys.stdout
 
@@ -44,16 +48,33 @@ class BasePrinter(ABC):
     @abstractmethod
     def update_results(self, fuzz_result: FuzzResult, stats: FuzzStats):
         """
-        Update the result list and return result information (response of request).
+        Update the result list during runtime. This does not print to file yet
         """
         raise FuzzExceptPluginError("Method result not implemented")
 
     @abstractmethod
-    def print_to_file(self, data_to_write):
+    def print_to_file(self) -> None:
         """
-        Overwrite file contents with data
+        Overwrite output file contents with data
         """
         raise FuzzExceptPluginError("Method result not implemented")
+
+
+class HTML(BasePrinter):
+    def __init__(self, output, verbose):
+        super().__init__(output, verbose)
+
+    def header(self, stats):
+        pass
+
+    def update_results(self, fuzz_result, stats):
+        pass
+
+    def print_to_file(self):
+        pass
+
+    def footer(self, summary: FuzzStats):
+        pass
 
 
 class JSON(BasePrinter):
@@ -61,7 +82,7 @@ class JSON(BasePrinter):
     summary = "Results in json format"
 
     def __init__(self, output, verbose):
-        BasePrinter.__init__(self, output, verbose)
+        super().__init__(output, verbose)
 
     def header(self, stats: FuzzStats):
         # Empty JSON header to avoid messing up the file structure
@@ -116,8 +137,8 @@ class JSON(BasePrinter):
         self.result_list.append(res_entry)
         return self.result_list
 
-    def print_to_file(self, data_to_write):
-        self.outputfile_handle.write(json.dumps(data_to_write))
+    def print_to_file(self):
+        self.outputfile_handle.write(json.dumps(self.result_list))
         self.outputfile_handle.flush()
         # Resetting the file pointer so that the next file write overwrites the content
         self.outputfile_handle.seek(0)

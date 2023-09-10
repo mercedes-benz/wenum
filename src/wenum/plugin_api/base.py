@@ -25,7 +25,7 @@ class BasePlugin:
     Base class for all other plugins that exist
     """
 
-    def __init__(self, options):
+    def __init__(self, session: FuzzSession):
         # Setting disabled to true will cause it not to execute for future requests anymore
         self.disabled = False
         # The results queue is the queue receiving all the plugin output. PluginExecutor will later read it
@@ -35,9 +35,9 @@ class BasePlugin:
         # Plugins might adjust the FuzzResult object passed into them. This contains the original state
         self.base_fuzz_res: Optional[FuzzResult] = None
         self.cache = HttpCache()
-        self.options: FuzzSession = options
+        self.session: FuzzSession = session
         self.logger = logging.getLogger("runtime_log")
-        self.term = Term(options)
+        self.term = Term(session)
 
         # check mandatory params, assign default values
         for name, default_value, required, description in self.parameters:
@@ -117,8 +117,8 @@ class BasePlugin:
         Optionally takes seeding_url. Can be arbitrarily specified to use as a new FUZZ
         """
         # Stop queueing seeds if the limit is reached already
-        if self.options.limit_requests and self.options.http_pool.queued_requests > \
-                self.options.limit_requests:
+        if self.session.limit_requests and self.session.http_pool.queued_requests > \
+                self.session.limit_requests:
             return
         self.results_queue.put(plugin_factory.create(
                 "seed_plugin", self.name, self.base_fuzz_res, seeding_url))

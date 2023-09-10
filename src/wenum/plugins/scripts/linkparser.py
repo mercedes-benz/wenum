@@ -26,12 +26,12 @@ class Linkparser(BasePlugin):
 
     parameters = ()
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
         self.linkparser_log = None
         # save to output file if file output active
-        if self.options.output:
-            self.linkparser_log = '{0}_{1}'.format(self.options.output, self.name)
+        if self.session.options.output:
+            self.linkparser_log = f"{self.session.options.output}_{self.name}"
 
     def validate(self, fuzz_result):
         return fuzz_result.code in valid_codes
@@ -45,7 +45,7 @@ class Linkparser(BasePlugin):
 
         for result in endpoints:
 
-            extracted_link = result['link']
+            extracted_link = result["link"]
 
             if not extracted_link.isprintable():
                 continue

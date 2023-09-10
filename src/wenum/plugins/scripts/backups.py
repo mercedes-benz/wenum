@@ -25,8 +25,8 @@ class Backups(BasePlugin):
                            "Extensions to look for.",
                        ),)
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
         self.extensions = self.kbase["backups.ext"][0].split(",")
 
     def validate(self, fuzz_result):

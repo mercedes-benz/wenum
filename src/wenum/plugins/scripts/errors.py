@@ -3,7 +3,6 @@ import re
 from wenum.plugin_api.base import BasePlugin
 from wenum.plugin_api.static_data import ERRORS_regex_list
 from wenum.externals.moduleman.plugin import moduleman_plugin
-from wenum.ui.console.term import Term
 
 
 @moduleman_plugin
@@ -18,8 +17,8 @@ class Errors(BasePlugin):
 
     parameters = ()
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
 
         self.error_regex = []
         for regex in ERRORS_regex_list:

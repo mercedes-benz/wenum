@@ -18,9 +18,9 @@ class Gau(BasePlugin):
     parameters = (
     )
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
-        self.proxy_list = options.proxy_list
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
+        self.proxy_list = session.options.proxy_list
         self.run_once = True
 
     def validate(self, fuzz_result):

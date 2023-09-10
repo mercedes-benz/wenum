@@ -26,15 +26,15 @@ class Clone(BasePlugin):
     def __init__(self, session):
         BasePlugin.__init__(self, session)
         self.safe_chars = string.ascii_lowercase + string.ascii_uppercase + string.digits + '._/'
-        output_dir = f"{session.options.data['printer'][0]}_{self.name}"
-        if session.data['printer'][0]:
+        if session.options.output:
+            output_dir = f"{session.options.output}_{self.name}"
             os.makedirs(output_dir, exist_ok=True)
             self.output_dir = output_dir
         else:
             self.disabled = True
 
     def validate(self, fuzz_result):
-        if fuzz_result.code != 404 and not self.disabled:
+        if fuzz_result.code != 404:
             return True
         return False
 

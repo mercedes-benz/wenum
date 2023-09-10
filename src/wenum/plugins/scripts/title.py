@@ -1,6 +1,5 @@
 from wenum.plugin_api.base import BasePlugin
 from wenum.externals.moduleman.plugin import moduleman_plugin
-from wenum.ui.console.term import Term
 
 
 @moduleman_plugin
@@ -15,8 +14,8 @@ class Title(BasePlugin):
 
     parameters = ()
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
 
     def validate(self, fuzz_result):
         return True

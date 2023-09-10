@@ -26,8 +26,8 @@ class NPMDependencies(BasePlugin):
         r"devdependencies:\{(.*?)\}", re.MULTILINE | re.DOTALL | re.IGNORECASE
     )
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
         self.match = None
         self.match_dev = None
 

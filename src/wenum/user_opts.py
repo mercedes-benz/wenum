@@ -16,6 +16,8 @@ default_request_timeout = 40
 default_plugin_threads = 3
 default_method = "GET"
 default_iterator = "product"
+default_output_format = "json"
+valid_format_choices = ["json", "html", "all"]
 
 
 def flatten_list(list_of_lists: list[list[str]]) -> list[str]:
@@ -57,6 +59,9 @@ class Options:
 
         self.output: Optional[str] = None
         self.opt_name_output: str = "output"
+
+        self.output_format: Optional[str] = None
+        self.opt_name_output_format = "output-format"
 
         self.debug_log: Optional[str] = None
         self.opt_name_debug_log: str = "debug-log"
@@ -327,6 +332,7 @@ class Options:
         self.add_toml_if_exists(doc, self.opt_name_noninteractive, self.noninteractive)
         self.add_toml_if_exists(doc, self.opt_name_verbose, self.verbose)
         self.add_toml_if_exists(doc, self.opt_name_output, self.output)
+        self.add_toml_if_exists(doc, self.opt_name_output_format, self.output_format)
         self.add_toml_if_exists(doc, self.opt_name_debug_log, self.debug_log)
         self.add_toml_if_exists(doc, self.opt_name_proxy, self.proxy_list)
         self.add_toml_if_exists(doc, self.opt_name_threads, self.threads)
@@ -405,6 +411,9 @@ class Options:
 
         if self.opt_name_output in toml_dict:
             self.output = self.pop_toml_string(toml_dict, self.opt_name_output)
+
+        if self.opt_name_output_format in toml_dict:
+            self.output_format = self.pop_toml_string(toml_dict, self.opt_name_output_format)
 
         if self.opt_name_debug_log in toml_dict:
             self.debug_log = self.pop_toml_string(toml_dict, self.opt_name_debug_log)
@@ -597,6 +606,12 @@ class Options:
         if not self.plugin_recursion:
             self.plugin_recursion = self.recursion
 
+        if self.output_format:
+            if self.output_format not in valid_format_choices:
+                raise FuzzExceptBadOptions(f"Output format does not exist")
+        else:
+            self.output_format = default_output_format
+
         if self.url is None:
             raise FuzzExceptBadOptions(f"Specify the URL with --{self.opt_name_url}")
 
@@ -724,7 +739,7 @@ class Options:
         terminal_group = parser.add_argument_group("Terminal options")
 
         terminal_group.add_argument("-c", f"--{self.opt_name_colorless}", action="store_true",
-                                    help="Disable colors in CLI output.", )
+                                    help="Disable colors in CLI output.")
         terminal_group.add_argument("-q", f"--{self.opt_name_quiet}", action="store_true",
                                     help="Disable progress messages in CLI output.")
         terminal_group.add_argument("-n", f"--{self.opt_name_noninteractive}", action="store_true",
@@ -733,14 +748,18 @@ class Options:
                                     help="Enable verbose information in CLI output.")
 
         io_group.add_argument("-w", f"--{self.opt_name_wordlist}", action="append",
-                              help="Specify a wordlist file.", nargs="*")
+                              help="Specify a wordlist file to iterate through.", nargs="*")
         io_group.add_argument("-o", f"--{self.opt_name_output}",
-                              help="Store results in the specified output file as JSON.")
-        # io_group.add_argument("-f", "--output-format", help="Set the format of the output file. Note: Currently only json, html will come.", choices=["json", "html", "all"], default="json")#TODO Check and reimplement html output
+                              help="Store results in the specified output file.")
+        io_group.add_argument("-f", f"--{self.opt_name_output_format}",
+                              help=f"Set the format of the output file. If you specify \"all\", each format will be "
+                                   f"used as a suffix for the specified output path. "
+                                   f"(default: {default_output_format})",
+                              choices=valid_format_choices)
         io_group.add_argument("-l", f"--{self.opt_name_debug_log}",
-                              help="Save runtime information to a file.")
+                              help="Store runtime information in the specified file.")
         io_group.add_argument(f"--{self.opt_name_dump_config}",
-                              help="Print all supplied options to a config file and exit.")
+                              help="Write all supplied options to a config file and exit.")
         io_group.add_argument("-K", f"--{self.opt_name_config}",
                               help="Read config from specified path. ")
         io_group.add_argument(f"--{self.opt_name_plugins}", action="append",
@@ -762,7 +781,7 @@ class Options:
         request_building_group.add_argument("-s", f"--{self.opt_name_sleep}", type=float,
                                             help="Wait supplied seconds between requests.")
         request_building_group.add_argument("-X", f"--{self.opt_name_method}",
-                                            help=f"Set the HTTP method used for requests. (default: {default_method}")
+                                            help=f"Set the HTTP method used for requests. (default: {default_method})")
         request_building_group.add_argument("-d", f"--{self.opt_name_data}",
                                             help="Use POST method with supplied data (e.g. \"id=FUZZ&catalogue=1\"). "
                                                  f"Method can be overridden with --{self.opt_name_method}.")
@@ -783,9 +802,6 @@ class Options:
                                             help="Set the iterator used when combining "
                                                  f"multiple wordlists. (default: {default_iterator})",
                                             choices=["product", "zip", "chain"])
-        request_building_group.add_argument(f"--{self.opt_name_plugin_threads}", type=int,
-                                            help="Modify the amount of threads used for concurrent "
-                                                 f"execution of plugins. (default: {default_plugin_threads})")
 
         filter_group = parser.add_argument_group("Filter options")
         filter_group.add_argument(f"--{self.opt_name_hc}", action="append",
@@ -839,9 +855,12 @@ class Options:
                                                    "recursions will be deactivated")
         response_proessing_group.add_argument(f"--{self.opt_name_request_timeout}", type=int,
                                               help="Change the maximum seconds the request is allowed to take. "
-                                                   f"(default: {default_request_timeout}")
+                                                   f"(default: {default_request_timeout})")
         response_proessing_group.add_argument(f"--{self.opt_name_domain_scope}", action="store_true",
                                               help="Base the scope check on the domain name instead of IP.")
+        response_proessing_group.add_argument(f"--{self.opt_name_plugin_threads}", type=int,
+                                              help="Modify the amount of threads used for concurrent "
+                                              f"execution of plugins. (default: {default_plugin_threads})")
 
         # parser.add_argument("--list-plugins", help="List all plugins and categories")#TODO implement, though maybe this falls off with the info option
         # parser.add_argument("--plugin-args", help="Provide arguments to scripts. e.g. --plugin-args grep.regex=\"<A href=\\\"(.*?)\\\">\"", nargs="*")#TODO Maybe remove? Really no plugin utilizes this except for regex.py, and I dont know if they ever will

@@ -49,8 +49,8 @@ class Links(BasePlugin, DiscoveryPluginMixin):
         ),
     )
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
 
         # Detect links based on these regex statements
         regex = [

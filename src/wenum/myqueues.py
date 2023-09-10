@@ -141,9 +141,6 @@ class FuzzQueue(MyPriorityQueue, Thread, ABC):
         """
         self.queue_out.put_last_within_seed(item)
 
-    def qout_join(self):
-        self.queue_out.join()
-
     def send(self, item):
         """
         Put the item into the next one in the chain. Queues follow a rigid
@@ -162,9 +159,6 @@ class FuzzQueue(MyPriorityQueue, Thread, ABC):
 
     def join(self):
         MyPriorityQueue.join(self)
-
-    def tjoin(self):
-        Thread.join(self)
 
     def _cleanup(self):
         """
@@ -457,6 +451,7 @@ class QueueManager:
         self._lastqueue = None
         self._syncq = None
         self._mutex = RLock()
+        self.logger = logging.getLogger("runtime_log")
 
         self.session = session
 
@@ -550,8 +545,11 @@ class QueueManager:
                 # wait for cancel to be processed
                 self.join()
 
+                self.logger.debug("QueueManager: All queues have joined. Cleaning up..")
+
                 # send None to stop (almost nicely)
                 self.cleanup()
+                self.logger.debug("QueueManager: Cleaned up.")
 
     def get_stats(self):
         stat_list = []
