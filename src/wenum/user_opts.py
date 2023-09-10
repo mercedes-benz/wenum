@@ -606,9 +606,10 @@ class Options:
         if not self.plugin_recursion:
             self.plugin_recursion = self.recursion
 
-        if not self.output_format:
+        if self.output_format:
             if self.output_format not in valid_format_choices:
                 raise FuzzExceptBadOptions(f"Output format does not exist")
+        else:
             self.output_format = default_output_format
 
         if self.url is None:
@@ -738,7 +739,7 @@ class Options:
         terminal_group = parser.add_argument_group("Terminal options")
 
         terminal_group.add_argument("-c", f"--{self.opt_name_colorless}", action="store_true",
-                                    help="Disable colors in CLI output.", )
+                                    help="Disable colors in CLI output.")
         terminal_group.add_argument("-q", f"--{self.opt_name_quiet}", action="store_true",
                                     help="Disable progress messages in CLI output.")
         terminal_group.add_argument("-n", f"--{self.opt_name_noninteractive}", action="store_true",
@@ -747,16 +748,18 @@ class Options:
                                     help="Enable verbose information in CLI output.")
 
         io_group.add_argument("-w", f"--{self.opt_name_wordlist}", action="append",
-                              help="Specify a wordlist file.", nargs="*")
+                              help="Specify a wordlist file to iterate through.", nargs="*")
         io_group.add_argument("-o", f"--{self.opt_name_output}",
-                              help="Store results in the specified output file as JSON.")
+                              help="Store results in the specified output file.")
         io_group.add_argument("-f", f"--{self.opt_name_output_format}",
-                              help=f"Set the format of the output file. (default: {default_output_format}",
-                              choices=valid_format_choices,)
+                              help=f"Set the format of the output file. If you specify \"all\", each format will be "
+                                   f"used as a suffix for the specified output path. "
+                                   f"(default: {default_output_format})",
+                              choices=valid_format_choices)
         io_group.add_argument("-l", f"--{self.opt_name_debug_log}",
-                              help="Save runtime information to a file.")
+                              help="Store runtime information in the specified file.")
         io_group.add_argument(f"--{self.opt_name_dump_config}",
-                              help="Print all supplied options to a config file and exit.")
+                              help="Write all supplied options to a config file and exit.")
         io_group.add_argument("-K", f"--{self.opt_name_config}",
                               help="Read config from specified path. ")
         io_group.add_argument(f"--{self.opt_name_plugins}", action="append",
@@ -778,7 +781,7 @@ class Options:
         request_building_group.add_argument("-s", f"--{self.opt_name_sleep}", type=float,
                                             help="Wait supplied seconds between requests.")
         request_building_group.add_argument("-X", f"--{self.opt_name_method}",
-                                            help=f"Set the HTTP method used for requests. (default: {default_method}")
+                                            help=f"Set the HTTP method used for requests. (default: {default_method})")
         request_building_group.add_argument("-d", f"--{self.opt_name_data}",
                                             help="Use POST method with supplied data (e.g. \"id=FUZZ&catalogue=1\"). "
                                                  f"Method can be overridden with --{self.opt_name_method}.")
@@ -852,7 +855,7 @@ class Options:
                                                    "recursions will be deactivated")
         response_proessing_group.add_argument(f"--{self.opt_name_request_timeout}", type=int,
                                               help="Change the maximum seconds the request is allowed to take. "
-                                                   f"(default: {default_request_timeout}")
+                                                   f"(default: {default_request_timeout})")
         response_proessing_group.add_argument(f"--{self.opt_name_domain_scope}", action="store_true",
                                               help="Base the scope check on the domain name instead of IP.")
         response_proessing_group.add_argument(f"--{self.opt_name_plugin_threads}", type=int,

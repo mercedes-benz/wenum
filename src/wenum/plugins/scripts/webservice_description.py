@@ -1,7 +1,6 @@
 from urllib.parse import urlparse
 from wenum.externals.moduleman.plugin import moduleman_plugin
 from wenum.plugin_api.base import BasePlugin
-from wenum.ui.console.term import Term
 
 
 @moduleman_plugin
@@ -16,8 +15,8 @@ class WebserviceDescription(BasePlugin):
 
     parameters = ()
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
         self.webservice_endpoint_list = [
             "application.wadl",
             "application.wadl?detail=true",

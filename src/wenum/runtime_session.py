@@ -2,7 +2,7 @@ import sys
 from typing import Optional
 
 from .exception import (
-    FuzzExceptBadOptions,
+    FuzzExceptBadOptions, FuzzExceptInternalError,
 )
 
 from .factories.fuzzresfactory import resfactory
@@ -34,7 +34,7 @@ class FuzzSession:
         self.compiled_filter: Optional[FuzzResFilter] = None
         self.compiled_simple_filter: Optional[FuzzResSimpleFilter] = None
         self.compiled_seed: Optional[FuzzResult] = None
-        self.compiled_printer: Optional[BasePrinter] = None
+        self.compiled_printer_list: list[BasePrinter] = []
         self.compiled_iterator: Optional[BaseIterator] = None
         self.current_priority_level: int = PRIORITY_STEP
 
@@ -116,12 +116,16 @@ class FuzzSession:
 
         if self.options.output:
             if self.options.output_format == "html":
-                self.compiled_printer = HTML(self.options.output, self.options.verbose)
+                self.compiled_printer_list.append(HTML(self.options.output, self.options.verbose))
             elif self.options.output_format == "json":
-                self.compiled_printer = JSON(self.options.output, self.options.verbose)
+                self.compiled_printer_list.append(JSON(self.options.output, self.options.verbose))
+            elif self.options.output_format == "all":
+                self.compiled_printer_list.append(JSON(self.options.output + ".json", self.options.verbose))
+                self.compiled_printer_list.append(HTML(self.options.output + ".html", self.options.verbose))
             else:
-                #TODO Reimplement as list; that way printing can be done for all formats that are activated
-                self.compiled_printer = JSON(self.options.output, self.options.verbose)
+                raise FuzzExceptInternalError("Error encountered while parsing the printers. This state should not"
+                                              "be reachable. It would be very much appreciated if "
+                                              "you created an issue.")
 
         self.compile_seeds()
         self.compile_iterator()

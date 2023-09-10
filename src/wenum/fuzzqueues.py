@@ -197,8 +197,9 @@ class FilePrinterQ(FuzzQueue):
     def __init__(self, session: FuzzSession):
         super().__init__(session)
 
-        self.printer: BasePrinter = session.compiled_printer
-        self.printer.header(self.stats)
+        self.printer_list: list[BasePrinter] = session.compiled_printer_list
+        for printer in self.printer_list:
+            printer.header(self.stats)
         # Counter to reduce unnecessary amounts of writes. Write every x requests
         self.counter = 0
         self.process_discarded = True
@@ -207,15 +208,18 @@ class FilePrinterQ(FuzzQueue):
         return "FilePrinterQ"
 
     def _cleanup(self):
-        self.printer.print_to_file(self.printer.result_list)
+        for printer in self.printer_list:
+            printer.print_to_file()
 
     def process(self, fuzz_result: FuzzResult):
         if not fuzz_result.discarded:
-            result = self.printer.update_results(fuzz_result, self.stats)
+            for printer in self.printer_list:
+                printer.update_results(fuzz_result, self.stats)
             # It's not necessary to write to file every request. This counter reduces the frequency
             if self.counter > 100:
                 self.counter = 0
-                self.printer.print_to_file(result)
+                for printer in self.printer_list:
+                    printer.print_to_file()
 
         self.counter += 1
         self.send(fuzz_result)

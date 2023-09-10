@@ -18,8 +18,8 @@ class DomainPath(BasePlugin):
 
     parameters = ()
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
         # To prevent always running a lot of code, already processed domains will not repeatedly validate
         self.processed_domains = []
 

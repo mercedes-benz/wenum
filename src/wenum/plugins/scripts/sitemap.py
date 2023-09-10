@@ -17,8 +17,8 @@ class Sitemap(BasePlugin, DiscoveryPluginMixin):
 
     parameters = ()
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
 
     def validate(self, fuzz_result):
         return (

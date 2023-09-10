@@ -92,7 +92,7 @@ class Fuzzer:
                 except KeyError:
                     continue
 
-        if session.compiled_printer:
+        if session.compiled_printer_list:
             self.qmanager.add("printer_queue", FilePrinterQ(session))
 
         self.qmanager.add("printer_cli", CLIPrinterQ(session))

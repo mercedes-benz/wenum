@@ -94,6 +94,31 @@ class OptionsTest(unittest.TestCase):
         self.assertTrue("can not be opened" in str(exc.exception), msg=str(exc.exception))
         os.chmod("dummy_output.txt", 0o666)
 
+    def test_output_format(self):
+        self.longMessage = True
+        options = Options()
+        parser = options.configure_parser()
+
+        parsed_args = parser.parse_args(
+            [f"--{options.opt_name_url}", "http://example.com", f"--{options.opt_name_wordlist}",
+             "dummy_wordlist.txt", f"--{options.opt_name_output}", "dummy_output.txt"])
+        options.read_args(parsed_args)
+
+        self.assertEquals("json", options.output_format)
+
+        parsed_args = parser.parse_args(
+            [f"--{options.opt_name_url}", "http://example.com", f"--{options.opt_name_wordlist}",
+             "dummy_wordlist.txt", f"--{options.opt_name_output}", "dummy_output.txt",
+             f"--{options.opt_name_output_format}", "html"])
+        options.read_args(parsed_args)
+
+        self.assertEquals("html", options.output_format)
+
+        options.output_format = "nonexistantformat"
+
+        with self.assertRaises(Exception) as exc:
+            options.basic_validate()
+
     def test_debug_log(self):
         self.longMessage = True
         options = Options()
@@ -186,6 +211,7 @@ class OptionsTest(unittest.TestCase):
 {options.opt_name_quiet} = true
 {options.opt_name_noninteractive} = true
 {options.opt_name_output} = "dummy_output.txt"
+{options.opt_name_output_format} = "html"
 {options.opt_name_debug_log} = "dummy_debuglog.txt"
 {options.opt_name_proxy} = ["http://127.0.0.1:8080"]
 {options.opt_name_threads} = 30

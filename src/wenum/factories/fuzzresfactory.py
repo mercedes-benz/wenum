@@ -24,8 +24,8 @@ class FuzzResultFactory(ObjectFactory):
 
 
 class FuzzResultDictioBuilder:
-    def __call__(self, options, dictio_item):
-        fuzz_result: FuzzResult = copy.deepcopy(options.compiled_seed)
+    def __call__(self, session, dictio_item):
+        fuzz_result: FuzzResult = copy.deepcopy(session.compiled_seed)
         fuzz_result.item_type = FuzzType.RESULT
         fuzz_result.payload_man.update_from_dictio(dictio_item)
         fuzz_result.from_plugin = False
@@ -37,8 +37,8 @@ class FuzzResultDictioBuilder:
 
 
 class FuzzResOptionsSeedBuilder:
-    def __call__(self, options) -> FuzzResult:
-        seed = reqfactory.create("seed_from_options", options)
+    def __call__(self, session) -> FuzzResult:
+        seed = reqfactory.create("seed_from_options", session)
         fuzz_result = FuzzResult(seed)
         fuzz_result.payload_man = payman_factory.create("payloadman_from_request", seed)
         fuzz_result.from_plugin = False

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from wenum.ui.console.term import Term
-
 if TYPE_CHECKING:
     from wenum.fuzzobjects import FuzzResult
 import os
@@ -37,17 +35,19 @@ class Context(BasePlugin):
         path = os.path.dirname(os.path.normpath(newpath))
         return os.path.join(path, '')
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
 
     def check_filter_options(self, fuzz_result):
         """
         Return False if the request is filtered out
         """
         # TODO We want to use the filter as only a display filter. Should context.py therefore also not consider
-        # the filter when processing?
-        if fuzz_result.chars in self.options.data['hh'] or fuzz_result.lines in self.options.data['hl'] or \
-                fuzz_result.words in self.options.data['hw']:
+        # the filter when processing? Additionally, this is a check for simple filter statements and is ignored by
+        # the autofilter or complex filter statements. If we want to uphold this logic, we need to build on it,
+        # this is rather hacky
+        if fuzz_result.chars in self.session.options.hs_list or fuzz_result.lines in self.session.options.hl_list or \
+                fuzz_result.words in self.session.options.hw_list:
             return False
         else:
             return True

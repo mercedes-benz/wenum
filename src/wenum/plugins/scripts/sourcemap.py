@@ -21,15 +21,18 @@ class Sourcemap(BasePlugin):
     parameters = (
     )
 
-    def check_filter_options(self, fuzzresult):
-        if fuzzresult.chars in self.options.data['hh'] or fuzzresult.lines in \
-                self.options.data['hl'] or fuzzresult.words in self.options.data['hw']:
+    def check_filter_options(self, fuzz_result):
+        """
+        #TODO Same problem as in context.py
+        """
+        if fuzz_result.chars in self.session.options.hs_list or fuzz_result.lines in self.session.options.hl_list or \
+                fuzz_result.words in self.session.options.hw_list:
             return False
         else:
             return True
 
-    def __init__(self, options):
-        BasePlugin.__init__(self, options)
+    def __init__(self, session):
+        BasePlugin.__init__(self, session)
 
     def validate(self, fuzz_result):
         if fuzz_result.code in [200] and self.check_filter_options(fuzz_result):
