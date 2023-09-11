@@ -174,6 +174,9 @@ class Options:
         self.version: Optional[bool] = None
         self.opt_name_version: str = "version"
 
+        self.cache_dir: Optional[str] = None
+        self.opt_name_cache_dir: str = "cache-dir"
+
     def __str__(self):
         return str(vars(self))
 
@@ -310,6 +313,9 @@ class Options:
         if parsed_args.iterator:
             self.iterator = parsed_args.iterator
 
+        if parsed_args.cache_dir:
+            self.cache_dir = parsed_args.cache_dir
+
     def export_config(self):
         """
         Exports the activated configuration (through CLI + optional config file) into a TOML file.
@@ -367,6 +373,7 @@ class Options:
         self.add_toml_if_exists(doc, self.opt_name_plugins, self.plugins_list)
         self.add_toml_if_exists(doc, self.opt_name_iterator, self.iterator)
         self.add_toml_if_exists(doc, self.opt_name_version, self.version)
+        self.add_toml_if_exists(doc, self.opt_name_cache_dir, self.cache_dir)
         try:
             with open(self.dump_config, "w") as file:
                 file.writelines(dumps(doc))
@@ -516,6 +523,9 @@ class Options:
 
         if self.opt_name_version in toml_dict:
             self.version = self.pop_toml_bool(toml_dict, self.opt_name_version)
+
+        if self.opt_name_cache_dir in toml_dict:
+            self.cache_dir = self.pop_toml_string(toml_dict, self.opt_name_cache_dir)
 
         # If any keys are left
         if toml_dict:
@@ -765,6 +775,7 @@ class Options:
         io_group.add_argument(f"--{self.opt_name_plugins}", action="append",
                               help="Plugins to be run, supplied as a list of plugin-files or plugin-categories",
                               nargs="*")
+        io_group.add_argument(f"--{self.opt_name_cache_dir}", help="Specify a directory to read cached requests from.")
         # io_group.add_argument("--cache-file", help="Read in a cache file from a previous run, and post process the results without sending the requests.")#TODO implement
 
         request_building_group.add_argument("-u", f"--{self.opt_name_url}", help="Specify a URL for the request.")

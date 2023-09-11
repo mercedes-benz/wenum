@@ -56,12 +56,12 @@ class Response:
         self.protocol = protocol  # HTTP/1.1
         self.code = code  # 200
         self.message = message  # OK
-        self._headers = []  # bueno pues las cabeceras igual que en la request
+        self._headers = []  # well then the headers are the same as in the request
         self.__content = (
-            ""  # contenido de la response (si i solo si Content-Length existe)
+            ""  # content of the response (only if Content-Length exists)
         )
-        self.md5 = ""  # hash de los contenidos del resultado
-        self.charlen = ""  # Cantidad de caracteres de la respuesta
+        self.md5 = ""  # hash of the result contents
+        self.charlen = ""  # Number of characters in the response
 
     def add_header(self, key, value):
         self._headers += [(key, value)]
