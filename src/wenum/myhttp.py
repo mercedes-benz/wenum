@@ -158,6 +158,8 @@ class HttpPool:
                 self.pool_map[poolid]["queue"].put((cached, requeue))
                 return
 
+        if self.sleep > 0:
+            time.sleep(self.sleep)
 
         with self.mutex_stats:
             self.queued_requests += 1
@@ -277,9 +279,6 @@ class HttpPool:
                 ret, num_handles = self.curl_multi.perform()
                 if ret != pycurl.E_CALL_MULTI_PERFORM:
                     break
-
-            if self.sleep > 0:
-                time.sleep(self.sleep)
 
             num_q, ok_list, err_list = self.curl_multi.info_read()
 
