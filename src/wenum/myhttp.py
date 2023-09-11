@@ -143,7 +143,7 @@ class HttpPool:
                 self.result_queue.put((cached, False))
                 return
 
-        if self.sleep > 0:
+        if self.sleep:
             time.sleep(self.sleep)
 
         with self.mutex_stats:
