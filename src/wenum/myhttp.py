@@ -136,15 +136,13 @@ class HttpPool:
         """
         if self.exit_job:
             return
-        # Bool indicating whether the request should be queued for request again. Useful for exceptions
-        requeue = False
         if self.session.options.cache_dir:
             cached = self.cache.get_object_from_object_cache(fuzz_result)
             # If the request is cached, put it in the queue to be processes by plugins and return.
             # This does not make additional requests, but it does allow plugins to process the cached request.
             if cached:
                 cached.plugins_res.clear()
-                self.pool_map[poolid]["queue"].put((cached, requeue))
+                self.request_queue.put(cached)
                 return
 
         if self.sleep > 0:
@@ -152,11 +150,6 @@ class HttpPool:
 
         with self.mutex_stats:
             self.queued_requests += 1
-        self.request_queue.put((fuzz_result, poolid))
-
-    def _stop_to_pools(self):
-        for p in list(self.pool_map.keys()):
-            self.pool_map[p]["queue"].put(None)
         self.request_queue.put(fuzz_result)
 
     def cleanup(self):
