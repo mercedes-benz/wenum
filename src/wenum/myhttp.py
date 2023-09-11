@@ -158,7 +158,7 @@ class HttpPool:
                 self.pool_map[poolid]["queue"].put((cached, requeue))
                 return
 
-        if self.sleep > 0:
+        if self.sleep:
             time.sleep(self.sleep)
 
         with self.mutex_stats:
