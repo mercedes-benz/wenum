@@ -34,19 +34,19 @@ class MyPriorityQueue(PriorityQueue):
     def put(self, item: FuzzItem, block=True, timeout=None):
         self._put_priority(item.priority, item, block, timeout)
 
-    def put_first(self, item: FuzzItem, block=True):
+    def put_important(self, item: FuzzItem, block=True):
         """
-        Enqueue with highest priority
+        Enqueue with the highest priority
         """
         self._put_priority(0, item, block)
 
-    def put_last(self, item: FuzzItem, block=True):
+    def put_unimportant(self, item: FuzzItem, block=True):
         """
         Enqueue with least priority
         """
         self._put_priority(self.max_prio + 1, item, block)
 
-    def put_last_within_seed(self, item: FuzzItem, block=True):
+    def put_unimportant_within_seed(self, item: FuzzItem, block=True):
         """
         Put into the queue with the least priority within the same seed. New seeds go in steps of 10.
         Meaning: Seed 1 -> Prio 10. Seed 2 -> Prio 20
@@ -124,23 +124,23 @@ class FuzzQueue(MyPriorityQueue, Thread, ABC):
         self.pre_start()
         self.start()
 
-    def send_first(self, item):
+    def send_important(self, item):
         """
         Send with the highest priority
         """
-        self.queue_out.put_first(item)
+        self.queue_out.put_important(item)
 
-    def send_last(self, item):
+    def send_unimportant(self, item):
         """
         Send with the lowest priority
         """
-        self.queue_out.put_last(item)
+        self.queue_out.put_unimportant(item)
 
-    def send_last_within_seed(self, item):
+    def send_unimportant_within_seed(self, item):
         """
         Send with the lowest priority within the same seed's priority
         """
-        self.queue_out.put_last_within_seed(item)
+        self.queue_out.put_unimportant_within_seed(item)
 
     def send(self, item):
         """
@@ -170,7 +170,7 @@ class FuzzQueue(MyPriorityQueue, Thread, ABC):
 
     def _throw(self, exception_message):
         self.logger.error(f"Exception thrown: {exception_message}")
-        self.syncqueue.put_first(FuzzError(exception_message))
+        self.syncqueue.put_important(FuzzError(exception_message))
 
     def get_stats(self) -> dict:
         """Returns a dict with the queue name and the amount of items in it"""
@@ -193,7 +193,7 @@ class FuzzQueue(MyPriorityQueue, Thread, ABC):
                     self.stats.mark_start()
                 elif item.item_type == FuzzType.ENDSEED:
                     if not self.child_queue:
-                        self.send_last_within_seed(item)
+                        self.send_unimportant_within_seed(item)
                     self.task_done()
                     continue
 
@@ -202,7 +202,9 @@ class FuzzQueue(MyPriorityQueue, Thread, ABC):
                 # Send the item without processing
                 else:
                     self.send(item)
-
+#TODO stopped flag wont work for queues, as they get stuck trying to receive the next item. The most reliable way of ending is having a unique object that is checked for when getting something. If it signals the end of the runtime,
+                # The queue should handle closing every thread they opened themselves and run out completely. Also, it feels a little awkward when the Monitorqueue's thread closes the other queues and then somehow needs to be separately closed
+                # by the main thread. It seems more reasonable if the Monitorqueue doesnt do that, and rather signals the end (whatever reason it may be) to the main thread which then cascades the closing instructions to *every* queue in one go.
                 self.task_done()
             except Exception as e:
                 self.task_done()
@@ -228,7 +230,7 @@ class MonitorFuzzQueue(FuzzQueue):
 
     def _throw(self, exception_message):
         self.logger.error(f"Exception thrown: {exception_message}")
-        self.queue_out.put_first(FuzzError(exception_message))
+        self.queue_out.put_important(FuzzError(exception_message))
 
     def run(self):
 
@@ -243,7 +245,7 @@ class MonitorFuzzQueue(FuzzQueue):
 
                 elif item.item_type == FuzzType.ERROR:
                     self.qmanager.cancel()
-                    self.send_first(item)
+                    self.send_important(item)
                     continue
 
                 if item.item_type == FuzzType.RESULT and not item.discarded:
@@ -260,9 +262,9 @@ class MonitorFuzzQueue(FuzzQueue):
 
                 # If no requests are left
                 if self.stats.pending_fuzz() == 0 and self.stats.pending_seeds() == 0:
-                    self.logger.debug("MonitorFuzzQueue cleaning up")
+                    self.send_important(FuzzItem(FuzzType.STOP))
+                    self.logger.debug("MonitorFuzzQueue sending stop item")
                     self.qmanager.cleanup()
-                    self.stopped = True
 
             except Exception as e:
                 self._throw(e)
@@ -326,8 +328,8 @@ class FuzzListQueue(FuzzQueue, ABC):
                 elif item.item_type == FuzzType.STARTSEED:
                     self.stats.mark_start()
                 elif item.item_type == FuzzType.ENDSEED:
-                    self.send_last_within_seed_to_all(item)
-                    self.send_last(item)
+                    self.send_unimportant_within_seed_to_all(item)
+                    self.send_unimportant(item)
                     self.task_done()
                     continue
 
@@ -342,20 +344,20 @@ class FuzzListQueue(FuzzQueue, ABC):
                 self._throw(e)
         self._cleanup()
 
-    def send_first_to_all(self, item):
+    def send_important_to_all(self, item):
         """Send to all in the list with the highest priority"""
         for q in self.queues_out:
-            q.put_first(item)
+            q.put_important(item)
 
-    def send_last_to_all(self, item):
+    def send_unimportant_to_all(self, item):
         """Send to all in the list with the least priority"""
         for q in self.queues_out:
-            q.put_last(item)
+            q.put_unimportant(item)
 
-    def send_last_within_seed_to_all(self, item):
+    def send_unimportant_within_seed_to_all(self, item):
         """Send to all in the list with the least priority within the seed priority"""
         for q in self.queues_out:
-            q.put_last_within_seed(item)
+            q.put_unimportant_within_seed(item)
 
     def send_to_all(self, item):
         """Send to all in the list"""
@@ -452,6 +454,14 @@ class QueueManager:
         except KeyError:
             raise
 
+    def get_stats(self):
+        stat_list = []
+
+        for queue in list(self._queues.values()):
+            stat_list = stat_list + list(queue.get_stats().items())
+
+        return dict(stat_list)
+
     def bind(self, last_queue: MyPriorityQueue):
         """Set all the correct output queues."""
         with self._mutex:
@@ -505,7 +515,7 @@ class QueueManager:
                 for queue in list(self._queues.values()):
                     queue.qstart()
 
-                list(self._queues.values())[0].put_first(FuzzItem(FuzzType.STARTSEED))
+                list(self._queues.values())[0].put_important(FuzzItem(FuzzType.STARTSEED))
 
     def cleanup(self):
         """
@@ -514,7 +524,7 @@ class QueueManager:
         with self._mutex:
             if self._queues:
                 self.join(remove=True)
-                self.last_queue.put_first(None, block=False)
+                self.last_queue.put_important(None, block=False)
 
                 self._queues = collections.OrderedDict()
                 self.last_queue = None
@@ -525,10 +535,12 @@ class QueueManager:
             if self._queues:
                 # stop processing pending items
                 self.logger.debug("Closing all queues")
-                for queue in list(self._queues.values()):
-                    self.logger.debug(f"Queue {queue.get_name()} stopping")
-                    queue.cancel()
-                    queue.stopped = True
+                for active_queue in list(self._queues.values()):
+                    #TODO All queues need to handle this now. They should do all the cancelling themselves instead
+                    # of the main thread doing it for them if possible
+                    active_queue.put_important(FuzzItem(FuzzType.STOP))
+                    self.logger.debug(f"QueueManager sent stop signal to {active_queue.get_name()}")
+                    #active_queue.cancel()
 
                 self.logger.debug(f"All queues stopped")
                 # wait for cancel to be processed
@@ -537,11 +549,3 @@ class QueueManager:
                 self.logger.debug("QueueManager: All queues have joined. Cleaning up..")
 
                 self.cleanup()
-
-    def get_stats(self):
-        stat_list = []
-
-        for queue in list(self._queues.values()):
-            stat_list = stat_list + list(queue.get_stats().items())
-
-        return dict(stat_list)

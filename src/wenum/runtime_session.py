@@ -138,7 +138,6 @@ class FuzzSession:
 
         if not self.http_pool:
             self.http_pool = HttpPool(self)
-            #self.http_pool.register()
 
         return self
 

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from wenum.runtime_session import FuzzSession
-from .fuzzobjects import FuzzType
+from .fuzzobjects import FuzzType, FuzzItem
 
 from .myqueues import MyPriorityQueue, QueueManager
 from .fuzzqueues import (
@@ -110,17 +110,22 @@ class Fuzzer:
         This function is called by the for loop in the main function when going over it
         """
         # http://bugs.python.org/issue1360
-        fuzz_result = self.last_queue.get()
+        fuzz_item: FuzzItem = self.last_queue.get()
         self.last_queue.task_done()
 
-        # done!
-        if not fuzz_result:
+        if fuzz_item.item_type == FuzzType.STOP:
+            self.logger.debug("core.py: Stopping the queues")
+            self.qmanager.cancel()
+            raise StopIteration
+
+        #TODO Checking for None will phase out
+        if not fuzz_item:
             self.logger.debug("core.py: StopIteration reached")
             raise StopIteration
-        elif fuzz_result.item_type == FuzzType.ERROR:
-            raise fuzz_result.exception
+        elif fuzz_item.item_type == FuzzType.ERROR:
+            raise fuzz_item.exception
 
-        return fuzz_result
+        return fuzz_item
 
     def stats(self):
         return dict(

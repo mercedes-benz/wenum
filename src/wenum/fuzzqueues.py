@@ -149,7 +149,7 @@ class SeedQueue(FuzzQueue):
     def end_seed(self):
         endseed_item = FuzzItem(item_type=FuzzType.ENDSEED)
         endseed_item.priority = self.session.compiled_seed.priority
-        self.send_last(endseed_item)
+        self.send_unimportant(endseed_item)
 
 
 class CLIPrinterQ(FuzzQueue):
@@ -804,7 +804,7 @@ class HttpQueue(FuzzQueue):
 
     def __read_http_results(self):
         """
-         Function running in thread to continuously monitor http request results
+        Function running in thread to continuously monitor http request results
         """
         try:
             while not self.exit_job:
@@ -816,6 +816,6 @@ class HttpQueue(FuzzQueue):
                         self._throw(fuzz_result.exception)
                     else:
                         self.send(fuzz_result)
-            print("Stopping")
+            self.logger.debug("__read_http_results stopping")
         except StopIteration:
             pass
