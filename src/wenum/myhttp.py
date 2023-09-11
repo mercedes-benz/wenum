@@ -12,13 +12,11 @@ from io import BytesIO
 from threading import Thread, Lock
 import itertools
 from queue import Queue
-import copy
 import datetime
 import pytz as pytz
 
 from .exception import FuzzExceptBadOptions, FuzzExceptNetError
 from .fuzzobjects import FuzzResult
-from dateutil.parser import parse
 
 from .factories.reqresp_factory import ReqRespRequestFactory
 
@@ -142,7 +140,7 @@ class HttpPool:
             # This does not make additional requests, but it does allow plugins to process the cached request.
             if cached:
                 cached.plugins_res.clear()
-                self.request_queue.put(cached)
+                self.result_queue.put((cached, False))
                 return
 
         if self.sleep > 0:
