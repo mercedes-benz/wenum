@@ -7,7 +7,7 @@ We want to ease the process of mapping a web application's directory structure, 
 The focus is therefore different, and unfortunately, some features will even be removed. 
 That may be due to a feature clashing with the intended direction of wenum (e.g. the AllVarQueue), or simply because there are convenience features that we think are not important enough to maintain (e.g. manipulating the wordlist entries on the tool startup).
 
-Maintained for Debian 10 and Kali, Python3.9+
+Maintained for Debian 10 and Kali, Python3.10+
 
 ## Usage
 
