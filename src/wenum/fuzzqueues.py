@@ -45,7 +45,6 @@ class SeedQueue(FuzzQueue):
 
     def __init__(self, session: FuzzSession):
         super().__init__(session)
-        self.sleep = session.options.sleep
 
     def get_name(self):
         return "SeedQueue"
@@ -136,8 +135,6 @@ class SeedQueue(FuzzQueue):
             while fuzz_word:
                 if self.session.compiled_stats.cancelled:
                     break
-                if self.sleep:
-                    time.sleep(self.sleep)
                 fuzz_result = self.get_fuzz_res(fuzz_word)
                 # Only send out if it's not already in the cache
                 if not self.session.cache.check_cache(fuzz_result.url):

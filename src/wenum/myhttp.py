@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Optional
 from urllib.parse import urlparse
 
@@ -53,6 +54,7 @@ class HttpPool:
         # Queue object storing all the requests available for sending out. Maxsize avoids buffering tens of thousands of
         # requests beforehand, which would result in gigabytes of reserved memory
         self.request_queue: Queue = Queue(maxsize=session.options.threads)
+        self.sleep = session.options.sleep
 
         # List containing the threads
         # TODO This list seems to only contain a single thread. Refactor into a single thread attribute?
@@ -275,6 +277,9 @@ class HttpPool:
                 ret, num_handles = self.curl_multi.perform()
                 if ret != pycurl.E_CALL_MULTI_PERFORM:
                     break
+
+            if self.sleep > 0:
+                time.sleep(self.sleep)
 
             num_q, ok_list, err_list = self.curl_multi.info_read()
 
