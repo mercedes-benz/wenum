@@ -262,7 +262,6 @@ class MonitorFuzzQueue(FuzzQueue):
                 if self.stats.pending_fuzz() == 0 and self.stats.pending_seeds() == 0:
                     self.logger.debug("MonitorFuzzQueue cleaning up")
                     self.qmanager.cleanup()
-                    self.queue_out.put(None)
                     self.stopped = True
 
             except Exception as e:
@@ -429,6 +428,7 @@ class QueueManager:
         self._queues = collections.OrderedDict()
         # Queue at the end of the chain to e.g. check if all requests are done
         self.monitor_queue: Optional[MonitorFuzzQueue] = None
+        self.last_queue: Optional[MyPriorityQueue] = None
         self._mutex = RLock()
         self.logger = logging.getLogger("debug_log")
 
@@ -452,6 +452,7 @@ class QueueManager:
     def bind(self, last_queue: MyPriorityQueue):
         """Set all the correct output queues."""
         with self._mutex:
+            self.last_queue = last_queue
 
             queue_list: list[FuzzQueue] = list(self._queues.values())
 
@@ -510,8 +511,10 @@ class QueueManager:
         with self._mutex:
             if self._queues:
                 self.join(remove=True)
+                self.last_queue.put_first(None, block=False)
 
                 self._queues = collections.OrderedDict()
+                self.last_queue = None
 
     def cancel(self):
         with self._mutex:

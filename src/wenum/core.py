@@ -110,13 +110,12 @@ class Fuzzer:
         This function is called by the for loop in the main function when going over it
         """
         # http://bugs.python.org/issue1360
-        print("getting")
         fuzz_result = self.last_queue.get()
-        print("got")
         self.last_queue.task_done()
 
         # done!
         if not fuzz_result:
+            self.logger.debug("core.py: StopIteration reached")
             raise StopIteration
         elif fuzz_result.item_type == FuzzType.ERROR:
             for i in range(10):
