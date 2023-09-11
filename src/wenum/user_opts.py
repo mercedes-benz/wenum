@@ -5,9 +5,10 @@ import sys
 from typing import Optional
 from urllib.parse import urlparse
 from wenum import __version__ as version
-from tomllib import load, TOMLDecodeError
 
-from tomlkit import document, dumps, comment, TOMLDocument
+from tomlkit import document, dumps, comment, TOMLDocument, load
+from tomlkit.items import String, Array, Integer
+from tomlkit.exceptions import ParseError
 
 from wenum.exception import FuzzExceptBadOptions, FuzzExceptBadFile
 
@@ -174,6 +175,9 @@ class Options:
         self.version: Optional[bool] = None
         self.opt_name_version: str = "version"
 
+        self.cache_dir: Optional[str] = None
+        self.opt_name_cache_dir: str = "cache-dir"
+
     def __str__(self):
         return str(vars(self))
 
@@ -310,6 +314,9 @@ class Options:
         if parsed_args.iterator:
             self.iterator = parsed_args.iterator
 
+        if parsed_args.cache_dir:
+            self.cache_dir = parsed_args.cache_dir
+
     def export_config(self):
         """
         Exports the activated configuration (through CLI + optional config file) into a TOML file.
@@ -337,7 +344,7 @@ class Options:
         self.add_toml_if_exists(doc, self.opt_name_proxy, self.proxy_list)
         self.add_toml_if_exists(doc, self.opt_name_threads, self.threads)
         self.add_toml_if_exists(doc, self.opt_name_plugin_threads, self.plugin_threads)
-        self.add_toml_if_exists(doc, self.opt_name_sleep, int(self.sleep))  # For some reason converted to float
+        self.add_toml_if_exists(doc, self.opt_name_sleep, self.sleep)
         self.add_toml_if_exists(doc, self.opt_name_location, self.location)
         self.add_toml_if_exists(doc, self.opt_name_recursion, self.recursion)
         self.add_toml_if_exists(doc, self.opt_name_plugin_recursion, self.plugin_recursion)
@@ -367,6 +374,7 @@ class Options:
         self.add_toml_if_exists(doc, self.opt_name_plugins, self.plugins_list)
         self.add_toml_if_exists(doc, self.opt_name_iterator, self.iterator)
         self.add_toml_if_exists(doc, self.opt_name_version, self.version)
+        self.add_toml_if_exists(doc, self.opt_name_cache_dir, self.cache_dir)
         try:
             with open(self.dump_config, "w") as file:
                 file.writelines(dumps(doc))
@@ -384,10 +392,10 @@ class Options:
         """
         try:
             with open(self.config, "rb") as file:
-                toml_dict: dict = load(file)
+                toml_dict: TOMLDocument = load(file)
         except OSError:
             raise FuzzExceptBadFile(f"Config {self.config} can not be opened.")
-        except TOMLDecodeError as e:
+        except ParseError as e:
             raise FuzzExceptBadOptions(f"The config file {self.config} does not contain valid TOML. "
                                        f"Please check the syntax. Exception: {e}")
 
@@ -517,6 +525,9 @@ class Options:
         if self.opt_name_version in toml_dict:
             self.version = self.pop_toml_bool(toml_dict, self.opt_name_version)
 
+        if self.opt_name_cache_dir in toml_dict:
+            self.cache_dir = self.pop_toml_string(toml_dict, self.opt_name_cache_dir)
+
         # If any keys are left
         if toml_dict:
             unknown_keys = []
@@ -526,57 +537,68 @@ class Options:
                                        f"Please check for typos.")
 
     @staticmethod
-    def pop_toml_list_str(toml_dict: dict, toml_key: str) -> list[str]:
+    def pop_toml_list_str(toml_dict: TOMLDocument, toml_key: str) -> list[str]:
         """
         Throws an exception if the type of the toml key is not a list of strings. Pops value from dict if it is.
+        Converts the type to pure Python classes.
         """
-        if type(toml_dict[toml_key]) != list:
+        string_list = toml_dict.pop(toml_key)
+        if type(string_list) != Array:
             raise FuzzExceptBadOptions(f"\"{toml_key}\" option's value in the config file is not a list")
-        for item in toml_dict[toml_key]:
+        string_list = string_list.unwrap()
+        for index, item in enumerate(string_list):
             if type(item) != str:
                 raise FuzzExceptBadOptions(f"\"{toml_key}\" option's value in the config file "
                                            f"contains a nonstring item: {item}")
-        return toml_dict.pop(toml_key)
+        return string_list
 
     @staticmethod
-    def pop_toml_list_int(toml_dict: dict, toml_key: str) -> list[int]:
+    def pop_toml_list_int(toml_dict: TOMLDocument, toml_key: str) -> list[int]:
         """
         Throws an exception if the type of the toml key is not a list of strings. Pops value from dict if it is.
         """
-        if type(toml_dict[toml_key]) != list:
+        integer_list = toml_dict.pop(toml_key)
+        if type(integer_list) != Array:
             raise FuzzExceptBadOptions(f"\"{toml_key}\" option's value in the config file is not a list")
-        for item in toml_dict[toml_key]:
+        integer_list = integer_list.unwrap()
+        for index, item in enumerate(integer_list):
             if type(item) != int:
                 raise FuzzExceptBadOptions(f"\"{toml_key}\" option's value in the config file "
                                            f"contains a nonint item: {item}")
-        return toml_dict.pop(toml_key)
+        return integer_list
 
     @staticmethod
-    def pop_toml_bool(toml_dict: dict, toml_key: str) -> bool:
+    def pop_toml_bool(toml_dict: TOMLDocument, toml_key: str) -> bool:
         """
         Throws an exception if the type of the toml key is not a bool. Pops value from dict if it is.
         """
-        if type(toml_dict[toml_key]) != bool:
+        boolean = toml_dict.pop(toml_key)
+        if type(boolean) != bool:
             raise FuzzExceptBadOptions(f"\"{toml_key}\" option's value in the config file is not a bool")
-        return toml_dict.pop(toml_key)
+        return boolean
 
     @staticmethod
-    def pop_toml_string(toml_dict: dict, toml_key: str) -> str:
+    def pop_toml_string(toml_dict: TOMLDocument, toml_key: str) -> str:
         """
         Throws an exception if the type of the toml key is not a string. Pops value from dict if it is.
         """
-        if type(toml_dict[toml_key]) != str:
+        standard_string = toml_dict.pop(toml_key)
+        if type(standard_string) != String:
             raise FuzzExceptBadOptions(f"\"{toml_key}\" option's value in the config file is not a string")
-        return toml_dict.pop(toml_key)
+        standard_string = standard_string.unwrap()
+
+        return standard_string
 
     @staticmethod
-    def pop_toml_int(toml_dict: dict, toml_key: str) -> int:
+    def pop_toml_int(toml_dict: TOMLDocument, toml_key: str) -> int:
         """
         Throws an exception if the type of the toml key is not an int. Pops value from dict if it is.
         """
-        if type(toml_dict[toml_key]) != int:
+        integer = toml_dict.pop(toml_key)
+        if type(integer) != Integer:
             raise FuzzExceptBadOptions(f"\"{toml_key}\" option's value in the config file is not an int")
-        return toml_dict.pop(toml_key)
+        integer = integer.unwrap()
+        return integer
 
     def basic_validate(self) -> None:
         """
@@ -720,6 +742,9 @@ class Options:
     def add_toml_if_exists(doc: TOMLDocument, key: str, value):
         """Convenience function to enable one-liners when building the TOML config."""
         if value:
+            # For some reason, the sleep parameter would get converted to a float by default
+            if isinstance(value, float):
+                value = int(value)
             doc.add(key, value)
 
     def configure_parser(self) -> argparse.ArgumentParser:
@@ -765,7 +790,7 @@ class Options:
         io_group.add_argument(f"--{self.opt_name_plugins}", action="append",
                               help="Plugins to be run, supplied as a list of plugin-files or plugin-categories",
                               nargs="*")
-        # io_group.add_argument("--cache-file", help="Read in a cache file from a previous run, and post process the results without sending the requests.")#TODO implement
+        io_group.add_argument(f"--{self.opt_name_cache_dir}", help="Specify a directory to read cached requests from.")
 
         request_building_group.add_argument("-u", f"--{self.opt_name_url}", help="Specify a URL for the request.")
         request_building_group.add_argument("-p", f"--{self.opt_name_proxy}", action="append",

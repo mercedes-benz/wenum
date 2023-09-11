@@ -1,21 +1,26 @@
+import copy
+import json
+import os
 from collections import defaultdict
+from typing import Optional
 
-from wenum.fuzzrequest import FuzzRequest
+from wenum.externals.reqresp.CachedResponse import CachedResponse
+from wenum.fuzzobjects import FuzzResult, FuzzType
 
 
 class HttpCache:
     """
     The cache keeps track of all the requests that have already been enqueued, to avoid doing it multiple times.
     """
-    db = None
+    cache_dir = None
+    __cache_dir_map = None
 
-    def __init__(self):
+    def __init__(self, cache_dir: Optional[str] = None):
         # cache control, a dictionary with URLs as keys and their values being lists full of the
         # categories that the queries were categorized as
         self.__cache_map = defaultdict(list)
-        # This should be relevant for loading the cache from file. Needs to be documented more
-        # thoroughly
-        self.__object_map = defaultdict(list)
+        if cache_dir:
+            self.load_cache_dir(cache_dir)
 
     def check_cache(self, url_key: str, cache_type: str = "processed", update: bool = True) -> bool:
         """
@@ -37,3 +42,42 @@ class HttpCache:
         if update:
             self.__cache_map[url_key].append(cache_type)
         return cached
+
+    def get_object_from_object_cache(self, fuzz_result: FuzzResult, key=False) -> Optional[FuzzResult]:
+        """
+        Return entry in object_cache based on fuzzresult or key if provided (function for --cache-file option)
+        """
+        if not self.cache_dir:
+            return None
+        if key is False:
+            key = fuzz_result.history.to_cache_key()
+        return self._fuzz_result_from_cache(key, fuzz_result)
+
+    def load_cache_dir(self, directory: str) -> None:
+        if not os.path.isdir(directory):
+            return
+        self.cache_dir = directory
+        with open(os.path.join(directory, "cache.json"), "rb") as cache_data:
+            self.__cache_dir_map = json.load(cache_data)
+
+    def _fuzz_result_from_cache(self, key: str, fuzz_result: FuzzResult) -> FuzzResult | None:
+        if key not in self.__cache_dir_map:
+            return None
+        cached = self.__cache_dir_map[key]
+        res_copy = copy.deepcopy(fuzz_result)
+        res_copy.item_type = FuzzType.RESULT
+
+        # fuzz_result.code = cached["status"]
+        res_copy.lines = cached["lines"] if cached["lines"] is not None else 0
+        res_copy.words = cached["words"] if cached["words"] is not None else 0
+        res_copy.chars = cached["chars"] if cached["chars"] is not None else 0
+        body = None
+        if "body" in cached and cached["body"] is not None:
+            body = os.path.join(self.cache_dir, "body", cached["body"])
+        header = cached.get("headers", None)
+
+        response = CachedResponse("https" if "https" in key else "http", cached["status"], body=body, header=header,
+                                  length=cached["chars"])
+        res_copy.history._request.response = response
+
+        return res_copy

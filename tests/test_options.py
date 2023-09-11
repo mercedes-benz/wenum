@@ -2,7 +2,8 @@ import unittest
 from wenum.user_opts import Options
 import logging
 import os
-from tomllib import load, TOMLDecodeError
+from tomlkit import load
+from tomlkit.exceptions import ParseError
 
 
 class OptionsTest(unittest.TestCase):
@@ -288,6 +289,7 @@ class OptionsTest(unittest.TestCase):
 {options.opt_name_domain_scope} = true
 {options.opt_name_plugins} = ["default", "robots", "active"]
 {options.opt_name_iterator} = "product"
+# junkline
 doesnt_exist = true
 """
             file.write(toml_content)
@@ -300,6 +302,7 @@ doesnt_exist = true
         with open("dummy_config.toml", "w") as file:
             toml_content = f"""
 {options.opt_name_url} = "http://example.com/FUZZ/FUZ2Z/FUZ3Z"
+# junkline
 {options.opt_name_wordlist} = "dummy_wordlist.txt", "dummy_wordlist.txt", "dummy_wordlist.txt"
 {options.opt_name_colorless} = true
 {options.opt_name_quiet} = true
@@ -337,6 +340,7 @@ doesnt_exist = true
         with open("dummy_config.toml", "w") as file:
             toml_content = f"""
 {options.opt_name_url} = "http://example.com/FUZZ/FUZ2Z/FUZ3Z"
+# junkline
 {options.opt_name_wordlist} = "dummy_wordlist.txt"
 {options.opt_name_colorless} = true
 {options.opt_name_quiet} = true
@@ -375,6 +379,7 @@ doesnt_exist = true
             toml_content = f"""
 {options.opt_name_url} = "http://example.com/FUZZ/FUZ2Z/FUZ3Z"
 {options.opt_name_wordlist} = ["dummy_wordlist.txt"]
+# junkline
 {options.opt_name_colorless} = 2
 {options.opt_name_quiet} = true
 {options.opt_name_noninteractive} = true
@@ -415,6 +420,7 @@ doesnt_exist = true
 {options.opt_name_colorless} = false
 {options.opt_name_quiet} = true
 {options.opt_name_noninteractive} = true
+# junkline
 {options.opt_name_output} = 2
 {options.opt_name_debug_log} = "dummy_debuglog.txt"
 {options.opt_name_proxy} = ["http://127.0.0.1:8080"]
@@ -455,6 +461,7 @@ doesnt_exist = true
 {options.opt_name_output} = "dummy_output.txt"
 {options.opt_name_debug_log} = "dummy_debuglog.txt"
 {options.opt_name_proxy} = ["http://127.0.0.1:8080"]
+# junkline
 {options.opt_name_threads} = true
 {options.opt_name_sleep} = 2
 {options.opt_name_location} = true

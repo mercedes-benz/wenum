@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING, Optional
 from urllib.parse import urlparse
 
@@ -9,10 +10,15 @@ if TYPE_CHECKING:
 import pycurl
 from io import BytesIO
 from threading import Thread, Lock
+import itertools
 from queue import Queue
+import copy
+import datetime
+import pytz as pytz
 
 from .exception import FuzzExceptBadOptions, FuzzExceptNetError
 from .fuzzobjects import FuzzResult
+from dateutil.parser import parse
 
 from .factories.reqresp_factory import ReqRespRequestFactory
 
@@ -28,8 +34,11 @@ UNRECOVERABLE_PYCURL_EXCEPTIONS = [
 # Exception in perform (35, 'error:0B07C065:x509 certificate routines:X509_STORE_add_cert:cert already in hash table')
 # Exception in perform (18, 'SSL read: error:0B07C065:x509 certificate routines:X509_STORE_add_cert:cert already in hash table, errno 11')
 
+MAX_AGE = datetime.datetime.now(pytz.utc) - datetime.timedelta(days=30)
+
 
 class HttpPool:
+    newid = itertools.count(0)
 
     def __init__(self, session: FuzzSession):
         # Amount of total requests that have been queued. This is not a "remaining" requests counter
@@ -51,6 +60,7 @@ class HttpPool:
         # Queue object storing all the requests available for sending out. Maxsize avoids buffering tens of thousands of
         # requests beforehand, which would result in gigabytes of reserved memory
         self.request_queue: Queue = Queue(maxsize=session.options.threads)
+        self.sleep = session.options.sleep
 
         # The results will be put into this queue for the HTTPQueue to grab the items from there
         self.result_queue: Queue = Queue()
@@ -126,9 +136,27 @@ class HttpPool:
         """
         if self.exit_job:
             return
+        # Bool indicating whether the request should be queued for request again. Useful for exceptions
+        requeue = False
+        if self.session.options.cache_dir:
+            cached = self.cache.get_object_from_object_cache(fuzz_result)
+            # If the request is cached, put it in the queue to be processes by plugins and return.
+            # This does not make additional requests, but it does allow plugins to process the cached request.
+            if cached:
+                cached.plugins_res.clear()
+                self.pool_map[poolid]["queue"].put((cached, requeue))
+                return
+
+        if self.sleep > 0:
+            time.sleep(self.sleep)
 
         with self.mutex_stats:
             self.queued_requests += 1
+        self.request_queue.put((fuzz_result, poolid))
+
+    def _stop_to_pools(self):
+        for p in list(self.pool_map.keys()):
+            self.pool_map[p]["queue"].put(None)
         self.request_queue.put(fuzz_result)
 
     def cleanup(self):
