@@ -84,6 +84,7 @@ def main():
             session.close()
         if keypress:
             keypress.cancel_job()
+        logger.debug("Closing")
 
 
 def _log_runtime_stats(logger: logging.Logger, stats: FuzzStats):

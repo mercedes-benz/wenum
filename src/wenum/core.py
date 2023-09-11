@@ -118,9 +118,6 @@ class Fuzzer:
             self.logger.debug("core.py: StopIteration reached")
             raise StopIteration
         elif fuzz_result.item_type == FuzzType.ERROR:
-            for i in range(10):
-                print(fuzz_result.exception)
-                print(fuzz_result.item_type)
             raise fuzz_result.exception
 
         return fuzz_result

@@ -424,6 +424,9 @@ class FuzzListQueue(FuzzQueue, ABC):
 
 
 class QueueManager:
+    """
+    Class responsible for keeping track of all the active queues and managing them
+    """
     def __init__(self, session):
         self._queues = collections.OrderedDict()
         # Queue at the end of the chain to e.g. check if all requests are done
@@ -515,6 +518,7 @@ class QueueManager:
 
                 self._queues = collections.OrderedDict()
                 self.last_queue = None
+        self.logger.debug("QueueManager: Cleaned up.")
 
     def cancel(self):
         with self._mutex:
@@ -533,7 +537,6 @@ class QueueManager:
                 self.logger.debug("QueueManager: All queues have joined. Cleaning up..")
 
                 self.cleanup()
-                self.logger.debug("QueueManager: Cleaned up.")
 
     def get_stats(self):
         stat_list = []
