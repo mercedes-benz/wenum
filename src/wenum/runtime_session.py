@@ -38,7 +38,7 @@ class FuzzSession:
         self.compiled_iterator: Optional[BaseIterator] = None
         self.current_priority_level: int = PRIORITY_STEP
 
-        self.cache: HttpCache = HttpCache()
+        self.cache: HttpCache = HttpCache(cache_dir=self.options.cache_dir)
         self.http_pool: Optional[HttpPool] = None
 
         #TODO Unused?
