@@ -1,4 +1,4 @@
-from wenum.externals.reqresp import Response
+from wenum.externals.reqresp.Response import Response, get_encoding_from_headers
 
 
 class CachedResponse(Response):
@@ -15,5 +15,11 @@ class CachedResponse(Response):
     def get_content(self):
         if self._body is None:
             return super().get_content()
+        content_encoding = get_encoding_from_headers(dict(self.get_headers()))
+
+        # fallback to default encoding
+        if content_encoding is None:
+            content_encoding = "utf-8"
+
         with open(self._body, "rb") as body_file:
-            return body_file.read()
+            return body_file.read().decode(content_encoding, errors="replace")
