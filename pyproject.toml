@@ -5,7 +5,7 @@ description = ""
 authors = ["None"]
 
 [tool.poetry.dependencies]
-python = "3.10"
+python = "^3.10"
 linkfinder = { path = "./src/linkfinder" }
 chardet = "^5.0.0"
 pycurl = "^7.45.1"
