@@ -115,13 +115,8 @@ class Fuzzer:
 
         if fuzz_item.item_type == FuzzType.STOP:
             self.logger.debug("core.py: Stopping the queues")
-            self.qmanager.cancel()
             raise StopIteration
 
-        #TODO Checking for None will phase out
-        if not fuzz_item:
-            self.logger.debug("core.py: StopIteration reached")
-            raise StopIteration
         elif fuzz_item.item_type == FuzzType.ERROR:
             raise fuzz_item.exception
 
@@ -135,7 +130,7 @@ class Fuzzer:
         )
 
     def cancel_job(self):
-        self.qmanager.cancel()
+        self.qmanager.stop_queues()
 
     def pause_job(self):
         self.qmanager["transport_queue"].pause.clear()

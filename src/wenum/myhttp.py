@@ -87,6 +87,7 @@ class HttpPool:
             self.curlh_freelist.append(curl_h)
 
         self.thread = Thread(target=getattr(self, "_read_multi_stack"))
+        self.thread.daemon = True
         self.thread.start()
 
     def job_stats(self) -> dict:

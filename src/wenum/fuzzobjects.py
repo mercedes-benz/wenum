@@ -151,6 +151,9 @@ class FuzzStats:
                 self.subdir_hits[subdir] = 1
 
     def mark_start(self):
+        """
+        Sets the starttime
+        """
         with self.mutex:
             self.starttime = time.time()
 

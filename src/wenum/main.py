@@ -67,8 +67,6 @@ def main():
             text = "Keyboard interrupt registered."
         warnings.warn(text)
         logger.info(user_message)
-        if fuzzer:
-            fuzzer.cancel_job()
     except NotImplementedError as e:
         exception_message = "Fatal exception: Error importing wenum extensions: {}".format(str(e))
         logger.exception(exception_message)
@@ -79,12 +77,14 @@ def main():
         warnings.warn(exception_message)
         traceback.print_exc()
     finally:
+        if fuzzer:
+            fuzzer.cancel_job()
         if session:
             _log_runtime_stats(logger, session.compiled_stats)
             session.close()
         if keypress:
             keypress.cancel_job()
-        logger.debug("Closing")
+        logger.debug("Ended")
 
 
 def _log_runtime_stats(logger: logging.Logger, stats: FuzzStats):

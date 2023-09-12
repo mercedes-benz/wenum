@@ -437,6 +437,7 @@ class PluginExecutor(FuzzQueue):
                 self.logger.debug("Interrupting")
                 return
             if self.__walking_threads.qsize() > 0:
+                #TODO This is bad and should be done better
                 time.sleep(0.5)
             else:
                 self.__walking_threads.join()
@@ -774,6 +775,7 @@ class HttpQueue(FuzzQueue):
         self.pause = Event()
         self.pause.set()
         self.exit_job = False
+        self.thread = None
 
     def cancel(self):
         self.pause.set()
@@ -781,9 +783,10 @@ class HttpQueue(FuzzQueue):
     def pre_start(self):
         self.http_pool.initialize()
 
-        thread = Thread(target=self.__read_http_results)
-        thread.name = "__read_http_results"
-        thread.start()
+        self.thread = Thread(target=self.__read_http_results)
+        self.thread.daemon = True
+        self.thread.name = "__read_http_results"
+        self.thread.start()
 
     def get_name(self):
         return "HttpQueue"
@@ -792,6 +795,7 @@ class HttpQueue(FuzzQueue):
         self.logger.debug(f"HttpQueue cleaning up")
         self.http_pool.cleanup()
         self.exit_job = True
+        self.thread.join()
 
         self.logger.debug(f"HttpQueue cleaned up")
 
@@ -808,6 +812,7 @@ class HttpQueue(FuzzQueue):
         """
         try:
             while not self.exit_job:
+                self.logger.debug(f"readhttpresults not exiting")
                 fuzz_result, requeue = next(self.http_pool.iter_results())
                 if requeue:
                     self.http_pool.enqueue(fuzz_result)
