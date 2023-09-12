@@ -273,6 +273,7 @@ class HttpPool:
                 fuzzres = self.request_queue.get()
 
                 self.curl_multi.add_handle(self._prepare_curl_h(curl_h, fuzzres))
+                self.request_queue.task_done()
         self.logger.debug(f"_read_multi_stack stopping")
         # cleanup multi stack
         for c in self.handles:
