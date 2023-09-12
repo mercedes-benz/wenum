@@ -117,8 +117,8 @@ class BasePlugin:
         Optionally takes seeding_url. Can be arbitrarily specified to use as a new FUZZ
         """
         # Stop queueing seeds if the limit is reached already
-        if self.session.limit_requests and self.session.http_pool.queued_requests > \
-                self.session.limit_requests:
+        if self.session.options.limit_requests and self.session.http_pool.queued_requests > \
+                self.session.options.limit_requests:
             return
         self.results_queue.put(plugin_factory.create(
                 "seed_plugin", self.name, self.base_fuzz_res, seeding_url))
