@@ -96,6 +96,8 @@ class Clone(BasePlugin):
         with open(output_path_headers, "w") as f:
             f.write(headers_joined)
 
-        os.makedirs(os.path.dirname(output_path_content), exist_ok=True)
-        with open(output_path_content, "w") as f:
-            f.write(fuzz_result.content)
+        content = fuzz_result.content
+        if content and len(content) > 0:
+            os.makedirs(os.path.dirname(output_path_content), exist_ok=True)
+            with open(output_path_content, "w") as f:
+                f.write(fuzz_result.content)
