@@ -248,6 +248,9 @@ class Options:
         if parsed_args.header:
             self.header_list = self.header_list + flatten_list(parsed_args.header)
 
+        if parsed_args.cookie:
+            self.cookie = parsed_args.cookie
+
         if parsed_args.stop_error:
             self.stop_error = parsed_args.stop_error
 
