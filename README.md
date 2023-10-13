@@ -15,8 +15,7 @@ Maintained for Debian 10 and Kali, Python3.10+
 
 ### Example
 ```
-host="127.0.0.1:8081"
-wenum --hard-filter --script=default,gau,links,sourcemap,robots,sitemap,linkparser,domainpath -p 127.0.0.1:9999:SOCKS5 -R 2 -H 'User-Agent: SOMETHING' -w /usr/share/seclists/Discovery/Web-Content/common.txt --auto-filter --runtime-log -f wenum_out.json --hc 404 -F "https://$host/FUZZ"`
+wenum --hard-filter --plugins=default,gau,domainpath,clone,context,linkparser,sourcemap,robots,listing,sitemap,headers,backups,errors,title,links --hc 404 --auto-filter -R 2 -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0' -w ~/wordlists/onelistforallmicro.txt -f json -o example.com -u http//example.com/FUZZ
 ```
 
 For a detailed documentation, please refer to the [wiki](https://github.com/WebFuzzForge/wenum/wiki).
