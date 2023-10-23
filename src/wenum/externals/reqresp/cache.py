@@ -57,7 +57,10 @@ class HttpCache:
         if not os.path.isdir(directory):
             return
         self.cache_dir = directory
-        with open(os.path.join(directory, "cache.json"), "rb") as cache_data:
+        cache_file = os.path.join(directory, "cache.json")
+        if not os.path.isfile(cache_file):
+            return
+        with open(cache_file, "rb") as cache_data:
             self.__cache_dir_map = json.load(cache_data)
 
     def _fuzz_result_from_cache(self, key: str, fuzz_result: FuzzResult) -> FuzzResult | None:
