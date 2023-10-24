@@ -13,7 +13,7 @@ class HttpCache:
     The cache keeps track of all the requests that have already been enqueued, to avoid doing it multiple times.
     """
     cache_dir = None
-    __cache_dir_map = None
+    __cache_dir_map = {}
 
     def __init__(self, cache_dir: Optional[str] = None):
         # cache control, a dictionary with URLs as keys and their values being lists full of the
@@ -56,10 +56,10 @@ class HttpCache:
     def load_cache_dir(self, directory: str) -> None:
         if not os.path.isdir(directory):
             return
-        self.cache_dir = directory
         cache_file = os.path.join(directory, "cache.json")
         if not os.path.isfile(cache_file):
             return
+        self.cache_dir = directory
         with open(cache_file, "rb") as cache_data:
             self.__cache_dir_map = json.load(cache_data)
 
