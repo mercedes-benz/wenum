@@ -64,7 +64,7 @@ class FuzzQueue(MyPriorityQueue, Thread, ABC):
         # Next queue in line that intends to process discarded fuzz_results
         self.queue_discard: Optional[FuzzQueue] = None
         self.child_queue: bool = False
-        self.syncqueue: Optional[MonitorFuzzQueue] = None
+        self.syncqueue: Optional[MonitorQueue] = None
         # Indicates whether the queue wants to process discarded fuzzresults
         self.process_discarded: bool = False
 
@@ -225,7 +225,7 @@ class FuzzQueue(MyPriorityQueue, Thread, ABC):
             self.task_done()
 
 
-class MonitorFuzzQueue(FuzzQueue):
+class MonitorQueue(FuzzQueue):
     """
     Queue which is close to last destination of every fuzzitem,
     always present when wenum runs. Tracks processing of requests/responses and monitors when to end the runtime
@@ -235,7 +235,7 @@ class MonitorFuzzQueue(FuzzQueue):
         self.process_discarded = True
 
     def get_name(self):
-        return "MonitorFuzzQueue"
+        return "MonitorQueue"
 
     def process(self, item):
         pass
@@ -251,7 +251,7 @@ class MonitorFuzzQueue(FuzzQueue):
 
             try:
                 if item.item_type == FuzzType.STOP:
-                    self.logger.debug(f"MonitorFuzzQueue: Stopping")
+                    self.logger.debug(f"MonitorQueue: Stopping")
                     self.stopped.set()
                     self.close.wait()
                     break
@@ -276,7 +276,7 @@ class MonitorFuzzQueue(FuzzQueue):
                 # If no requests are left, trigger the ending routine
                 if self.stats.pending_fuzz() == 0 and self.stats.pending_seeds() == 0:
                     self.send_important(FuzzItem(FuzzType.STOP))
-                    self.logger.debug("MonitorFuzzQueue sending stop item")
+                    self.logger.debug("MonitorQueue - No remaining requests left. Sending a stop item")
                 self.task_done()
 
             except Exception as e:

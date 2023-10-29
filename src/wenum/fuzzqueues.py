@@ -124,7 +124,6 @@ class SeedQueue(FuzzQueue):
             self.send(fuzz_result)
 
         # Check if the payload dictionary is empty to begin with
-        #TODO Ensure it doesn't skip out on sending the first line of the wordlist
         try:
             fuzz_word = next(self.session.compiled_iterator)
         except StopIteration:
@@ -437,7 +436,7 @@ class PluginExecutor(FuzzQueue):
                 self.logger.debug("Interrupting")
                 return
             if self.__walking_threads.qsize() > 0:
-                #TODO This is bad and should be done better
+                #TODO This is bad and should be done better. Use event signals
                 time.sleep(0.5)
             else:
                 self.__walking_threads.join()
@@ -793,7 +792,7 @@ class HttpQueue(FuzzQueue):
 
     def _cleanup(self):
         self.logger.debug(f"HttpQueue cleaning up")
-        self.http_pool.cleanup()
+        self.http_pool.stop_curl_handles()
         self.exit_job = True
         self.thread.join()
 
@@ -810,17 +809,14 @@ class HttpQueue(FuzzQueue):
         """
         Function running in thread to continuously monitor http request results
         """
-        try:
-            while not self.exit_job:
-                self.logger.debug(f"readhttpresults not exiting")
-                fuzz_result, requeue = next(self.http_pool.iter_results())
-                if requeue:
-                    self.http_pool.enqueue(fuzz_result)
+        while not self.exit_job:
+            self.logger.debug(f"readhttpresults not exiting")
+            fuzz_result, requeue = next(self.http_pool.iter_results())
+            if requeue:
+                self.http_pool.enqueue(fuzz_result)
+            else:
+                if fuzz_result.exception and self.session.options.stop_error:
+                    self._throw(fuzz_result.exception)
                 else:
-                    if fuzz_result.exception and self.session.options.stop_error:
-                        self._throw(fuzz_result.exception)
-                    else:
-                        self.send(fuzz_result)
-            self.logger.debug("__read_http_results stopping")
-        except StopIteration:
-            pass
+                    self.send(fuzz_result)
+        self.logger.debug("__read_http_results stopping")

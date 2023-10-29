@@ -14,7 +14,7 @@ from .filters.simplefilter import FuzzResSimpleFilter
 
 from .core import Fuzzer
 from .iterators import BaseIterator
-from .myhttp import HttpPool
+from .httppool import HttpPool
 
 from .externals.reqresp.cache import HttpCache
 from .printers import JSON, HTML, BasePrinter

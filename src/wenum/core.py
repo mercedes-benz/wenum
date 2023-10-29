@@ -13,7 +13,7 @@ from .fuzzobjects import FuzzType, FuzzItem
 import collections
 from itertools import zip_longest
 
-from .myqueues import MyPriorityQueue, FuzzQueue, MonitorFuzzQueue
+from .myqueues import MyPriorityQueue, FuzzQueue, MonitorQueue
 from .fuzzqueues import (
     SeedQueue,
     FilePrinterQ,
@@ -158,7 +158,7 @@ class QueueManager:
     def __init__(self, session):
         self._queues: collections.OrderedDict[str, FuzzQueue] = collections.OrderedDict()
         # Queue at the end of the chain to e.g. check if all requests are done
-        self.monitor_queue: Optional[MonitorFuzzQueue] = None
+        self.monitor_queue: Optional[MonitorQueue] = None
         # Queue receiving information from monitor_queue; last_queue items will be pulled by the main thread
         self.last_queue: Optional[MyPriorityQueue] = None
         self._mutex = RLock()
@@ -196,7 +196,7 @@ class QueueManager:
 
             queue_list: list[FuzzQueue] = list(self._queues.values())
 
-            self.monitor_queue: MonitorFuzzQueue = MonitorFuzzQueue(self.session, last_queue)
+            self.monitor_queue: MonitorQueue = MonitorQueue(self.session, last_queue)
 
             # Set the next queue for each queue
             for index, (first, second) in enumerate(zip_longest(queue_list[0:-1], queue_list[1:])):

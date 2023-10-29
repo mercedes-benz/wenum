@@ -5,6 +5,10 @@ import time
 from typing import TYPE_CHECKING, Optional
 from urllib.parse import urlparse
 
+from .myqueues import MyPriorityQueue
+from queue import PriorityQueue
+
+
 if TYPE_CHECKING:
     from wenum.runtime_session import FuzzSession
 import pycurl
@@ -16,7 +20,7 @@ import datetime
 import pytz as pytz
 
 from .exception import FuzzExceptBadOptions, FuzzExceptNetError
-from .fuzzobjects import FuzzResult
+from .fuzzobjects import FuzzResult, FuzzItem, FuzzType
 
 from .factories.reqresp_factory import ReqRespRequestFactory
 
@@ -61,7 +65,7 @@ class HttpPool:
         self.sleep = session.options.sleep
 
         # The results will be put into this queue for the HTTPQueue to grab the items from there
-        self.result_queue: Queue = Queue()
+        self.result_queue: PriorityQueue = PriorityQueue()
 
         self.next_proxy = None
 
@@ -86,7 +90,7 @@ class HttpPool:
             self.handles.append(curl_h)
             self.curlh_freelist.append(curl_h)
 
-        self.thread = Thread(target=getattr(self, "_read_multi_stack"))
+        self.thread = Thread(target=getattr(self, "_process_curl_handles"))
         self.thread.daemon = True
         self.thread.start()
 
@@ -151,11 +155,17 @@ class HttpPool:
             self.queued_requests += 1
         self.request_queue.put(fuzz_result)
 
-    def cleanup(self):
-        self.logger.debug("HttpPool cleaning up")
+    def stop_curl_handles(self):
+        self.logger.debug("HttpPool stopping handles")
         self.exit_job = True
-        self.thread.join()
+        # Putting a stop tuple with the highest priority
+        self.result_queue.put((0, None))
         self.logger.debug("HttpPool cleaned up")
+
+    def join_threads(self):
+        self.thread.join()
+        self.result_queue.join()
+        self.request_queue.join()
 
     @staticmethod
     def _get_next_proxy(proxy_list):
@@ -189,7 +199,7 @@ class HttpPool:
 
         return curl_h
 
-    def _process_curl_handle(self, curl_h: pycurl.Curl):
+    def _process_curl_handle_response(self, curl_h: pycurl.Curl) -> None:
         buff_body, buff_header, res = curl_h.response_queue
         # Bool indicating whether the request should be queued for request again. Useful for exceptions
         requeue = False
@@ -212,7 +222,9 @@ class HttpPool:
 
     def _process_curl_determine_retry(self, fuzz_result: FuzzResult, errno: int) -> bool:
         """
-        Check if the request should be requeued and forward it accordingly. Returns True if it should, and False if not
+        Check if the request should be requeued and forward it accordingly.
+
+        Returns True if it should, and False if not
         """
         if errno in UNRECOVERABLE_PYCURL_EXCEPTIONS or fuzz_result.history.retries >= 3:
             return False
@@ -239,7 +251,7 @@ class HttpPool:
         with self.mutex_stats:
             self.processed += 1
 
-    def _read_multi_stack(self):
+    def _process_curl_handles(self):
         """
         Check for curl objects which have terminated, and add them to the curlh_freelist
         """
@@ -253,7 +265,7 @@ class HttpPool:
 
             # Deal with curl handles that have returned successfully
             for curl_h in ok_list:
-                self._process_curl_handle(curl_h)
+                self._process_curl_handle_response(curl_h)
                 self.curl_multi.remove_handle(curl_h)
                 self.curlh_freelist.append(curl_h)
 
@@ -274,7 +286,7 @@ class HttpPool:
 
                 self.curl_multi.add_handle(self._prepare_curl_h(curl_h, fuzzres))
                 self.request_queue.task_done()
-        self.logger.debug(f"_read_multi_stack stopping")
+        self.logger.debug(f"_process_curl_handles stopping")
         # cleanup multi stack
         for c in self.handles:
             c.close()
