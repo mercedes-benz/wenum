@@ -791,10 +791,14 @@ class HttpQueue(FuzzQueue):
         return "HttpQueue"
 
     def _cleanup(self):
+        """
+        Closes the threads in HTTPPool and HTTPQueue
+        """
         self.logger.debug(f"HttpQueue cleaning up")
         self.http_pool.stop_curl_handles()
         self.exit_job = True
         self.thread.join()
+        self.http_pool.join_threads()
 
         self.logger.debug(f"HttpQueue cleaned up")
 
@@ -809,9 +813,12 @@ class HttpQueue(FuzzQueue):
         """
         Function running in thread to continuously monitor http request results
         """
-        while not self.exit_job:
+        while True:
             self.logger.debug(f"readhttpresults not exiting")
             fuzz_result, requeue = next(self.http_pool.iter_results())
+            # HTTPPool sends a None object when signalling to stop
+            if not fuzz_result:
+                break
             if requeue:
                 self.http_pool.enqueue(fuzz_result)
             else:

@@ -288,6 +288,7 @@ class QueueManager:
                 # Send signal to all queues to ensure they are ready to join their thread
                 for active_queue in list(self._queues.values()):
                     active_queue.close.set()
+                self.monitor_queue.close.set()
 
                 # Close all queue threads
                 for active_queue in list(self._queues.values()):
@@ -296,7 +297,7 @@ class QueueManager:
                 self.logger.debug(f"QueueManager joining queue {self.monitor_queue.name}")
                 self.monitor_queue.join()
 
-                self.logger.debug(f"QueueManager: joining lastqueue")
+                self.logger.debug(f"QueueManager: joining LastQueue")
 
                 # Finally stop the last queue
                 while self.last_queue.qsize() > 0:

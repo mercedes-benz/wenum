@@ -110,6 +110,7 @@ class HttpPool:
         Method to receive the next item in the queue storing the results of all the requests sent
         """
         queue_output = self.result_queue.get()
+        self.result_queue.task_done()
         if not queue_output:
             return
         item = queue_output[0]
@@ -164,8 +165,16 @@ class HttpPool:
 
     def join_threads(self):
         self.thread.join()
-        self.result_queue.join()
+
+        while self.request_queue.qsize() > 0:
+            self.request_queue.get()
+            self.request_queue.task_done()
         self.request_queue.join()
+
+        while self.result_queue.qsize() > 0:
+            self.result_queue.get()
+            self.result_queue.task_done()
+        self.result_queue.join()
 
     @staticmethod
     def _get_next_proxy(proxy_list):
