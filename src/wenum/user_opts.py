@@ -866,7 +866,7 @@ class Options:
 
         response_proessing_group.add_argument("-L", f"--{self.opt_name_location}", action="store_true",
                                               help="Follow redirections by sending "
-                                                   "an additional request to the redirection URL.")
+                                                   "an additional request to the redirection URL if it's in scope.")
         response_proessing_group.add_argument("-R", f"--{self.opt_name_recursion}", type=int,
                                               help="Enable recursive path discovery by specifying a maximum depth.")
         response_proessing_group.add_argument("-r", f"--{self.opt_name_plugin_recursion}", type=int,
