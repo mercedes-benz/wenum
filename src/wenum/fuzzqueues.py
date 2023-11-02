@@ -384,10 +384,10 @@ class PluginExecutor(FuzzQueue):
     Queue dedicated to handle the execution of plugins. Usually, several instances are created by PluginQueue.
     """
 
-    def __init__(self, session: FuzzSession, selected_plugins: list[BasePlugin]):
+    def __init__(self, session: FuzzSession, active_plugins: list[BasePlugin]):
         super().__init__(session, maxsize=30)
         self.__walking_threads: Queue = Queue()
-        self.selected_plugins: list[BasePlugin] = selected_plugins
+        self.active_plugins: list[BasePlugin] = active_plugins
         self.cache: HttpCache = session.cache
         self.max_rlevel = session.options.recursion
         self.max_plugin_rlevel = session.options.plugin_recursion
@@ -405,7 +405,7 @@ class PluginExecutor(FuzzQueue):
         plugins_res_queue = Queue()
         # Keeps track of the amount of requests queued by each plugin for the request
         queued_dict = {}
-        for plugin in self.selected_plugins:
+        for plugin in self.active_plugins:
             if plugin.disabled or not plugin.validate(fuzz_result):
                 continue
             # If run_once is set, disable the plugin for remaining runs
@@ -814,7 +814,6 @@ class HttpQueue(FuzzQueue):
         Function running in thread to continuously monitor http request results
         """
         while True:
-            self.logger.debug(f"readhttpresults not exiting")
             fuzz_result, requeue = next(self.http_pool.iter_results())
             # HTTPPool sends a None object when signalling to stop
             if not fuzz_result:

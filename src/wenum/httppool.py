@@ -157,11 +157,9 @@ class HttpPool:
         self.request_queue.put(fuzz_result)
 
     def stop_curl_handles(self):
-        self.logger.debug("HttpPool stopping handles")
         self.exit_job = True
         # Putting a stop tuple with the highest priority
         self.result_queue.put((0, None))
-        self.logger.debug("HttpPool cleaned up")
 
     def join_threads(self):
         self.thread.join()
