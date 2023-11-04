@@ -18,6 +18,7 @@ from wenum.externals.reqresp.cache import HttpCache
 
 from abc import abstractmethod
 from distutils import util
+from threading import Event, Condition
 
 
 class BasePlugin:
@@ -35,6 +36,7 @@ class BasePlugin:
         # Plugins might adjust the FuzzResult object passed into them. This contains the original state
         self.base_fuzz_res: Optional[FuzzResult] = None
         self.cache = HttpCache()
+        self.interrupt: Optional[Event] = None
         self.session: FuzzSession = session
         self.logger = logging.getLogger("debug_log")
         self.term = Term(session)
@@ -51,11 +53,12 @@ class BasePlugin:
             if param_name not in list(self.kbase.keys()):
                 self.kbase[param_name] = default_value
 
-    def run(self, fuzz_result, control_queue: Queue, results_queue: Queue) -> None:
+    def run(self, fuzz_result, plugin_finished: Event, condition: Condition, interrupt_signal: Event, results_queue: Queue) -> None:
         """
         Will be triggered by PluginExecutor
         """
         try:
+            self.interrupt = interrupt_signal
             self.results_queue = results_queue
             self.base_fuzz_res = fuzz_result
             self.process(fuzz_result)
@@ -65,8 +68,9 @@ class BasePlugin:
             results_queue.put(exception_plugin)
         finally:
             # Signal back completion of execution
-            control_queue.get()
-            control_queue.task_done()
+            plugin_finished.set()
+            with condition:
+                condition.notify()
             return
 
     @abstractmethod
@@ -89,25 +93,25 @@ class BasePlugin:
 
     def add_information(self, message: str, severity=FuzzPlugin.INFO) -> None:
         """
-        Add some information to the result queue. It will be printed out for the user to see. Optionally specify
-        severity
+        Add some information to the result queue. It will be printed out for the user to see.
+        Optionally specify severity
         """
         message = f"Plugin {self.name}: " + message
-        self.results_queue.put(plugin_factory.create("plugin_from_finding", self.name, message, severity))
+        self.put_if_okay(plugin_factory.create("plugin_from_finding", self.name, message, severity))
 
     def add_exception_information(self, exception: str) -> None:
         """
         Add some exception information to the result queue. It will be printed out for the user to see
         """
         self.logger.warning(f"The plugin {self.name} has added exception information: {exception}")
-        self.results_queue.put(plugin_factory.create("plugin_from_error", self.name, exception))
+        self.put_if_okay(plugin_factory.create("plugin_from_error", self.name, exception))
 
     def queue_url(self, url: str, method: str = "GET") -> None:
         """
         Enqueue a new full URL. It will be processed by PluginExecutor, and if it is valid
         (not already in cache + in scope) will be queued to be sent by wenum
         """
-        self.results_queue.put(plugin_factory.create(
+        self.put_if_okay(plugin_factory.create(
                 "backfeed_plugin", self.name, self.base_fuzz_res, url, method))
 
     def queue_seed(self, seeding_url):
@@ -120,10 +124,21 @@ class BasePlugin:
         if self.session.limit_requests and self.session.http_pool.queued_requests > \
                 self.session.limit_requests:
             return
-        self.results_queue.put(plugin_factory.create(
+        self.put_if_okay(plugin_factory.create(
                 "seed_plugin", self.name, self.base_fuzz_res, seeding_url))
 
-    def _bool(self, value) -> bool:
+    def put_if_okay(self, fuzz_plugin) -> None:
+        """
+        Checks for the interrupt signal for plugins. If the interrupt is set, nothing will be put into
+        the result queue. Otherwise, it will simply do so.
+        """
+        if self.interrupt.is_set():
+            return
+        else:
+            self.results_queue.put(fuzz_plugin)
+
+    @staticmethod
+    def _bool(value) -> bool:
         return bool(util.strtobool(value))
 
 

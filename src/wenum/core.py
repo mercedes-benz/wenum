@@ -220,17 +220,6 @@ class QueueManager:
     def __getitem__(self, key):
         return self._queues[key]
 
-    def join(self, remove=False):
-        with self._mutex:
-            for k, queue in list(self._queues.items()):
-                self.logger.debug(f"Joining queue {queue.get_name()}")
-                queue.join()
-                self.logger.debug(f"Joined queue {queue.get_name()}")
-                if remove:
-                    self.logger.debug(f"Removing queue {queue.get_name()}")
-                    del self._queues[k]
-                    self.logger.debug(f"Removed queue {queue.get_name()}")
-
     def start(self):
         """
         Starting method called by the core
@@ -243,36 +232,22 @@ class QueueManager:
 
                 list(self._queues.values())[0].put_important(FuzzItem(FuzzType.STARTSEED))
 
-    def cleanup(self):
-        """
-        Called to end the runtime#TODO about to be phased out by stop_queues()
-        """
-        with self._mutex:
-            if self._queues:
-                self.join(remove=True)
-                self.last_queue.put_important(None, block=False)
-
-                self._queues = collections.OrderedDict()
-                self.last_queue = None
-        self.logger.debug("QueueManager: Cleaned up.")
-
     def stop_queues(self):
         """
         Called to stop all active queues.
 
-        This is a 2-step process of first stopping their main loop and then
-        actually closing. This prevents racing conditions. Queues may send each other items, which will
-        prevent joining if a queue isn't empty when joining is attempted. The aforementioned 2-step process ensures
-        that such a scenario will not happen.
+        This is a 2-step process of first stopping all the queues' main loop and only after every queue confirmed
+        having stopped will they actually start closing. This prevents racing conditions.
+        If each queue immediately tried to close right after being ready to do so themselves, they may get stuck
+        because they may receive an item from another queue in the very last moment before joining.
+        The aforementioned 2-step process ensures that such a scenario will not happen, because after the stopped
+        event is set, the queue promises not to meddle with other queues anymore.
         """
         with self._mutex:
             if self._queues:
                 self.logger.debug("QueueManager: Closing all queues")
                 # Send signal to all queues to stop their main loop
                 for active_queue in list(self._queues.values()):
-                    #TODO All queues need to handle this now. They should do all the cancelling themselves instead
-                    # of the main thread doing it for them if possible
-                    # To be able to join, the queues need to be empty.
                     active_queue.cancel()
                     active_queue.put_important(FuzzItem(FuzzType.STOP))
                     self.logger.debug(f"QueueManager: Sent stop signal to {active_queue.get_name()}")
@@ -285,7 +260,7 @@ class QueueManager:
                 self.monitor_queue.stopped.wait()
                 self.logger.debug(f"QueueManager: All queues have stopped")
 
-                # Send signal to all queues to ensure they are ready to join their thread
+                # Send signal to all queues to allow them to finish and join
                 for active_queue in list(self._queues.values()):
                     active_queue.close.set()
                 self.monitor_queue.close.set()
@@ -306,5 +281,3 @@ class QueueManager:
                 self.last_queue.join()
 
                 self.logger.debug("QueueManager: All queues have joined")
-
-                #self.cleanup()
