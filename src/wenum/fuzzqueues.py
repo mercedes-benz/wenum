@@ -401,7 +401,8 @@ class PluginExecutor(FuzzQueue):
         Set the interrupt signal. This will stop the PluginExecutor from waiting for all plugins to finish
         """
         self.interrupt.set()
-        self.condition.notify()
+        with self.condition:
+            self.condition.notify()
 
     def process(self, fuzz_result: FuzzResult) -> None:
         """
@@ -416,12 +417,13 @@ class PluginExecutor(FuzzQueue):
         # Keeps track of the amount of requests queued by each plugin for the request
         queued_dict = {}
         # Keeps track of all the plugins signal for completion
-        plugin_signal_list: list[Event] = []
+        plugin_signal_dict: dict = {}
         for plugin in self.active_plugins:
             plugin_finished = Event()
-            plugin_signal_list.append(plugin_finished)
             if plugin.disabled or not plugin.validate(fuzz_result):
                 continue
+            # If plugin qualifies to run, add it to the dict to keep track of when it will finish
+            plugin_signal_dict[plugin.name] = plugin_finished
             # If run_once is set, disable the plugin for remaining runs
             if plugin.run_once:
                 plugin.disabled = True
@@ -432,7 +434,7 @@ class PluginExecutor(FuzzQueue):
                 # Runs all the plugins, stores results in results_queue, and signals completion through
                 # control queue
                 thread = Thread(target=plugin.run, kwargs={"fuzz_result": fuzz_result,
-                                                           "plugin_signal": plugin_finished,
+                                                           "plugin_finished": plugin_finished,
                                                            "condition": self.condition,
                                                            "interrupt_signal": self.interrupt,
                                                            "results_queue": plugins_res_queue, }, )
@@ -440,33 +442,30 @@ class PluginExecutor(FuzzQueue):
             except Exception as e:
                 raise FuzzExceptPluginLoadError(f"Error initialising plugin {plugin.name}: {str(e)}")
             thread.start()
-        #TODO Fix. Either use this control queue, but the problem is it doesnt have a timeout to listen
-        # for the signal. Therefore would always have to wait for whatever the sleeping time is before joining it.
-        # If this was handled without the control queue and the threads were directly in a dict for the Executor,
-        # the executor could use a timeout wait. That way after the timeout it could check for the signal, and otherwise
-        # try to join one of the threads (and cascade until all of them are joined). By utilizing the timeout join,
-        # it would prevent sleeping a fixed time during the runtime. Sleeping during the runtime would be quite costly,
-        # as it would affect every single response process time.
         with self.condition:
-            # On interrupt, empty the plugin_res and close it
-            if self.interrupt.is_set():
-                while not plugins_res_queue.empty():
-                    plugins_res_queue.get()
-                    plugins_res_queue.task_done()
-                plugins_res_queue.join()
-            elif self.check_all_plugins_done(plugin_signal_list):
-                self.process_results(fuzz_result, plugins_res_queue, queued_dict)
-            else:
-                self.condition.wait()
+            while True:
+                # On interrupt, empty the plugin_res and close it
+                if self.interrupt.is_set():
+                    while not plugins_res_queue.empty():
+                        plugins_res_queue.get()
+                        plugins_res_queue.task_done()
+                    plugins_res_queue.join()
+                    break
+                elif self.check_all_plugins_done(plugin_signal_dict):
+                    self.process_results(fuzz_result, plugins_res_queue, queued_dict)
+                    break
+                else:
+                    self.condition.wait()
+
         self.send(fuzz_result)
 
     @staticmethod
-    def check_all_plugins_done(plugin_signal_list: list[Event]):
+    def check_all_plugins_done(plugin_signal_dict: dict):
         """
         Simply method to check if all the plugins have signalled completion.
         Returns True if all are finished, and False if not all have finished.
         """
-        for plugin_signal in plugin_signal_list:
+        for plugin_name, plugin_signal in plugin_signal_dict.items():
             if not plugin_signal.is_set():
                 return False
         else:
@@ -534,6 +533,7 @@ class PluginExecutor(FuzzQueue):
                     # to reduce race conditions (to fully prevent, cache needs to have threadlocks).
                     if not self.cache.check_cache(plugin.seed.history.url, cache_type=cache_type, update=True):
                         self.send(plugin.seed)
+            plugins_res_queue.task_done()
         # After all the individual results have been processed, print the amount of requests queued by each plugin
         for plugin_name, plugin_dict in queued_dict.items():
             # Only if the plugin queued a request at all

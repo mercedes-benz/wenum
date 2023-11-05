@@ -53,7 +53,7 @@ class BasePlugin:
             if param_name not in list(self.kbase.keys()):
                 self.kbase[param_name] = default_value
 
-    def run(self, fuzz_result, plugin_finished: Event, condition: Condition, interrupt_signal: Event, results_queue: Queue) -> None:
+    def run(self, fuzz_result: FuzzResult, plugin_finished: Event, condition: Condition, interrupt_signal: Event, results_queue: Queue) -> None:
         """
         Will be triggered by PluginExecutor
         """

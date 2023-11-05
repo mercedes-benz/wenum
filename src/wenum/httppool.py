@@ -5,7 +5,7 @@ import time
 from typing import TYPE_CHECKING, Optional
 from urllib.parse import urlparse
 
-from .myqueues import MyPriorityQueue
+from .myqueues import FuzzPriorityQueue
 from queue import PriorityQueue
 
 
@@ -62,6 +62,8 @@ class HttpPool:
         # Queue object storing all the requests available for sending out. Maxsize avoids buffering tens of thousands of
         # requests beforehand, which would result in gigabytes of reserved memory
         self.request_queue: Queue = Queue(maxsize=session.options.threads)
+        # Just a general default base priority with which results should be processed
+        self.base_result_priority = 10
         self.sleep = session.options.sleep
 
         # The results will be put into this queue for the HTTPQueue to grab the items from there
@@ -107,14 +109,13 @@ class HttpPool:
 
     def iter_results(self):
         """
-        Method to receive the next item in the queue storing the results of all the requests sent
+        Method to receive the next item from the queue which stores the results of all the requests sent
         """
         queue_output = self.result_queue.get()
         self.result_queue.task_done()
-        if not queue_output:
-            return
-        item = queue_output[0]
-        requeue = queue_output[1]
+        priority = queue_output[0]
+        item = queue_output[1]
+        requeue = queue_output[2]
 
         yield item, requeue
 
@@ -146,7 +147,7 @@ class HttpPool:
             # This does not make additional requests, but it does allow plugins to process the cached request.
             if cached:
                 cached.plugins_res.clear()
-                self.result_queue.put((cached, False))
+                self.result_queue.put((self.base_result_priority, cached, False))
                 return
 
         if self.sleep:
@@ -159,7 +160,7 @@ class HttpPool:
     def stop_curl_handles(self):
         self.exit_job = True
         # Putting a stop tuple with the highest priority
-        self.result_queue.put((0, None))
+        self.result_queue.put((0, None, None))
 
     def join_threads(self):
         self.thread.join()
@@ -219,10 +220,10 @@ class HttpPool:
                 buff_body.getvalue(),
             )
         except Exception as e:
-            self.result_queue.put((res.update(exception=e), requeue))
+            self.result_queue.put((self.base_result_priority, res.update(exception=e), requeue))
         else:
             # reset type to result otherwise backfeed items will enter an infinite loop
-            self.result_queue.put((res.update(), requeue))
+            self.result_queue.put((self.base_result_priority, res.update(), requeue))
 
         with self.mutex_stats:
             self.processed += 1
@@ -240,7 +241,7 @@ class HttpPool:
 
         fuzz_result.history.retries += 1
 
-        self.result_queue.put((fuzz_result, requeue))
+        self.result_queue.put((self.base_result_priority, fuzz_result, requeue))
         return True
 
     def _process_curl_handle_error(self, fuzz_result: FuzzResult, errno, errmsg):
@@ -254,7 +255,7 @@ class HttpPool:
         # Clearing the response. Otherwise, if the failed request is a recursive one, it would retain the response
         # data from the one before
         fuzz_result.history._request.response = None
-        self.result_queue.put((fuzz_result.update(exception=e), requeue))
+        self.result_queue.put((self.base_result_priority, fuzz_result.update(exception=e), requeue))
         with self.mutex_stats:
             self.processed += 1
 

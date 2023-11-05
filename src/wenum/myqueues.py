@@ -18,7 +18,11 @@ from threading import Thread, Event
 from .fuzzobjects import FuzzError, FuzzType, FuzzItem, FuzzStats
 
 
-class MyPriorityQueue(PriorityQueue):
+class FuzzPriorityQueue(PriorityQueue):
+    """
+    PriorityQueue with respecting priorities without actually returning the priority when getting items.
+    Is designed to work with FuzzItem objects only.
+    """
     def __init__(self, maxsize=0):
         PriorityQueue.__init__(self, maxsize)
 
@@ -57,9 +61,9 @@ class MyPriorityQueue(PriorityQueue):
         return item
 
 
-class FuzzQueue(MyPriorityQueue, Thread, ABC):
+class FuzzQueue(FuzzPriorityQueue, Thread, ABC):
     def __init__(self, session: FuzzSession, queue_out=None, maxsize=0):
-        MyPriorityQueue.__init__(self, maxsize)
+        FuzzPriorityQueue.__init__(self, maxsize)
         self.queue_out: Optional[FuzzQueue] = queue_out
         # Next queue in line that intends to process discarded fuzz_results
         self.queue_discard: Optional[FuzzQueue] = None
@@ -162,7 +166,7 @@ class FuzzQueue(MyPriorityQueue, Thread, ABC):
         self.send(item)
 
     def join(self):
-        MyPriorityQueue.join(self)
+        FuzzPriorityQueue.join(self)
 
     def _cleanup(self):
         """

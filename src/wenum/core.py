@@ -13,7 +13,7 @@ from .fuzzobjects import FuzzType, FuzzItem
 import collections
 from itertools import zip_longest
 
-from .myqueues import MyPriorityQueue, FuzzQueue, MonitorQueue
+from .myqueues import FuzzPriorityQueue, FuzzQueue, MonitorQueue
 from .fuzzqueues import (
     SeedQueue,
     FilePrinterQ,
@@ -40,7 +40,7 @@ class Fuzzer:
 
         self.session: FuzzSession = session
         self.qmanager: QueueManager = QueueManager(session)
-        self.last_queue: MyPriorityQueue = MyPriorityQueue()
+        self.last_queue: FuzzPriorityQueue = FuzzPriorityQueue()
         self.logger = logging.getLogger("debug_log")
 
         self.qmanager.add("seed_queue", SeedQueue(session))
@@ -160,7 +160,7 @@ class QueueManager:
         # Queue at the end of the chain to e.g. check if all requests are done
         self.monitor_queue: Optional[MonitorQueue] = None
         # Queue receiving information from monitor_queue; last_queue items will be pulled by the main thread
-        self.last_queue: Optional[MyPriorityQueue] = None
+        self.last_queue: Optional[FuzzPriorityQueue] = None
         self._mutex = RLock()
         self.logger = logging.getLogger("debug_log")
 
@@ -189,7 +189,7 @@ class QueueManager:
 
         return dict(stat_list)
 
-    def bind(self, last_queue: MyPriorityQueue):
+    def bind(self, last_queue: FuzzPriorityQueue):
         """Set all the correct output queues."""
         with self._mutex:
             self.last_queue = last_queue
