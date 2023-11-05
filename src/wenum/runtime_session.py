@@ -1,3 +1,4 @@
+import logging
 import sys
 from typing import Optional
 
@@ -13,7 +14,7 @@ from .filters.simplefilter import FuzzResSimpleFilter
 
 from .core import Fuzzer
 from .iterators import BaseIterator
-from .myhttp import HttpPool
+from .httppool import HttpPool
 
 from .externals.reqresp.cache import HttpCache
 from .printers import JSON, HTML, BasePrinter
@@ -29,6 +30,7 @@ class FuzzSession:
     """Class designed to carry runtime information relevant for conditional decisions"""
     def __init__(self, options: Options):
         self.options: Options = options
+        self.logger = logging.getLogger("debug_log")
 
         self.compiled_stats: Optional[FuzzStats] = None
         self.compiled_filter: Optional[FuzzResFilter] = None
@@ -67,15 +69,6 @@ class FuzzSession:
             if fz:
                 fz.cancel_job()
                 self.stats.update(self.compiled_stats)
-
-            if self.http_pool:
-                self.http_pool.deregister()
-                self.http_pool = None
-
-    def __enter__(self):
-        self.http_pool = HttpPool(self)
-        self.http_pool.register()
-        return self
 
     def __exit__(self, *args):
         self.close()
@@ -145,7 +138,6 @@ class FuzzSession:
 
         if not self.http_pool:
             self.http_pool = HttpPool(self)
-            self.http_pool.register()
 
         return self
 
@@ -155,7 +147,3 @@ class FuzzSession:
         """
         if self.compiled_iterator:
             self.compiled_iterator.cleanup()
-
-        if self.http_pool:
-            self.http_pool.deregister()
-            self.http_pool = None

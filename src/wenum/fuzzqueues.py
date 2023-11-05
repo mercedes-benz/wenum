@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from wenum.printers import BasePrinter
     from wenum.externals.reqresp.cache import HttpCache
 import time
-from threading import Thread, Event
+from threading import Thread, Event, Condition
 from queue import Queue
 from wenum.externals.reqresp.Response import get_encoding_from_headers
 
@@ -124,7 +124,6 @@ class SeedQueue(FuzzQueue):
             self.send(fuzz_result)
 
         # Check if the payload dictionary is empty to begin with
-        #TODO Ensure it doesn't skip out on sending the first line of the wordlist
         try:
             fuzz_word = next(self.session.compiled_iterator)
         except StopIteration:
@@ -149,7 +148,7 @@ class SeedQueue(FuzzQueue):
     def end_seed(self):
         endseed_item = FuzzItem(item_type=FuzzType.ENDSEED)
         endseed_item.priority = self.session.compiled_seed.priority
-        self.send_last(endseed_item)
+        self.send_unimportant(endseed_item)
 
 
 class CLIPrinterQ(FuzzQueue):
@@ -163,7 +162,7 @@ class CLIPrinterQ(FuzzQueue):
         self.printer = View(self.session)
         self.process_discarded = True
 
-    def mystart(self):
+    def pre_start(self):
         self.printer.header(self.stats)
 
     def items_to_process(self):
@@ -385,32 +384,46 @@ class PluginExecutor(FuzzQueue):
     Queue dedicated to handle the execution of plugins. Usually, several instances are created by PluginQueue.
     """
 
-    def __init__(self, session: FuzzSession, selected_plugins: list[BasePlugin]):
-        # Usually, several PluginExecutors are initiated in a runtime, and one of them may longer than others.
-        # Therefore, an arbitrary maxsize is provided, causing the PluginQueue to try the next one if one is full.
+    def __init__(self, session: FuzzSession, active_plugins: list[BasePlugin]):
         super().__init__(session, maxsize=30)
-        self.__walking_threads: Queue = Queue()
-        self.selected_plugins: list[BasePlugin] = selected_plugins
+        self.active_plugins: list[BasePlugin] = active_plugins
         self.cache: HttpCache = session.cache
         self.max_rlevel = session.options.recursion
         self.max_plugin_rlevel = session.options.plugin_recursion
+        self.interrupt = Event()
+        self.condition = Condition()
 
     def get_name(self) -> str:
         return "PluginExecutor"
 
+    def cancel(self):
+        """
+        Set the interrupt signal. This will stop the PluginExecutor from waiting for all plugins to finish
+        """
+        self.interrupt.set()
+        with self.condition:
+            self.condition.notify()
+
     def process(self, fuzz_result: FuzzResult) -> None:
-        """Executes all the selected plugins for the fuzz result
-        results_queue: Queue for storing the results of each plugin"""
+        """
+        Executes all the selected plugins for the fuzz result
+        """
         if fuzz_result.exception:
             self.send(fuzz_result)
             return
 
+        # Queue for storing the results of each plugin
         plugins_res_queue = Queue()
         # Keeps track of the amount of requests queued by each plugin for the request
         queued_dict = {}
-        for plugin in self.selected_plugins:
+        # Keeps track of all the plugins signal for completion
+        plugin_signal_dict: dict = {}
+        for plugin in self.active_plugins:
+            plugin_finished = Event()
             if plugin.disabled or not plugin.validate(fuzz_result):
                 continue
+            # If plugin qualifies to run, add it to the dict to keep track of when it will finish
+            plugin_signal_dict[plugin.name] = plugin_finished
             # If run_once is set, disable the plugin for remaining runs
             if plugin.run_once:
                 plugin.disabled = True
@@ -421,16 +434,42 @@ class PluginExecutor(FuzzQueue):
                 # Runs all the plugins, stores results in results_queue, and signals completion through
                 # control queue
                 thread = Thread(target=plugin.run, kwargs={"fuzz_result": fuzz_result,
-                                                           "control_queue": self.__walking_threads,
+                                                           "plugin_finished": plugin_finished,
+                                                           "condition": self.condition,
+                                                           "interrupt_signal": self.interrupt,
                                                            "results_queue": plugins_res_queue, }, )
+                thread.daemon = True
             except Exception as e:
                 raise FuzzExceptPluginLoadError(f"Error initialising plugin {plugin.name}: {str(e)}")
-            self.__walking_threads.put(thread)
             thread.start()
-        self.__walking_threads.join()
-        self.process_results(fuzz_result, plugins_res_queue, queued_dict)
+        with self.condition:
+            while True:
+                # On interrupt, empty the plugin_res and close it
+                if self.interrupt.is_set():
+                    while not plugins_res_queue.empty():
+                        plugins_res_queue.get()
+                        plugins_res_queue.task_done()
+                    plugins_res_queue.join()
+                    break
+                elif self.check_all_plugins_done(plugin_signal_dict):
+                    self.process_results(fuzz_result, plugins_res_queue, queued_dict)
+                    break
+                else:
+                    self.condition.wait()
 
         self.send(fuzz_result)
+
+    @staticmethod
+    def check_all_plugins_done(plugin_signal_dict: dict):
+        """
+        Simply method to check if all the plugins have signalled completion.
+        Returns True if all are finished, and False if not all have finished.
+        """
+        for plugin_name, plugin_signal in plugin_signal_dict.items():
+            if not plugin_signal.is_set():
+                return False
+        else:
+            return True
 
     def process_results(self, fuzz_result: FuzzResult, plugins_res_queue: Queue,
                         queued_dict: dict) -> None:
@@ -494,6 +533,7 @@ class PluginExecutor(FuzzQueue):
                     # to reduce race conditions (to fully prevent, cache needs to have threadlocks).
                     if not self.cache.check_cache(plugin.seed.history.url, cache_type=cache_type, update=True):
                         self.send(plugin.seed)
+            plugins_res_queue.task_done()
         # After all the individual results have been processed, print the amount of requests queued by each plugin
         for plugin_name, plugin_dict in queued_dict.items():
             # Only if the plugin queued a request at all
@@ -745,63 +785,71 @@ class DryRunQ(FuzzQueue):
 
 class HttpQueue(FuzzQueue):
     """
-    Queue used as transport_queue if no special params change behavior. Responsible for sending and receiving requests.
+    Queue Responsible for sending and receiving requests.
     Accepts items from SeedQueue and RoutingQueue. RoutingQueue might handle a lot of BACKFEED-objects, which take
     precedence over items coming from the SeedQueue. There is no maxsize, as the RoutingQueue would get blocked and
     compete with SeedQueue over putting items (ultimately preventing the prioritization of items). Therefore, it
-    accepts items without a limit, and SeedQueue manually makes sure not to put into HttpQueue if it's qsize() is
+    accepts items without a maxsize, and SeedQueue manually makes sure not to put into HttpQueue if it's qsize() is
     already big.
     """
 
     def __init__(self, session: FuzzSession):
-        # The HttpQ gets initialized with a maxsize to ensure that queues intending to generate requests wait
-        # in case the HttpQueue lags behind. This prevents rapid RAM allocation.
         super().__init__(session)
 
-        self.poolid = None
         self.http_pool = session.http_pool
 
         self.pause = Event()
         self.pause.set()
         self.exit_job = False
+        self.thread = None
 
     def cancel(self):
         self.pause.set()
 
-    def mystart(self):
-        self.poolid = self.http_pool.register()
+    def pre_start(self):
+        self.http_pool.initialize()
 
-        th2 = Thread(target=self.__read_http_results)
-        th2.name = "__read_http_results"
-        th2.start()
+        self.thread = Thread(target=self.__read_http_results)
+        self.thread.daemon = True
+        self.thread.name = "__read_http_results"
+        self.thread.start()
 
     def get_name(self):
         return "HttpQueue"
 
     def _cleanup(self):
-        self.http_pool.deregister()
+        """
+        Closes the threads in HTTPPool and HTTPQueue
+        """
+        self.logger.debug(f"HttpQueue cleaning up")
+        self.http_pool.stop_curl_handles()
         self.exit_job = True
+        self.thread.join()
+        self.http_pool.join_threads()
+
+        self.logger.debug(f"HttpQueue cleaned up")
 
     def items_to_process(self):
         return [FuzzType.RESULT, FuzzType.BACKFEED]
 
     def process(self, fuzz_result: FuzzResult):
         self.pause.wait()
-        self.http_pool.enqueue(fuzz_result, self.poolid)
+        self.http_pool.enqueue(fuzz_result)
 
     def __read_http_results(self):
         """
-         Function running in thread to continuously monitor http request results
+        Function running in thread to continuously monitor http request results
         """
-        try:
-            while not self.exit_job:
-                fuzz_result, requeue = next(self.http_pool.iter_results(self.poolid))
-                if requeue:
-                    self.http_pool.enqueue(fuzz_result, self.poolid)
+        while True:
+            fuzz_result, requeue = next(self.http_pool.iter_results())
+            # HTTPPool sends a None object when signalling to stop
+            if not fuzz_result:
+                break
+            if requeue:
+                self.http_pool.enqueue(fuzz_result)
+            else:
+                if fuzz_result.exception and self.session.options.stop_error:
+                    self._throw(fuzz_result.exception)
                 else:
-                    if fuzz_result.exception and self.session.options.stop_error:
-                        self._throw(fuzz_result.exception)
-                    else:
-                        self.send(fuzz_result)
-        except StopIteration:
-            pass
+                    self.send(fuzz_result)
+        self.logger.debug("__read_http_results stopping")

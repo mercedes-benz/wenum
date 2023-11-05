@@ -100,7 +100,7 @@ class Controller:
 
     def on_help(self, **event):
         message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", usage)
-        self.printer_queue.put_first(message_fuzzresult)
+        self.printer_queue.put_important(message_fuzzresult)
 
     def on_pause(self, **event):
         self.__paused = not self.__paused
@@ -111,26 +111,26 @@ class Controller:
                                                                   "may still get printed out during pause.")
             message += "\nType h to see all options."
             message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", message)
-            self.printer_queue.put_first(message_fuzzresult)
+            self.printer_queue.put_important(message_fuzzresult)
         else:
             message = self.term.color_string(self.term.fgGreen, "Resuming execution...")
             message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", message)
-            self.printer_queue.put_first(message_fuzzresult)
+            self.printer_queue.put_important(message_fuzzresult)
             self.fuzzer.resume_job()
 
     def on_stats(self, **event):
         message = self.generate_stats()
         message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", message)
-        self.printer_queue.put_first(message_fuzzresult)
+        self.printer_queue.put_important(message_fuzzresult)
 
     def on_debug(self, **event):
         message = self.generate_debug_stats()
         message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", message)
-        self.printer_queue.put_first(message_fuzzresult)
+        self.printer_queue.put_important(message_fuzzresult)
 
     def on_seeds(self, **event):
         message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", self.generate_seed_message())
-        self.printer_queue.put_first(message_fuzzresult)
+        self.printer_queue.put_important(message_fuzzresult)
 
     def generate_debug_stats(self):
         message = "\n=============== Debug ===================\n"

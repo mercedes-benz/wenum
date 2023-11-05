@@ -27,7 +27,7 @@ class FuzzWordType(Enum):
 
 
 class FuzzType(Enum):
-    (SEED, BACKFEED, RESULT, ERROR, STARTSEED, ENDSEED, CANCEL, PLUGIN, MESSAGE) = range(9)
+    (SEED, BACKFEED, RESULT, ERROR, STARTSEED, ENDSEED, PLUGIN, MESSAGE, STOP) = range(9)
 
 
 class FuzzItem:
@@ -151,6 +151,9 @@ class FuzzStats:
                 self.subdir_hits[subdir] = 1
 
     def mark_start(self):
+        """
+        Sets the starttime
+        """
         with self.mutex:
             self.starttime = time.time()
 

@@ -7,7 +7,7 @@ import sys
 import warnings
 
 #TODO Refactor this file
-logger = logging.getLogger("runtime_log")
+logger = logging.getLogger("debug_log")
 logger.addHandler(logging.NullHandler())
 logger.propagate = False
 
