@@ -365,7 +365,7 @@ class PluginQueue(FuzzListQueue):
 
         if not lplugins:
             raise FuzzExceptBadOptions(
-                "No plugin selected, check the --script name or category introduced."
+                "No plugin selected, check the --plugins option."
             )
 
         concurrent = session.options.plugin_threads
