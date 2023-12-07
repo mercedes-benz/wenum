@@ -59,17 +59,8 @@ class SeedQueue(FuzzQueue):
         if item and item.discarded:
             self.queue_discard.put(item)
         else:
-            # Poor man's blocking put. Doing it this way because RoutingQueue also puts items into HttpQueue
-            # (see HttpQueue docstring). If SeedQueue did put items without restraint,
-            # HttpQueue would buffer all the seeds, allocating huge amounts of RAM
-            while True:
-                if self.queue_out.qsize() > (self.session.options.threads * 5):
-                    # Wait a little and try again
-                    time.sleep(0.5)
-                    continue
-                else:
-                    self.queue_out.put(item)
-                    break
+            self.queue_out.receive_seed_queue.wait()
+            self.queue_out.put(item)
 
     def restart(self, seed: FuzzResult):
         """
@@ -151,7 +142,7 @@ class SeedQueue(FuzzQueue):
         self.send_unimportant(endseed_item)
 
 
-class CLIPrinterQ(FuzzQueue):
+class CLIPrinterQueue(FuzzQueue):
     """
     Queue responsible for the outputs of the results. This queue will be active for "default" ways of using wenum to
     print to the CLI
@@ -169,7 +160,7 @@ class CLIPrinterQ(FuzzQueue):
         return [FuzzType.RESULT, FuzzType.MESSAGE]
 
     def get_name(self):
-        return "CLIPrinterQ"
+        return "CLIPrinterQueue"
 
     def _cleanup(self):
         self.printer.footer(self.stats)
@@ -185,7 +176,7 @@ class CLIPrinterQ(FuzzQueue):
         self.send(fuzz_result)
 
 
-class FilePrinterQ(FuzzQueue):
+class FilePrinterQueue(FuzzQueue):
     """
     Queue designed to print to files.
     """
@@ -201,7 +192,7 @@ class FilePrinterQ(FuzzQueue):
         self.process_discarded = True
 
     def get_name(self):
-        return "FilePrinterQ"
+        return "FilePrinterQueue"
 
     def _cleanup(self):
         for printer in self.printer_list:
@@ -221,7 +212,7 @@ class FilePrinterQ(FuzzQueue):
         self.send(fuzz_result)
 
 
-class RoutingQ(FuzzQueue):
+class RoutingQueue(FuzzQueue):
     """
     Queue active when recursion of some sort is possible (effectively either -R or --script (plugins) activated)
     Responsible for sending SEED and BACKFEED types of results to their corresponding queues.
@@ -232,7 +223,7 @@ class RoutingQ(FuzzQueue):
         self.routes = routes
 
     def get_name(self):
-        return "RoutingQ"
+        return "RoutingQueue"
 
     def _cleanup(self):
         pass
@@ -257,7 +248,7 @@ class RoutingQ(FuzzQueue):
             self.send(fuzz_result)
 
 
-class FilterQ(FuzzQueue):
+class FilterQueue(FuzzQueue):
     """
     Queue designed to filter out unwanted requests
     """
@@ -269,7 +260,7 @@ class FilterQ(FuzzQueue):
         self.ffilter: BaseFilter = ffilter
 
     def get_name(self):
-        return "FilterQ"
+        return "FilterQueue"
 
     def process(self, fuzz_result: FuzzResult):
 
@@ -279,7 +270,7 @@ class FilterQ(FuzzQueue):
             self.send(fuzz_result)
 
 
-class AutofilterQ(FuzzQueue):
+class AutofilterQueue(FuzzQueue):
     """
     Queue activated with the autofilter option. During runtime, it will keep track of the most
     recent kinds of results within a path, and if they repeat too often, will discard those if they occur in that dir.
@@ -294,7 +285,7 @@ class AutofilterQ(FuzzQueue):
         self.response_tracker_dict = FixSizeOrderedDict(maximum_length=15)
 
     def get_name(self):
-        return "AutofilterQ"
+        return "AutofilterQueue"
 
     def process(self, fuzz_result: FuzzResult):
 
@@ -516,7 +507,7 @@ class PluginExecutor(FuzzQueue):
                         if fuzz_result.plugin_rlevel >= self.max_plugin_rlevel:
                             continue
                         # If the URL is deemed a false positive, don't throw a recursion
-                        elif RecursiveQ.false_positive_hit(seed=plugin.seed, session=self.session, logger=self.logger):
+                        elif RecursiveQueue.false_positive_hit(seed=plugin.seed, session=self.session, logger=self.logger):
                             continue
                         queued_dict[plugin.name]["queued_seeds"] += 1
                     else:
@@ -556,7 +547,7 @@ class PluginExecutor(FuzzQueue):
                     severity=FuzzPlugin.INFO))
 
 
-class RedirectQ(FuzzQueue):
+class RedirectQueue(FuzzQueue):
     """
     Queue designed to follow redirect URLs
     """
@@ -571,7 +562,7 @@ class RedirectQ(FuzzQueue):
         ]
 
     def get_name(self):
-        return "RedirectQ"
+        return "RedirectQueue"
 
     def process(self, fuzz_result: FuzzResult):
         if not 300 <= fuzz_result.code < 400:
@@ -614,7 +605,7 @@ class RedirectQ(FuzzQueue):
             self.send(backfeed)
 
 
-class RecursiveQ(FuzzQueue):
+class RecursiveQueue(FuzzQueue):
     """
     This queue is used when the recursive parameter is used (-R). The queue checks whether URLs should be handled
     in a recursive way, creating a new wave of requests for
@@ -630,7 +621,7 @@ class RecursiveQ(FuzzQueue):
         self.max_plugin_rlevel = session.options.plugin_recursion
 
     def get_name(self):
-        return "RecursiveQ"
+        return "RecursiveQueue"
 
     def process(self, fuzz_result: FuzzResult):
         # If it is not a directory, no recursion will be queued
@@ -715,7 +706,7 @@ class RecursiveQ(FuzzQueue):
         recursion_url = seed.history.url
         check_url = recursion_url.replace("FUZZ", check_string)
         try:
-            junk_response_tuple = RecursiveQ._get_response_tuple(check_url, headers_dict, proxy_dict)
+            junk_response_tuple = RecursiveQueue._get_response_tuple(check_url, headers_dict, proxy_dict)
         except Exception as e:
             logger.exception(f"Exception in false_positive_hit during first junk response")
             return False
@@ -731,7 +722,7 @@ class RecursiveQ(FuzzQueue):
         check_string = "thisalsodoesnotexist123"
         check_url = recursion_url.replace("FUZZ", check_string)
         try:
-            second_junk_response_tuple = RecursiveQ._get_response_tuple(check_url, headers_dict, proxy_dict)
+            second_junk_response_tuple = RecursiveQueue._get_response_tuple(check_url, headers_dict, proxy_dict)
         except Exception as e:
             logger.exception(f"Exception in false_positive_hit during second junk response")
             return False
@@ -766,7 +757,7 @@ class RecursiveQ(FuzzQueue):
         return junk_response.status_code, junk_words
 
 
-class DryRunQ(FuzzQueue):
+class DryRunQueue(FuzzQueue):
     """
     Queue used as transport_queue when 'dryrun' option is used. Sends no requests, does nothing, simply passes
     the item.
@@ -777,7 +768,7 @@ class DryRunQ(FuzzQueue):
         self.pause = Event()
 
     def get_name(self):
-        return "DryRunQ"
+        return "DryRunQueue"
 
     def process(self, fuzz_result: FuzzResult):
         self.send(fuzz_result)
@@ -798,13 +789,19 @@ class HttpQueue(FuzzQueue):
 
         self.http_pool = session.http_pool
 
-        self.pause = Event()
-        self.pause.set()
+        # Event signal dedicated to throttling the SeedQueue. This helps avoid the SeedQueue to run rampant and
+        # create excessive amounts of objects before they can be processed. They occupy lots of RAM otherwise.
+        self.receive_seed_queue = Event()
+        self.receive_seed_queue.set()
         self.exit_job = False
         self.thread = None
 
     def cancel(self):
-        self.pause.set()
+        # Avoid blocking SeedQueue to send items to HttpQueue. This avoids the SeedQueue hanging indefinitely
+        # because the HttpQueue was both "too full" to receive items and simultaneously stopped processing them.
+        # SeedQueue should also be trying to cancel anyways, which effectively means after putting in another item
+        # it should stop as well.
+        self.receive_seed_queue.set()
 
     def pre_start(self):
         self.http_pool.initialize()
@@ -833,7 +830,11 @@ class HttpQueue(FuzzQueue):
         return [FuzzType.RESULT, FuzzType.BACKFEED]
 
     def process(self, fuzz_result: FuzzResult):
-        self.pause.wait()
+        # If there are too many items waiting to be processed, do not allow SeedQueue to put in more
+        if self.qsize() > (self.session.options.threads * 5):
+            self.receive_seed_queue.clear()
+        else:
+            self.receive_seed_queue.set()
         self.http_pool.enqueue(fuzz_result)
 
     def __read_http_results(self):
