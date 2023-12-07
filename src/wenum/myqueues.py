@@ -194,6 +194,7 @@ class FuzzQueue(FuzzPriorityQueue, Thread, ABC):
             item: FuzzItem = self.get()
             try:
                 if item.item_type == FuzzType.STOP:
+                    self.logger.debug(f"{self.name} stopped")
                     self.stopped.set()
                     self.close.wait()
                     break
@@ -347,6 +348,7 @@ class FuzzListQueue(FuzzQueue, ABC):
                     self.send_important_to_all(FuzzItem(FuzzType.STOP))
                     for child in self.queues_out:
                         child.stopped.wait()
+                    self.logger.debug(f"{self.name} stopped")
                     self.stopped.set()
 
                     self.close.wait()

@@ -16,16 +16,16 @@ from itertools import zip_longest
 from .myqueues import FuzzPriorityQueue, FuzzQueue, MonitorQueue
 from .fuzzqueues import (
     SeedQueue,
-    FilePrinterQ,
-    RoutingQ,
-    FilterQ,
+    FilePrinterQueue,
+    RoutingQueue,
+    FilterQueue,
     PluginQueue,
-    RecursiveQ,
-    DryRunQ,
+    RecursiveQueue,
+    DryRunQueue,
     HttpQueue,
-    CLIPrinterQ,
-    AutofilterQ,
-    RedirectQ
+    CLIPrinterQueue,
+    AutofilterQueue,
+    RedirectQueue
 )
 
 
@@ -46,26 +46,26 @@ class Fuzzer:
         self.qmanager.add("seed_queue", SeedQueue(session))
 
         if session.options.dry_run:
-            self.qmanager.add("transport_queue", DryRunQ(session))
+            self.qmanager.add("transport_queue", DryRunQueue(session))
         else:
             self.qmanager.add("transport_queue", HttpQueue(session))
 
         if session.options.location:
-            self.qmanager.add("redirects_queue", RedirectQ(session))
+            self.qmanager.add("redirects_queue", RedirectQueue(session))
 
         if session.options.auto_filter:
             self.qmanager.add(
-                "autofilter_queue", AutofilterQ(session)
+                "autofilter_queue", AutofilterQueue(session)
             )
 
         if session.options.plugins_list:
             self.qmanager.add("plugins_queue", PluginQueue(session))
 
         if session.options.recursion:
-            self.qmanager.add("recursive_queue", RecursiveQ(session))
+            self.qmanager.add("recursive_queue", RecursiveQueue(session))
 
         if (session.options.plugins_list or session.options.recursion) and not session.options.dry_run:
-            rq = RoutingQ(
+            rq = RoutingQueue(
                 session,
                 {
                     FuzzType.SEED: self.qmanager["seed_queue"],
@@ -77,13 +77,13 @@ class Fuzzer:
 
         if session.compiled_filter:
             self.qmanager.add(
-                "filter_queue", FilterQ(session, session.compiled_filter)
+                "filter_queue", FilterQueue(session, session.compiled_filter)
             )
 
         if session.compiled_simple_filter:
             self.qmanager.add(
                 "simple_filter_queue",
-                FilterQ(session, session.compiled_simple_filter),
+                FilterQueue(session, session.compiled_simple_filter),
             )
 
         if session.options.hard_filter:
@@ -99,9 +99,9 @@ class Fuzzer:
                     continue
 
         if session.compiled_printer_list:
-            self.qmanager.add("printer_queue", FilePrinterQ(session))
+            self.qmanager.add("printer_queue", FilePrinterQueue(session))
 
-        self.qmanager.add("printer_cli", CLIPrinterQ(session))
+        self.qmanager.add("printer_cli", CLIPrinterQueue(session))
 
         self.qmanager.bind(self.last_queue)
 
