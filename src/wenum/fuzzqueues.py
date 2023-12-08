@@ -15,7 +15,6 @@ if TYPE_CHECKING:
     from wenum.plugin_api.base import BasePlugin
     from wenum.printers import BasePrinter
     from wenum.externals.reqresp.cache import HttpCache
-import time
 from threading import Thread, Event, Condition
 from queue import Queue
 from wenum.externals.reqresp.Response import get_encoding_from_headers
@@ -49,9 +48,6 @@ class SeedQueue(FuzzQueue):
     def get_name(self):
         return "SeedQueue"
 
-    def cancel(self):
-        self.session.compiled_stats.cancelled = True
-
     def items_to_process(self):
         return [FuzzType.STARTSEED, FuzzType.SEED]
 
@@ -59,6 +55,8 @@ class SeedQueue(FuzzQueue):
         if item and item.discarded:
             self.queue_discard.put(item)
         else:
+            if self.queue_out.qsize() > (self.session.options.threads * 5):
+                self.queue_out.receive_seed_queue.clear()
             self.queue_out.receive_seed_queue.wait()
             self.queue_out.put(item)
 
@@ -162,7 +160,7 @@ class CLIPrinterQueue(FuzzQueue):
     def get_name(self):
         return "CLIPrinterQueue"
 
-    def _cleanup(self):
+    def cancel(self):
         self.printer.footer(self.stats)
 
     def process(self, fuzz_result: FuzzResult):
@@ -194,7 +192,7 @@ class FilePrinterQueue(FuzzQueue):
     def get_name(self):
         return "FilePrinterQueue"
 
-    def _cleanup(self):
+    def cancel(self):
         for printer in self.printer_list:
             printer.print_to_file()
 
@@ -224,9 +222,6 @@ class RoutingQueue(FuzzQueue):
 
     def get_name(self):
         return "RoutingQueue"
-
-    def _cleanup(self):
-        pass
 
     def items_to_process(self):
         return [FuzzType.SEED, FuzzType.BACKFEED]
@@ -389,7 +384,8 @@ class PluginExecutor(FuzzQueue):
 
     def cancel(self):
         """
-        Set the interrupt signal. This will stop the PluginExecutor from waiting for all plugins to finish
+        The main thread sets the interrupt. This will stop the PluginExecutor from waiting for all plugins to finish.
+        Otherwise, stopping the runtime can take longer than necessary.
         """
         self.interrupt.set()
         with self.condition:
@@ -793,15 +789,17 @@ class HttpQueue(FuzzQueue):
         # create excessive amounts of objects before they can be processed. They occupy lots of RAM otherwise.
         self.receive_seed_queue = Event()
         self.receive_seed_queue.set()
-        self.exit_job = False
         self.thread = None
 
     def cancel(self):
-        # Avoid blocking SeedQueue to send items to HttpQueue. This avoids the SeedQueue hanging indefinitely
+        # Explicitly allow SeedQueue to put more while cancelling. This avoids the SeedQueue to hang indefinitely
         # because the HttpQueue was both "too full" to receive items and simultaneously stopped processing them.
-        # SeedQueue should also be trying to cancel anyways, which effectively means after putting in another item
-        # it should stop as well.
+        # In practice, when HttpQueue cancels, SeedQueue will be about to stop as well. This means the SeedQueue
+        # will put another item into the HttpQueue, and then start its own stopping routine.
         self.receive_seed_queue.set()
+        self.http_pool.stop_curl_handles()
+        self.thread.join()
+        self.http_pool.join_threads()
 
     def pre_start(self):
         self.http_pool.initialize()
@@ -814,26 +812,13 @@ class HttpQueue(FuzzQueue):
     def get_name(self):
         return "HttpQueue"
 
-    def _cleanup(self):
-        """
-        Closes the threads in HTTPPool and HTTPQueue
-        """
-        self.logger.debug(f"HttpQueue cleaning up")
-        self.http_pool.stop_curl_handles()
-        self.exit_job = True
-        self.thread.join()
-        self.http_pool.join_threads()
-
-        self.logger.debug(f"HttpQueue cleaned up")
-
     def items_to_process(self):
         return [FuzzType.RESULT, FuzzType.BACKFEED]
 
     def process(self, fuzz_result: FuzzResult):
-        # If there are too many items waiting to be processed, do not allow SeedQueue to put in more
-        if self.qsize() > (self.session.options.threads * 5):
-            self.receive_seed_queue.clear()
-        else:
+        # SeedQueue clears the event and waits for unblock if it sees too many items in HttpQueue queued.
+        # If there aren't too many items already waiting, then allow SeedQueue to send more again.
+        if self.qsize() <= (self.session.options.threads * 5):
             self.receive_seed_queue.set()
         self.http_pool.enqueue(fuzz_result)
 
@@ -853,4 +838,4 @@ class HttpQueue(FuzzQueue):
                     self._throw(fuzz_result.exception)
                 else:
                     self.send(fuzz_result)
-        self.logger.debug("__read_http_results stopping")
+        self.logger.debug("__read_http_results stopped")

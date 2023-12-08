@@ -58,16 +58,16 @@ class FuzzSession:
         """Method used by the API"""
         #self.data.update(kwargs)
 
-        fz = None
+        fuzzer = None
         try:
-            fz = Fuzzer(self.compile())
+            fuzzer = Fuzzer(self.compile())
 
-            for f in fz:
+            for f in fuzzer:
                 yield f
 
         finally:
-            if fz:
-                fz.cancel_job()
+            if fuzzer:
+                fuzzer.qmanager.stop_queues()
                 self.stats.update(self.compiled_stats)
 
     def __exit__(self, *args):

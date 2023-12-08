@@ -56,10 +56,12 @@ def main():
             pass
 
     except FuzzException as e:
+        fuzzer.session.compiled_stats.cancelled = True
         exception_message = "Fatal exception: {}".format(str(e))
         warnings.warn(exception_message)
         logger.exception(exception_message)
     except KeyboardInterrupt as e:
+        fuzzer.session.compiled_stats.cancelled = True
         user_message = "Keyboard interrupt registered."
         if term:
             text = term.color_string(term.fgYellow, user_message)
@@ -68,17 +70,19 @@ def main():
         warnings.warn(text)
         logger.info(user_message)
     except NotImplementedError as e:
+        fuzzer.session.compiled_stats.cancelled = True
         exception_message = "Fatal exception: Error importing wenum extensions: {}".format(str(e))
         logger.exception(exception_message)
         warnings.warn(exception_message)
     except Exception as e:
+        fuzzer.session.compiled_stats.cancelled = True
         exception_message = "Unhandled exception: {}".format(str(e))
         logger.exception(exception_message)
         warnings.warn(exception_message)
         traceback.print_exc()
     finally:
         if fuzzer:
-            fuzzer.cancel_job()
+            fuzzer.qmanager.stop_queues()
         if session:
             _log_runtime_stats(logger, session.compiled_stats)
             session.close()

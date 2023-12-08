@@ -136,14 +136,6 @@ class Fuzzer:
             + list(self.session.compiled_stats.get_runtime_stats().items())
         )
 
-    def cancel_job(self) -> None:
-        """
-        Method called when an exception of some sort is catched by the main loop.
-        If no requests are left or if the user sends an interrupt, it also ends up throwing an exception that
-        leads to the execution of this method.
-        """
-        self.qmanager.stop_queues()
-
     def pause_job(self):
         self.qmanager["transport_queue"].pause.clear()
 
@@ -248,7 +240,6 @@ class QueueManager:
                 self.logger.debug("QueueManager: Closing all queues")
                 # Send signal to all queues to stop their main loop
                 for active_queue in list(self._queues.values()):
-                    active_queue.cancel()
                     active_queue.put_important(FuzzItem(FuzzType.STOP))
                     self.logger.debug(f"QueueManager: Sent stop signal to {active_queue.get_name()}")
                 self.monitor_queue.put_important(FuzzItem(FuzzType.STOP))
@@ -267,7 +258,7 @@ class QueueManager:
 
                 # Close all queue threads
                 for active_queue in list(self._queues.values()):
-                    self.logger.debug(f"QueueManager joining queue {active_queue.get_name()}")
+                    self.logger.debug(f"QueueManager joining queue {active_queue.get_name()} with size {active_queue.qsize()}")
                     active_queue.join()
                 self.logger.debug(f"QueueManager joining queue {self.monitor_queue.name}")
                 self.monitor_queue.join()
