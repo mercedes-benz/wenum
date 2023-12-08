@@ -110,8 +110,15 @@ class FuzzQueue(FuzzPriorityQueue, Thread, ABC):
 
     def cancel(self):
         """
-        Override if needed. Will be called by the main thread for all operations necessary before shutting down.
-        Not to be confused with general cleanup operations, which will be executed in _cleanup() by the queue itself.
+        Override if needed. Will be called by the queue right before \
+        signalling to the main thread that it stopped processing items.
+        """
+        pass
+
+    def cleanup(self):
+        """
+        This will be called by the queue after it stopped, either due to a cancelling during runtime (e.g. CTRL + C)
+        or simply because everything is done.
         """
         pass
 
@@ -168,13 +175,6 @@ class FuzzQueue(FuzzPriorityQueue, Thread, ABC):
     def join(self):
         FuzzPriorityQueue.join(self)
 
-    def _cleanup(self):
-        """
-        This will be called by the queue when it stops, either due to a cancelling during runtime (e.g. CTRL + C)
-        or simply because everything is done.
-        """
-        pass
-
     def _throw(self, exception_message):
         self.logger.error(f"Exception thrown: {exception_message}")
         self.syncqueue.put_important(FuzzError(exception_message))
@@ -194,8 +194,9 @@ class FuzzQueue(FuzzPriorityQueue, Thread, ABC):
             item: FuzzItem = self.get()
             try:
                 if item.item_type == FuzzType.STOP:
-                    self.logger.debug(f"{self.name} stopped")
+                    self.cancel()
                     self.stopped.set()
+                    self.logger.debug(f"{self.name} stopped")
                     self.close.wait()
                     break
                 elif item.item_type == FuzzType.STARTSEED:
@@ -216,7 +217,7 @@ class FuzzQueue(FuzzPriorityQueue, Thread, ABC):
                 self.task_done()
                 self._throw(e)
         self.empty_queue()
-        self._cleanup()
+        self.cleanup()
         # The last task done should be sent after cleaning up, to ensure QueueManager only
         # joins after the cleanup is finished
         self.task_done()
@@ -288,7 +289,7 @@ class MonitorQueue(FuzzQueue):
                 self.task_done()
                 self._throw(e)
         self.empty_queue()
-        self._cleanup()
+        self.cleanup()
         # The last task done should be sent after cleaning up, to ensure QueueManager only
         # joins after the cleanup is finished
         self.task_done()
@@ -377,7 +378,7 @@ class FuzzListQueue(FuzzQueue, ABC):
                 self.task_done()
                 self._throw(e)
         self.empty_queue()
-        self._cleanup()
+        self.cleanup()
         # The last task done should be sent after cleaning up, to ensure QueueManager only
         # joins after the cleanup is finished
         self.task_done()
