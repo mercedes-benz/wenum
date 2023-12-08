@@ -790,6 +790,10 @@ class HttpQueue(FuzzQueue):
         self.receive_seed_queue = Event()
         self.receive_seed_queue.set()
         self.thread = None
+        # This event gets cleared once the thread is supposed to stop. After successfully stopping, it sets it again
+        # to signal that it registered and processed the stop instruction.
+        self.thread_cancelled = Event()
+        self.thread_cancelled.set()
 
     def cancel(self):
         # Explicitly allow SeedQueue to put more while cancelling. This avoids the SeedQueue to hang indefinitely
@@ -797,7 +801,15 @@ class HttpQueue(FuzzQueue):
         # In practice, when HttpQueue cancels, SeedQueue will be about to stop as well. This means the SeedQueue
         # will put another item into the HttpQueue, and then start its own stopping routine.
         self.receive_seed_queue.set()
-        self.http_pool.stop_curl_handles()
+
+        # Putting a stop tuple with the highest priority
+        self.http_pool.result_queue.put((0, None, None))
+        self.thread_cancelled.clear()
+        self.thread_cancelled.wait()
+
+        self.http_pool.thread_cancelled.clear()
+        self.http_pool.thread_cancelled.wait()
+
         self.thread.join()
         self.http_pool.join_threads()
 
@@ -824,11 +836,11 @@ class HttpQueue(FuzzQueue):
 
     def __read_http_results(self):
         """
-        Function running in thread to continuously monitor http request results
+        Function running in thread to continuously monitor http request results. It practically behaves like a queue
+        which gets items that have been put in and processes them.
         """
         while True:
             fuzz_result, requeue = next(self.http_pool.iter_results())
-            # HTTPPool sends a None object when signalling to stop
             if not fuzz_result:
                 break
             if requeue:
@@ -839,3 +851,4 @@ class HttpQueue(FuzzQueue):
                 else:
                     self.send(fuzz_result)
         self.logger.debug("__read_http_results stopped")
+        self.thread_cancelled.set()
