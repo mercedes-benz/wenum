@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from wenum.runtime_session import FuzzSession
 import pycurl
 from io import BytesIO
-from threading import Thread, Lock
+from threading import Thread, Lock, Event
 import itertools
 from queue import Queue
 import datetime
@@ -30,6 +30,7 @@ UNRECOVERABLE_PYCURL_EXCEPTIONS = [
     7,  # Failed to connect() to host or proxy.
     6,  # Couldn't resolve host. The given remote host was not resolved.
     5,  # Couldn't resolve proxy. The given proxy host could not be resolved.
+    63  # Maximum response size exceeded.
 ]
 
 # Other common pycurl exceptions:
@@ -48,7 +49,6 @@ class HttpPool:
         # Amount of total responses that have been received.
         self.processed = 0
 
-        self.exit_job = False
         self.mutex_stats = Lock()
 
         self.logger = logging.getLogger("debug_log")
@@ -62,7 +62,7 @@ class HttpPool:
         # Queue object storing all the requests available for sending out. Maxsize avoids buffering tens of thousands of
         # requests beforehand, which would result in gigabytes of reserved memory
         self.request_queue: Queue = Queue(maxsize=session.options.threads)
-        # Just a general default base priority with which results should be processed
+        # A general default base priority with which results should be processed
         self.base_result_priority = 10
         self.sleep = session.options.sleep
 
@@ -72,6 +72,10 @@ class HttpPool:
         self.next_proxy = None
 
         self.thread = None
+        # This event gets cleared once the thread is supposed to stop. After successfully stopping, it sets it again
+        # to signal that it registered and processed the stop instruction.
+        self.thread_cancelled = Event()
+        self.thread_cancelled.set()
 
         self.session: FuzzSession = session
         self.cache = self.session.cache
@@ -139,8 +143,6 @@ class HttpPool:
         It is important that enqueue is not called by the thread handling the requests, because it can deadlock if
         the queue is full while trying to append more.
         """
-        if self.exit_job:
-            return
         if self.session.options.cache_dir:
             cached = self.cache.get_object_from_object_cache(fuzz_result)
             # If the request is cached, put it in the queue to be processes by plugins and return.
@@ -156,11 +158,6 @@ class HttpPool:
         with self.mutex_stats:
             self.queued_requests += 1
         self.request_queue.put(fuzz_result)
-
-    def stop_curl_handles(self):
-        self.exit_job = True
-        # Putting a stop tuple with the highest priority
-        self.result_queue.put((0, None, None))
 
     def join_threads(self):
         self.thread.join()
@@ -203,6 +200,8 @@ class HttpPool:
         else:
             curl_h.setopt(pycurl.PROXY, "")
 
+        # Do not allow for responses bigger than 200MB
+        curl_h.setopt(pycurl.MAXFILESIZE, 200000000)
         curl_h.setopt(pycurl.TIMEOUT, self.session.options.request_timeout)
 
         return curl_h
@@ -263,8 +262,8 @@ class HttpPool:
         """
         Check for curl objects which have terminated, and add them to the curlh_freelist
         """
-        while not self.exit_job:
-            while not self.exit_job:
+        while self.thread_cancelled.is_set():
+            while self.thread_cancelled.is_set():
                 ret, num_handles = self.curl_multi.perform()
                 if ret != pycurl.E_CALL_MULTI_PERFORM:
                     break
@@ -301,3 +300,4 @@ class HttpPool:
         self.curl_multi.close()
 
         self.logger.debug(f"_process_curl_handles stopped")
+        self.thread_cancelled.set()
