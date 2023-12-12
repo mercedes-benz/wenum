@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import sys
 import time
 from typing import TYPE_CHECKING, Optional
 
@@ -30,6 +31,7 @@ def main():
     session: Optional[FuzzSession] = None
     logger = logging.getLogger("debug_log")
     term = None
+    exit_code = 0
 
     try:
         # parse command line
@@ -56,10 +58,12 @@ def main():
             pass
 
     except FuzzException as e:
-        fuzzer.session.compiled_stats.cancelled = True
+        if fuzzer:
+            fuzzer.session.compiled_stats.cancelled = True
         exception_message = "Fatal exception: {}".format(str(e))
         warnings.warn(exception_message)
         logger.exception(exception_message)
+        exit_code = 1
     except KeyboardInterrupt as e:
         fuzzer.session.compiled_stats.cancelled = True
         user_message = "Keyboard interrupt registered."
@@ -69,17 +73,20 @@ def main():
             text = "Keyboard interrupt registered."
         warnings.warn(text)
         logger.info(user_message)
+        exit_code = 130 # 128 + 2 for SIGINT
     except NotImplementedError as e:
         fuzzer.session.compiled_stats.cancelled = True
         exception_message = "Fatal exception: Error importing wenum extensions: {}".format(str(e))
         logger.exception(exception_message)
         warnings.warn(exception_message)
+        exit_code = 1
     except Exception as e:
         fuzzer.session.compiled_stats.cancelled = True
         exception_message = "Unhandled exception: {}".format(str(e))
         logger.exception(exception_message)
         warnings.warn(exception_message)
         traceback.print_exc()
+        exit_code = 1
     finally:
         if fuzzer:
             fuzzer.qmanager.stop_queues()
@@ -89,6 +96,7 @@ def main():
         if keypress:
             keypress.cancel_job()
         logger.debug("Ended")
+    sys.exit(exit_code)
 
 
 def _log_runtime_stats(logger: logging.Logger, stats: FuzzStats):
