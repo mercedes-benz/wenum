@@ -149,10 +149,12 @@ class CLIPrinterQueue(FuzzQueue):
     def __init__(self, session: FuzzSession):
         super().__init__(session)
         self.printer = View(self.session)
+        # Processes discarded results to print them to the progress bar
         self.process_discarded = True
 
     def pre_start(self):
         self.printer.header(self.stats)
+        self.printer.live.start()
 
     def items_to_process(self):
         return [FuzzType.RESULT, FuzzType.MESSAGE]
@@ -162,16 +164,15 @@ class CLIPrinterQueue(FuzzQueue):
 
     def cancel(self):
         self.printer.footer(self.stats)
+        self.printer.live.stop()
 
     def process(self, fuzz_result: FuzzResult):
-        #self.printer.remove_temp_lines()
         if fuzz_result.item_type == FuzzType.MESSAGE:
-            print(fuzz_result.rlevel_desc)
+            self.session.console.print(fuzz_result.rlevel_desc)
         else:
             self.printer.print_result_new(fuzz_result)
         if not self.session.options.quiet:
             self.printer.update_status(self.session.compiled_stats)
-        #    self.printer.append_temp_lines(self.session.compiled_stats)
         self.send(fuzz_result)
 
 
@@ -527,20 +528,16 @@ class PluginExecutor(FuzzQueue):
             # Only if the plugin queued a request at all
             if plugin_dict["queued_requests"]:
                 multiple = "s" if plugin_dict["queued_requests"] > 1 else ""
-                colored_part = self.term.color_string(self.term.fgYellow,
-                                                        f"{plugin_dict['queued_requests']} request{multiple}")
                 fuzz_result.plugins_res.append(plugin_factory.create(
                     "plugin_from_finding", name=plugin_name,
-                    message=f"Plugin {plugin_name}: Enqueued {colored_part}",
+                    message=f"Plugin {plugin_name}: Enqueued [u]{plugin_dict['queued_requests']} request{multiple}[/u]",
                     severity=FuzzPlugin.INFO))
             # Only if the plugin queued a seed at all
             if plugin_dict["queued_seeds"]:
                 multiple = "s" if plugin_dict["queued_seeds"] > 1 else ""
-                colored_part = self.term.color_string(self.term.fgRed, f"{plugin_dict['queued_seeds']} "
-                                                                         f"seed{multiple}")
                 fuzz_result.plugins_res.append(plugin_factory.create(
                     "plugin_from_finding", name=plugin_name,
-                    message=f"Plugin {plugin_name}: Enqueued {colored_part}",
+                    message=f"Plugin {plugin_name}: Enqueued [u]{plugin_dict['queued_seeds']} seed{multiple}[/u]",
                     severity=FuzzPlugin.INFO))
 
 
@@ -661,7 +658,7 @@ class RecursiveQueue(FuzzQueue):
             self.send(seed)
             fuzz_result.plugins_res.append(plugin_factory.create(
                 "plugin_from_finding", name=self.get_name(),
-                message=f"Enqueued path {recursion_url} for {self.term.color_string(self.term.fgRed, 'recursion')} "
+                message=f"Enqueued path {recursion_url} for [u]recursion[/u] "
                         f"(rlevel={seed.rlevel}, plugin_rlevel={seed.plugin_rlevel})", severity=FuzzPlugin.INFO))
         # Sends the current request into the next queue
         self.send(fuzz_result)

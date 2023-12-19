@@ -4,6 +4,9 @@ import sys
 import time
 from collections import defaultdict
 import threading
+
+import rich.console
+
 from wenum.factories.fuzzresfactory import resfactory
 
 from itertools import zip_longest
@@ -14,6 +17,7 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
 from rich.table import Table
 from rich.console import Console
+from rich.table import Row
 
 from .term import Term
 from wenum import __version__ as version
@@ -123,7 +127,7 @@ class Controller:
         self.__paused = not self.__paused
         if self.__paused:
             self.fuzzer.pause_job()
-            print()
+            self.fuzzer.session.console.print()
             message = self.term.color_string(self.term.fgYellow, "\nPausing requests. Already enqueued requests "
                                                                  "may still get printed out during pause.")
             message += "\nType h to see all options."
@@ -224,30 +228,46 @@ class View:
         self.last_discarded_result = None
         self.verbose = session.options.verbose
         self.term = Term(session)
-        self.console = Console()
+        self.console: Console = session.console
         # Keeps track of the line count of the print for discarded responses (to then overwrite these lines with the
         # next print)
         self.printed_temp_lines = 0
 
         if not session.options.quiet:
             # Progress bar
-            self.overall_progress = Progress(
+            self.overall_progress: Progress = Progress(
                 SpinnerColumn(),
                 TextColumn("{task.fields[processed]}"),
                 "/",
-                TextColumn("{task.fields[total_req]}"), console=self.console
+                TextColumn("{task.fields[total_req]}"), transient=True
+            )
+            self.filtered_progress: Progress = Progress(
+                TextColumn("{task.fields[oldest]}"),
+                TextColumn("{task.fields[middle]}"),
+                TextColumn("{task.fields[recent]}")
             )
             self.overall_task = self.overall_progress.add_task("Press h for help", processed=0, total_req=0)
+            #TODO Adjust for actual display of filtered responses
+            self.oldest_filtered_task = self.filtered_progress.add_task("oldest", oldest="w", middle="1",
+                                                                 recent="3")
+            self.middle_filtered_task = self.filtered_progress.add_task("middle", oldest="e",
+                                                                        middle="e", recent="2")
+            self.recent_filtered_task = self.filtered_progress.add_task("recent", oldest="e", middle="e", recent="2")
             progress_table = Table.grid()
             progress_table.add_row(
                 Panel.fit(
                     self.overall_progress, title="Press h for help", border_style="green", padding=(1, 1)
+                ),
+                Panel(
+                    self.filtered_progress, title="Filtered responses", border_style="red", padding=(0, 0), expand=True
                 )
             )
             self.live = Live(progress_table, auto_refresh=True, console=self.console)
-            self.live.start()
 
     def update_status(self, stats):
+        """
+        Updates the progress bar's values
+        """
         self.overall_progress.update(self.overall_task, total_req=stats.total_req, processed=stats.processed())
 
     def _print_result_verbose(self, fuzz_result: FuzzResult, print_nres=True):
@@ -285,10 +305,11 @@ class View:
             self.printed_temp_lines += printed_lines
 
     def _print_header(self, columns, max_widths):
-        print("=" * (3 * len(max_widths) + sum(max_widths[:-1]) + 10))
+        self.console.print("=" * (3 * len(max_widths) + sum(max_widths[:-1]) + 10))
         self._print_line(columns, max_widths)
-        print("=" * (3 * len(max_widths) + sum(max_widths[:-1]) + 10))
-        print("")
+        self.console.print("=" * (3 * len(max_widths) + sum(max_widths[:-1]) + 10))
+        self.console.print("")
+        pass
 
     def _print_line(self, columns: list[tuple[str, str]], max_widths: list[int]) -> int:
         """
@@ -372,13 +393,13 @@ class View:
 ********************************************************\r\n""".format(
             version=version, align=" ", width1=22 - len(version)
         )
-        print(exec_banner)
+        self.console.print(exec_banner)
         if summary:
-            print("Target: %s\r" % summary.url)
+            self.console.print(f"Target: {summary.url}")
             if summary.wordlist_req > 0:
-                print("Total requests: %d\r\n" % summary.wordlist_req)
+                self.console.print(f"Total requests: {summary.wordlist_req}")
             else:
-                print("Total requests: <<unknown>>\r\n")
+                self.console.print(f"Total requests: <<unknown>>")
 
         uncolored = self.term.noColour
 
@@ -411,34 +432,6 @@ class View:
 
         self._print_header(columns, widths)
 
-    def remove_temp_lines(self):
-        """Remove the footer from the CLI."""
-        if self.printed_temp_lines:
-            self.term.erase_lines(self.printed_temp_lines)
-
-    def append_temp_lines(self, stats):
-        """Append the footer, which is a separator with the last discarded line"""
-        terminal_size = shutil.get_terminal_size(fallback=(80, 25))
-        print(f"")
-        green_processed = self.term.color_string(self.term.fgGreen, str(stats.processed()))
-        yellow_total = self.term.color_string(self.term.fgYellow, str(stats.total_req))
-        # Careful with this print! For this to work as it does right now, the code simply assumes
-        # this line will not be longer than a single line, statically setting the total printed temp lines.
-        # It currently is short enough to guarantee that in any reasonable terminal size.
-        # Should the message ever be made longer, some logic should dynamically
-        # calculate how many lines the message will really occupy.
-        print(f"Processed {green_processed}/{yellow_total} requests")
-        self.printed_temp_lines = 3
-        # If there is no discarded result yet, just return, otherwise print it as well
-        if not self.last_discarded_result:
-            return
-        if self.verbose:
-            self.verbose_result_row_widths = [10, 10, 8, 8, 6, 9, 30, 30, terminal_size[0] - 145]
-            self._print_result_verbose(self.last_discarded_result)
-        else:
-            self.result_row_widths = [10, 8, 6, 8, 10, 6, terminal_size[0] - 66]
-            self._print_result(self.last_discarded_result)
-
     def print_result(self, fuzz_result: FuzzResult):
         """Print the result to CLI"""
         if not fuzz_result.discarded:
@@ -457,10 +450,10 @@ class View:
                 for plugin_res in fuzz_result.plugins_res:
                     if not plugin_res.is_visible() and not self.verbose:
                         continue
-                    print(f" |_  {plugin_res.message}")
+                    self.console.print(f" |_  {plugin_res.message}")
 
             if fuzz_result.exception:
-                print(f" |_ ERROR: {fuzz_result.exception}")
+                self.console.print(f" |_ ERROR: {fuzz_result.exception}")
         else:
             self.last_discarded_result = fuzz_result
 
@@ -496,20 +489,21 @@ class View:
 
         # Add plugin results
         #TODO "Plugin" messages from the core are added as Plugin blabla, that should be nicer
+        #TODO For better clarity, every second plugin should be visually marked e.g. styled dim
         if fuzz_result.plugins_res:
             plugin_grid = Table.grid(pad_edge=True, padding=(0, 1), collapse_padding=False)
-            plugin_grid.add_column("Plugin name")
-            plugin_grid.add_column("Plugin message")
+            plugin_grid.add_column("Plugin name", max_width=25, min_width=25, no_wrap=False, overflow="fold")
+            plugin_grid.add_column("Plugin message", no_wrap=False, overflow="fold")
             for plugin_res in fuzz_result.plugins_res:
                 if not plugin_res.is_visible() and not self.verbose:
                     continue
                 plugin_grid.add_row(f"  Plugin [i]{plugin_res.name}[/i]:", plugin_res.message)
 
         if fuzz_result.plugins_res:
-            self.console.rule(f"Response number {fuzz_result.result_number}")
+            self.console.rule(f"Response number {fuzz_result.result_number}", style="dim green")
             self.console.print(grid, plugin_grid)
         else:
-            self.console.rule(f"Response number {fuzz_result.result_number}")
+            self.console.rule(f"Response number {fuzz_result.result_number}", style="dim green")
             self.console.print(grid)
 
         if fuzz_result.exception:
@@ -535,9 +529,8 @@ class View:
 
         return color
 
-    @staticmethod
-    def footer(summary):
+    def footer(self, summary):
         """Function called when ending the runtime, prints a summary"""
-        sys.stdout.write("\n\r")
+        self.console.print("")
 
-        print(summary)
+        self.console.print(summary)

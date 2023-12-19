@@ -4,6 +4,9 @@ import sys
 class Term:
     """Class designed to handle terminal matters. Provides convenience functions."""
     def __init__(self, session):
+        """
+        TODO Phase out. Rich library does this better
+        """
         if session.options.colorless:
             self.reset = self.bright = self.dim = self.underscore = self.blink = self.reverse = self.hidden \
                 = self.fgBlack = self.fgRed = self.fgGreen = self.fgYellow = self.fgBlue = \

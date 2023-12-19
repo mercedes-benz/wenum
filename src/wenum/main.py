@@ -21,8 +21,6 @@ from rich.console import Console
 
 from .fuzzobjects import FuzzStats
 
-console = Console()
-
 
 def main():
     """
@@ -32,6 +30,7 @@ def main():
     fuzzer: Optional[Fuzzer] = None
     session: Optional[FuzzSession] = None
     logger = logging.getLogger("debug_log")
+    console = Console()
     term = None
 
     try:
@@ -40,7 +39,7 @@ def main():
         options = Options()
         parsed_args = options.configure_parser().parse_args()
         options.read_args(parsed_args)
-        session: FuzzSession = FuzzSession(options).compile()
+        session: FuzzSession = FuzzSession(options, console).compile()
 
         fuzzer = Fuzzer(session)
 

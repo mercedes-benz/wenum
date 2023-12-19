@@ -2,6 +2,7 @@ from wenum.plugin_api.base import BasePlugin
 from wenum.plugin_api.urlutils import parse_url
 from wenum.externals.moduleman.plugin import moduleman_plugin
 import subprocess
+from shutil import which
 
 
 @moduleman_plugin
@@ -33,6 +34,9 @@ class Gau(BasePlugin):
         return stdout
 
     def process(self, fuzz_result):
+        if not which("gau"):
+            self.add_information(f"Gau executable is not in PATH")
+            return
         initial_url = fuzz_result.history.fuzzing_url.replace("FUZZ", "")
         if self.proxy_list:
             # Concatenate protocol + IP + port -> e.g. SOCKS5://127.0.0.1:8081
@@ -46,6 +50,7 @@ class Gau(BasePlugin):
 
         gau_cmd = f"gau {target_url} {proxy_option} --threads 10 --blacklist ttf,woff,svg,png,jpg,gif,ico"
         gau_urls = self.exec_cmd(gau_cmd)
+
         gau_urls = gau_urls.decode("utf-8").splitlines()
         if not gau_urls:
             self.add_information(f"Did not find anything")

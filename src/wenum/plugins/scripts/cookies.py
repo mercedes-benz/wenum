@@ -34,6 +34,4 @@ class Cookies(BasePlugin):
                     or name not in self.kbase[KBASE_NEW_COOKIE]
                 ):
                     self.kbase[KBASE_NEW_COOKIE] = name
-                    colored_key = self.term.color_string(self.term.fgBlue, name)
-                    colored_value = self.term.color_string(self.term.fgYellow, value)
-                    self.add_information(f"Cookie first set: {colored_key}={colored_value}")
+                    self.add_information(f"Cookie first set: [u]{name}[/u]=[u]{value}[/u]")

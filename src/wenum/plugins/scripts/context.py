@@ -106,7 +106,7 @@ class Context(BasePlugin):
             split_path = parsed_url.path.split("/")
             original_path = '/'.join(split_path[:-1]) + "/"
 
-        self.add_information(f"Detected tech {self.term.color_string(self.term.fgYellow, tech)} in path {original_path}")
+        self.add_information(f"Detected tech [u]{tech}[/u] in path {original_path}")
         extensions = extension_list[tech]
 
         try:

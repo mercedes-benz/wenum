@@ -1,6 +1,7 @@
 import logging
 import sys
 from typing import Optional
+from rich.console import Console
 
 from .exception import (
     FuzzExceptBadOptions, FuzzExceptInternalError,
@@ -28,9 +29,10 @@ PRIORITY_STEP = 10
 
 class FuzzSession:
     """Class designed to carry runtime information relevant for conditional decisions"""
-    def __init__(self, options: Options):
+    def __init__(self, options: Options, console: Console):
         self.options: Options = options
         self.logger = logging.getLogger("debug_log")
+        self.console = console
 
         self.compiled_stats: Optional[FuzzStats] = None
         self.compiled_filter: Optional[FuzzResFilter] = None

@@ -33,5 +33,4 @@ class Errors(BasePlugin):
             # but logging them more than once would not be of interest and clutters the log instead
             unique_regex_matches = set(regex.findall(fuzz_result.history.content))
             for regex_match in unique_regex_matches:
-                colored_part = self.term.color_string(self.term.fgRed, regex_match)
-                self.add_information(f"{colored_part}")
+                self.add_information(f"[u]{regex_match}[/u]")
