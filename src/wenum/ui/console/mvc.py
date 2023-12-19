@@ -9,6 +9,11 @@ from wenum.factories.fuzzresfactory import resfactory
 from itertools import zip_longest
 
 from wenum.fuzzobjects import FuzzWordType, FuzzResult, FuzzStats
+from rich.live import Live
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
+from rich.table import Table
+from rich.console import Console
 
 from .term import Term
 from wenum import __version__ as version
@@ -29,6 +34,10 @@ r: Show all seeds/recursions that have been queued
 
 
 class SimpleEventDispatcher:
+    """
+    Class responsible for listening for an event (e.g. keypress)
+    """
+
     def __init__(self):
         self.publisher = defaultdict(list)
 
@@ -50,6 +59,10 @@ class SimpleEventDispatcher:
 
 
 class KeyPress(threading.Thread):
+    """
+    Class responsible for catching keyboard inputs during runtime
+    """
+
     def __init__(self):
         threading.Thread.__init__(self)
         self.inkey = kbhit.KBHit()
@@ -84,6 +97,10 @@ class KeyPress(threading.Thread):
 
 
 class Controller:
+    """
+    Class responsible for converting caught keyboard inputs into execution of methods
+    """
+
     def __init__(self, fuzzer, view: KeyPress):
         self.fuzzer = fuzzer
         self.printer_queue: FuzzQueue = self.fuzzer.qmanager["printer_cli"]
@@ -108,7 +125,7 @@ class Controller:
             self.fuzzer.pause_job()
             print()
             message = self.term.color_string(self.term.fgYellow, "\nPausing requests. Already enqueued requests "
-                                                                  "may still get printed out during pause.")
+                                                                 "may still get printed out during pause.")
             message += "\nType h to see all options."
             message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", message)
             self.printer_queue.put_important(message_fuzzresult)
@@ -207,9 +224,31 @@ class View:
         self.last_discarded_result = None
         self.verbose = session.options.verbose
         self.term = Term(session)
+        self.console = Console()
         # Keeps track of the line count of the print for discarded responses (to then overwrite these lines with the
         # next print)
         self.printed_temp_lines = 0
+
+        if not session.options.quiet:
+            # Progress bar
+            self.overall_progress = Progress(
+                SpinnerColumn(),
+                TextColumn("{task.fields[processed]}"),
+                "/",
+                TextColumn("{task.fields[total_req]}"), console=self.console
+            )
+            self.overall_task = self.overall_progress.add_task("Press h for help", processed=0, total_req=0)
+            progress_table = Table.grid()
+            progress_table.add_row(
+                Panel.fit(
+                    self.overall_progress, title="Press h for help", border_style="green", padding=(1, 1)
+                )
+            )
+            self.live = Live(progress_table, auto_refresh=True, console=self.console)
+            self.live.start()
+
+    def update_status(self, stats):
+        self.overall_progress.update(self.overall_task, total_req=stats.total_req, processed=stats.processed())
 
     def _print_result_verbose(self, fuzz_result: FuzzResult, print_nres=True):
         txt_color = self.term.noColour
@@ -278,8 +317,8 @@ class View:
                     [
                         color + str.ljust(str(item), width) + self.term.reset
                         for (item, width, color) in zip(
-                            column, max_widths, [color[1] for color in columns]
-                        )
+                        column, max_widths, [color[1] for color in columns]
+                    )
                     ]
                 )
             )
@@ -293,7 +332,7 @@ class View:
         sys.stdout.flush()
         return len(wrapped_columns)
 
-    def _print_result(self, fuzz_result: FuzzResult, print_nres=True):
+    def _print_result(self, fuzz_result: FuzzResult):
         """
         Function to print out the result by taking a FuzzResult. print_nres is a bool that indicates whether the
         result number should be added to the row.
@@ -303,28 +342,31 @@ class View:
             url_output = f"{fuzz_result.url} -> {location}"
         else:
             url_output = fuzz_result.url
-        txt_color = self.term.noColour
+        no_colour = self.term.noColour
 
         # Each column consists of a tuple storing both the string and the associated color of the column
         columns = [
-            ("%09d:" % fuzz_result.result_number if print_nres else " |_", txt_color),
+            ("%09d:" % fuzz_result.result_number, no_colour),
             ("%s" % str(fuzz_result.code) if not fuzz_result.exception else "XXX",
              self.term.get_color(fuzz_result.code)),
-            ("%d L" % fuzz_result.lines, txt_color),
-            ("%d W" % fuzz_result.words, txt_color),
-            ("%d Ch" % fuzz_result.chars, txt_color),
-            ('%s' % fuzz_result.history.method, txt_color),
+            ("%d L" % fuzz_result.lines, no_colour),
+            ("%d W" % fuzz_result.words, no_colour),
+            ("%d Ch" % fuzz_result.chars, no_colour),
+            ('%s' % fuzz_result.history.method, no_colour),
             (f'"{url_output}"' if not fuzz_result.exception
-             else f'"{fuzz_result.url}"', txt_color),
+             else f'"{fuzz_result.url}"', no_colour),
         ]
 
-        self.term.set_color(txt_color)
+        self.term.set_color(no_colour)
         printed_lines = self._print_line(columns, self.result_row_widths)
         if fuzz_result.discarded:
             self.printed_temp_lines += printed_lines
 
     def header(self, summary):
-        """Prints the wenum header"""
+        """
+        Prints the wenum header
+        TODO Refactor, and utilize the rich library for this
+        """
         exec_banner = """********************************************************\r
 * wenum {version} - A Web Fuzzer {align: <{width1}}*\r
 ********************************************************\r\n""".format(
@@ -421,6 +463,77 @@ class View:
                 print(f" |_ ERROR: {fuzz_result.exception}")
         else:
             self.last_discarded_result = fuzz_result
+
+    def print_result_new(self, fuzz_result: FuzzResult):
+        """
+        @TODO Replace the original func with this
+        """
+        if fuzz_result.discarded:
+            return
+        grid = Table.grid(pad_edge=True, padding=(0, 1), collapse_padding=False)
+        grid.add_column("HTTP Code", min_width=3, max_width=3, no_wrap=False, overflow="fold")
+        grid.add_column("Lines", min_width=6, max_width=6, no_wrap=False, overflow="fold", justify="right")
+        grid.add_column("Words", min_width=8, max_width=8, no_wrap=False, overflow="fold", justify="right")
+        grid.add_column("Bytes", min_width=10, max_width=10, no_wrap=False, overflow="fold", justify="right")
+        grid.add_column("HTTP Method", min_width=7, max_width=7, no_wrap=False, overflow="fold")
+        grid.add_column("URL", no_wrap=False, overflow="fold")
+        grid.columns[0].style = self.get_response_code_color(fuzz_result.code)
+        grid.columns[1].style = "magenta"
+        grid.columns[2].style = "cyan"
+        grid.columns[3].style = "yellow"
+        grid.columns[4].style = "slate_blue1"
+
+        if fuzz_result.history.redirect_header:
+            location = fuzz_result.history.full_redirect_url
+            link = location
+            url_output = f"{fuzz_result.url} -> {location}"
+        else:
+            url_output = fuzz_result.url
+            link = url_output
+
+        grid.add_row(str(fuzz_result.code), str(fuzz_result.lines) + " L", str(fuzz_result.words) + " W",
+                     str(fuzz_result.chars) + " B", fuzz_result.history.method, url_output + f"[link={link}]")
+
+        # Add plugin results
+        #TODO "Plugin" messages from the core are added as Plugin blabla, that should be nicer
+        if fuzz_result.plugins_res:
+            plugin_grid = Table.grid(pad_edge=True, padding=(0, 1), collapse_padding=False)
+            plugin_grid.add_column("Plugin name")
+            plugin_grid.add_column("Plugin message")
+            for plugin_res in fuzz_result.plugins_res:
+                if not plugin_res.is_visible() and not self.verbose:
+                    continue
+                plugin_grid.add_row(f"  Plugin [i]{plugin_res.name}[/i]:", plugin_res.message)
+
+        if fuzz_result.plugins_res:
+            self.console.rule(f"Response number {fuzz_result.result_number}")
+            self.console.print(grid, plugin_grid)
+        else:
+            self.console.rule(f"Response number {fuzz_result.result_number}")
+            self.console.print(grid)
+
+        if fuzz_result.exception:
+            self.console.print(f" [b]ERROR[/b]: {fuzz_result.exception}")
+
+    @staticmethod
+    def get_response_code_color(code: int):
+        """
+        Takes an HTTP response code (e.g. 302) and returns the color that it should be printed with on the CLI
+        """
+        # informational until 200, successful until 300
+        if 100 <= code < 300:
+            color = "green"
+        # redirects
+        elif 300 <= code < 400:
+            color = "blue"
+        # client errors until 500, server errors until 600
+        elif 400 <= code < 600:
+            color = "red"
+        # undefined otherwise
+        else:
+            color = "white"
+
+        return color
 
     @staticmethod
     def footer(summary):

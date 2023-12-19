@@ -7,16 +7,17 @@ authors = ["None"]
 [tool.poetry.dependencies]
 python = "^3.10"
 linkfinder = { path = "./src/linkfinder" }
-chardet = "^5.0.0"
-pycurl = "^7.45.1"
-pyparsing = "^2.3.0"
+chardet = "^5.2.0"
+pycurl = "^7.45.2"
+pyparsing = "^3.1.1"
 pySocks = "^1.7.1"
 six = "^1.11.0"
 requests = "^2.28.1"
-tomlkit = "^0.12.1"
+tomlkit = "^0.12.3"
 beautifulsoup4 = "^4.11.1"
 python-dateutil = "^2.8.2"
-pytz = "^2022.6"
+pytz = "^2023.3.post1"
+rich = "^13.7.0"
 
 [tool.poetry.scripts]
 wenum = 'wenum.main:main'

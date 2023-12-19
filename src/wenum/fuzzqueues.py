@@ -164,13 +164,14 @@ class CLIPrinterQueue(FuzzQueue):
         self.printer.footer(self.stats)
 
     def process(self, fuzz_result: FuzzResult):
-        self.printer.remove_temp_lines()
+        #self.printer.remove_temp_lines()
         if fuzz_result.item_type == FuzzType.MESSAGE:
             print(fuzz_result.rlevel_desc)
         else:
-            self.printer.print_result(fuzz_result)
+            self.printer.print_result_new(fuzz_result)
         if not self.session.options.quiet:
-            self.printer.append_temp_lines(self.session.compiled_stats)
+            self.printer.update_status(self.session.compiled_stats)
+        #    self.printer.append_temp_lines(self.session.compiled_stats)
         self.send(fuzz_result)
 
 

@@ -1,6 +1,7 @@
 from wenum.plugin_api.base import BasePlugin
 from wenum.externals.moduleman.plugin import moduleman_plugin
-
+from bs4 import BeautifulSoup, MarkupResemblesLocatorWarning
+import warnings
 
 @moduleman_plugin
 class Title(BasePlugin):
@@ -21,7 +22,8 @@ class Title(BasePlugin):
         return True
 
     def process(self, fuzz_result):
-        soup = fuzz_result.history.get_soup()
+        soup = BeautifulSoup(fuzz_result.history.content, "html.parser")
+
         title = soup.title.string if soup.title else ""
 
         if title and title != "" and title not in self.kbase["title"]:

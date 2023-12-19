@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 from .externals.reqresp import Request, Response
 from .exception import FuzzExceptBadAPI, FuzzExceptBadOptions
-from .mixins import FuzzRequestUrlMixing, FuzzRequestSoupMixing
+from .mixins import FuzzRequestUrlMixing
 
 from .helpers.obj_dic import DotDict
 
@@ -129,7 +129,7 @@ class Params:
         self.post = values
 
 
-class FuzzRequest(FuzzRequestUrlMixing, FuzzRequestSoupMixing):
+class FuzzRequest(FuzzRequestUrlMixing):
     def __init__(self):
         self._request: Request = Request()
 

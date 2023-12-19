@@ -5,24 +5,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from wenum.fuzzobjects import FuzzResult
 from .plugin_api.urlutils import parse_url
-from .exception import FuzzExceptBadInstall
 import socket
 import itertools
 from abc import abstractmethod
 
 from urllib.parse import urljoin, urlunparse
-
-
-class FuzzRequestSoupMixing:
-    def get_soup(self):
-        try:
-            from bs4 import BeautifulSoup
-        except ImportError:
-            raise FuzzExceptBadInstall("You need to install beautifulsoup4 first!")
-
-        soup = BeautifulSoup(self.content, "html.parser")
-
-        return soup
 
 
 class FuzzRequestUrlMixing:

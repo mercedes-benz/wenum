@@ -17,8 +17,11 @@ from .ui.console.mvc import Controller, KeyPress
 from .ui.console.term import Term
 from .runtime_session import FuzzSession
 from wenum.user_opts import Options
+from rich.console import Console
 
 from .fuzzobjects import FuzzStats
+
+console = Console()
 
 
 def main():
@@ -32,6 +35,7 @@ def main():
     term = None
 
     try:
+        console.clear()
         # parse command line
         options = Options()
         parsed_args = options.configure_parser().parse_args()

@@ -3,6 +3,8 @@ __version__ = "0.1"
 
 import logging
 import sys
+import urllib3
+from bs4 import MarkupResemblesLocatorWarning
 
 import warnings
 
@@ -10,6 +12,13 @@ import warnings
 logger = logging.getLogger("debug_log")
 logger.addHandler(logging.NullHandler())
 logger.propagate = False
+
+# Will throw warnings when a proxy is used
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Will throw warnings when the response is very short and has some key chars in it that make BS4 think its a filename
+warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
+
 
 # define warnings format
 def warning_on_one_line(message, category, filename, lineno, file=None, line=None):

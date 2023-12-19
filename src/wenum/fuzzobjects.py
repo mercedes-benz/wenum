@@ -437,7 +437,7 @@ class FuzzPlugin(FuzzItem):
 
     def __init__(self):
         FuzzItem.__init__(self, FuzzType.PLUGIN)
-        self.source = ""
+        self.name = ""
         self.severity = self.INFO
         self.message = ""
         self.exception = None
