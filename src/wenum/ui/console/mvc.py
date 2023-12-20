@@ -282,11 +282,14 @@ class View:
                                                                         lines="", bytes="", http_method="", endpoint="")
 
             progress_table = Table.grid()
-            #TODO Conditional, dont set subtitle if interactive is off
+            if session.options.noninteractive:
+                subtitle = ""
+            else:
+                subtitle = "Press h for help"
             progress_table.add_row(
                 Panel(
                     self.overall_progress, title="Processed", border_style="green", padding=(1, 1), expand=True,
-                    subtitle="Press h for help"
+                    subtitle=subtitle
                 ),
                 Panel(
                     self.filtered_progress, title="Filtered responses", border_style="red", padding=(0, 1), expand=True,

@@ -154,7 +154,8 @@ class CLIPrinterQueue(FuzzQueue):
 
     def pre_start(self):
         self.printer.header(self.stats)
-        self.printer.live.start()
+        if not self.session.options.quiet:
+            self.printer.live.start()
 
     def items_to_process(self):
         return [FuzzType.RESULT, FuzzType.MESSAGE]
@@ -164,7 +165,8 @@ class CLIPrinterQueue(FuzzQueue):
 
     def cancel(self):
         self.printer.footer(self.stats)
-        self.printer.live.stop()
+        if not self.session.options.quiet:
+            self.printer.live.stop()
 
     def process(self, fuzz_result: FuzzResult):
         if fuzz_result.item_type == FuzzType.MESSAGE:
