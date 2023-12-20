@@ -174,11 +174,11 @@ class HttpPool:
 
     @staticmethod
     def _get_next_proxy(proxy_list):
-        i = 0
-        while 1:
-            yield proxy_list[i]
-            i += 1
-            i = i % len(proxy_list)
+        index = 0
+        while True:
+            yield proxy_list[index]
+            index += 1
+            index = index % len(proxy_list)
 
     def _set_extra_options(self, curl_h):
         """

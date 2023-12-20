@@ -15,7 +15,7 @@ from wenum.fuzzobjects import FuzzWordType, FuzzResult, FuzzStats
 from rich.live import Live
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
-from rich.table import Table
+from rich.table import Table, Column
 from rich.console import Console
 from rich.table import Row
 
@@ -224,6 +224,15 @@ class View:
     result_row_widths = [10, 8, 6, 8, 10, 6, shutil.get_terminal_size(fallback=(80, 25))[0] - 66]
     verbose_result_row_widths = [10, 10, 8, 8, 6, 9, 30, 30, shutil.get_terminal_size(fallback=(80, 25))[0] - 145]
 
+    # Static lists
+    fuzzresult_row_widths: dict = {
+        "http_code": 3,
+        "lines": 6,
+        "words": 8,
+        "bytes": 10,
+        "http_method": 7,
+    }
+
     def __init__(self, session):
         self.last_discarded_result = None
         self.verbose = session.options.verbose
@@ -233,37 +242,54 @@ class View:
         # next print)
         self.printed_temp_lines = 0
 
+        # Progress bar
+        self.next_task = self._get_next_task()
         if not session.options.quiet:
-            # Progress bar
+            # Processed responses
             self.overall_progress: Progress = Progress(
                 SpinnerColumn(),
                 TextColumn("{task.fields[processed]}", justify="center"),
                 TextColumn("/", justify="center"),
                 TextColumn("{task.fields[total_req]}", justify="center"), transient=True
             )
-            # Alternatively, add RenderableColumns and add Columns() objects with limited sizes
+            #TODO Conditional, add verbose info if option is set
+            # Filtered responses
             self.filtered_progress: Progress = Progress(
-                TextColumn("{task.fields[filtered_result]}")
+                TextColumn("{task.fields[http_code]}",
+                           table_column=Column(min_width=self.fuzzresult_row_widths["http_code"],
+                                               max_width=self.fuzzresult_row_widths["http_code"], no_wrap=True)),
+                TextColumn("{task.fields[words]}",
+                           table_column=Column(min_width=self.fuzzresult_row_widths["words"],
+                                               max_width=self.fuzzresult_row_widths["words"], no_wrap=True)),
+                TextColumn("{task.fields[lines]}",
+                           table_column=Column(min_width=self.fuzzresult_row_widths["lines"],
+                                               max_width=self.fuzzresult_row_widths["lines"], no_wrap=True)),
+                TextColumn("{task.fields[bytes]}",
+                           table_column=Column(min_width=self.fuzzresult_row_widths["bytes"],
+                                               max_width=self.fuzzresult_row_widths["bytes"], no_wrap=True)),
+                TextColumn("{task.fields[http_method]}",
+                           table_column=Column(min_width=self.fuzzresult_row_widths["http_method"],
+                                               max_width=self.fuzzresult_row_widths["http_method"], no_wrap=True)),
+                #TODO To save space, only print full URL if not the same as the option specified one. Otherwise, just path
+                TextColumn("{task.fields[endpoint]}", table_column=Column(no_wrap=True)),
             )
-            self.overall_task = self.overall_progress.add_task("Press h for help", processed=0, total_req=0)
-            #TODO Adjust for actual display of filtered responses
-            self.oldest_filtered_task = self.filtered_progress.add_task("oldest", filtered_result="w")
-            self.middle_filtered_task = self.filtered_progress.add_task("middle", filtered_result="e")
-            self.recent_filtered_task = self.filtered_progress.add_task("recent", filtered_result="2")
-            # The entries of the first and second filtered row need to be stored, as they will be pushed further back.
-            # The entry of the last table will always be discarded, which is why it's not tracked.
-            #self.middle_entry: Table = None
-            #self.recent_entry: Table = None
-            self.middle_entry = "w"
-            self.recent_entry = "s"
+            self.overall_task = self.overall_progress.add_task("Processed", processed=0, total_req=0)
+            self.oldest_filtered_task = self.filtered_progress.add_task("oldest", http_code="", words="",
+                                                                        lines="", bytes="", http_method="", endpoint="")
+            self.middle_filtered_task = self.filtered_progress.add_task("middle", http_code="", words="",
+                                                                        lines="", bytes="", http_method="", endpoint="")
+            self.recent_filtered_task = self.filtered_progress.add_task("recent", http_code="", words="",
+                                                                        lines="", bytes="", http_method="", endpoint="")
+
             progress_table = Table.grid()
+            #TODO Conditional, dont set subtitle if interactive is off
             progress_table.add_row(
                 Panel(
                     self.overall_progress, title="Processed", border_style="green", padding=(1, 1), expand=True,
                     subtitle="Press h for help"
                 ),
                 Panel(
-                    self.filtered_progress, title="Filtered responses", border_style="red", padding=(0, 0), expand=True,
+                    self.filtered_progress, title="Filtered responses", border_style="red", padding=(0, 1), expand=True,
                 )
             )
             progress_table.expand = True
@@ -277,21 +303,42 @@ class View:
         """
         self.overall_progress.update(self.overall_task, total_req=stats.total_req, processed=stats.processed())
 
-        self.filtered_progress.update(self.recent_filtered_task, filtered_result="r")
-        if self.recent_entry:
-            self.filtered_progress.update(self.middle_filtered_task, filtered_result=self.recent_entry)
-        if self.middle_entry:
-            self.filtered_progress.update(self.oldest_filtered_task, filtered_result=self.middle_entry)
+    def update_filtered(self, fuzz_result: FuzzResult):
+        """
+        Update the filtered bar's values with the provided discarded FuzzResult
+        """
+        self.filtered_progress.update(next(self.next_task), http_code=str(fuzz_result.code), lines=str(fuzz_result.lines) + " L",
+                                      words=str(fuzz_result.words) + " W", bytes=str(fuzz_result.chars) + " B",
+                                      http_method=fuzz_result.history.method, endpoint=fuzz_result.url)
 
-        self.recent_entry = "r"
-        self.middle_entry = "e"
+    def _get_next_task(self):
+        """
+        Infinitely loops through the 3 tasks that display filtered results.
+        """
+        index = 0
+        while True:
+            if index == 0:
+                yield self.recent_filtered_task
+            elif index == 1:
+                yield self.middle_filtered_task
+            elif index == 2:
+                yield self.oldest_filtered_task
+            index += 1
+            index = index % 3
+
+
+    def set_progress_bar(self, fuzz_result: FuzzResult, filter_task):
+        self.filtered_progress.update(filter_task, http_code=str(fuzz_result.code), lines=str(fuzz_result.lines) + " L",
+                                      words=str(fuzz_result.words) + " W", bytes=str(fuzz_result.chars) + " B",
+                                      http_method=fuzz_result.history.method, endpoint=fuzz_result.url)
+
 
     def _print_result_verbose(self, fuzz_result: FuzzResult, print_nres=True):
         txt_color = self.term.noColour
 
         if fuzz_result.history.redirect_header:
             location = fuzz_result.history.full_redirect_url
-            url_output = f"{fuzz_result.url} -> {location}"
+            url_output = f"{fuzz_result.url} :right_arrow: {location}"
         else:
             url_output = fuzz_result.url
             location = ""
@@ -376,7 +423,7 @@ class View:
         """
         if fuzz_result.history.redirect_header:
             location = fuzz_result.history.full_redirect_url
-            url_output = f"{fuzz_result.url} -> {location}"
+            url_output = f"{fuzz_result.url} :right_arrow: {location}"
         else:
             url_output = fuzz_result.url
         no_colour = self.term.noColour
@@ -419,6 +466,7 @@ class View:
 
         uncolored = self.term.noColour
 
+        #TODO Server is pretty irrelevant, so only addition is C.Time? Is that ever important? Phase out verbose?
         if self.verbose:
             columns = [
                 ("ID", uncolored),
@@ -480,12 +528,19 @@ class View:
         if fuzz_result.discarded:
             return
         grid = Table.grid(pad_edge=True, padding=(0, 1), collapse_padding=False)
-        grid.add_column("HTTP Code", min_width=3, max_width=3, no_wrap=False, overflow="fold")
-        grid.add_column("Lines", min_width=6, max_width=6, no_wrap=False, overflow="fold", justify="right")
-        grid.add_column("Words", min_width=8, max_width=8, no_wrap=False, overflow="fold", justify="right")
-        grid.add_column("Bytes", min_width=10, max_width=10, no_wrap=False, overflow="fold", justify="right")
-        grid.add_column("HTTP Method", min_width=7, max_width=7, no_wrap=False, overflow="fold")
+        grid.add_column("HTTP Code", min_width=self.fuzzresult_row_widths["http_code"],
+                        max_width=self.fuzzresult_row_widths["http_code"], no_wrap=False, overflow="fold")
+        grid.add_column("Lines", min_width=self.fuzzresult_row_widths["lines"],
+                        max_width=self.fuzzresult_row_widths["lines"], no_wrap=False, overflow="fold", justify="right")
+        grid.add_column("Words", min_width=self.fuzzresult_row_widths["words"],
+                        max_width=self.fuzzresult_row_widths["words"], no_wrap=False, overflow="fold", justify="right")
+        grid.add_column("Bytes", min_width=self.fuzzresult_row_widths["bytes"],
+                        max_width=self.fuzzresult_row_widths["bytes"], no_wrap=False, overflow="fold", justify="right")
+        grid.add_column("HTTP Method", min_width=self.fuzzresult_row_widths["http_method"],
+                        max_width=self.fuzzresult_row_widths["http_method"], no_wrap=False, overflow="fold")
         grid.add_column("URL", no_wrap=False, overflow="fold")
+
+        # Set colors
         grid.columns[0].style = self.get_response_code_color(fuzz_result.code)
         grid.columns[1].style = "magenta"
         grid.columns[2].style = "cyan"
@@ -495,7 +550,7 @@ class View:
         if fuzz_result.history.redirect_header:
             location = fuzz_result.history.full_redirect_url
             link = location
-            url_output = f"{fuzz_result.url} -> {location}"
+            url_output = f"{fuzz_result.url} :right_arrow: {location}"
         else:
             url_output = fuzz_result.url
             link = url_output
@@ -516,10 +571,10 @@ class View:
                 plugin_grid.add_row(f"  Plugin [i]{plugin_res.name}[/i]:", plugin_res.message)
 
         if fuzz_result.plugins_res:
-            self.console.rule(f"Response number {fuzz_result.result_number}:", style="dim green")
+            self.console.rule(f"[dim]Response number {fuzz_result.result_number}:[/dim]", style="dim green")
             self.console.print(grid, plugin_grid)
         else:
-            self.console.rule(f"Response number {fuzz_result.result_number}:", style="dim green")
+            self.console.rule(f"[dim]Response number {fuzz_result.result_number}:[/dim]", style="dim green")
             self.console.print(grid)
 
         if fuzz_result.exception:

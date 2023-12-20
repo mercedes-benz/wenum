@@ -173,6 +173,8 @@ class CLIPrinterQueue(FuzzQueue):
             self.printer.print_result_new(fuzz_result)
         if not self.session.options.quiet:
             self.printer.update_status(self.session.compiled_stats)
+            if fuzz_result.discarded:
+                self.printer.update_filtered(fuzz_result)
         self.send(fuzz_result)
 
 
