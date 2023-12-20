@@ -237,31 +237,38 @@ class View:
             # Progress bar
             self.overall_progress: Progress = Progress(
                 SpinnerColumn(),
-                TextColumn("{task.fields[processed]}"),
-                "/",
-                TextColumn("{task.fields[total_req]}"), transient=True
+                TextColumn("{task.fields[processed]}", justify="center"),
+                TextColumn("/", justify="center"),
+                TextColumn("{task.fields[total_req]}", justify="center"), transient=True
             )
+            # Alternatively, add RenderableColumns and add Columns() objects with limited sizes
             self.filtered_progress: Progress = Progress(
-                TextColumn("{task.fields[oldest]}"),
-                TextColumn("{task.fields[middle]}"),
-                TextColumn("{task.fields[recent]}")
+                TextColumn("{task.fields[filtered_result]}")
             )
             self.overall_task = self.overall_progress.add_task("Press h for help", processed=0, total_req=0)
             #TODO Adjust for actual display of filtered responses
-            self.oldest_filtered_task = self.filtered_progress.add_task("oldest", oldest="w", middle="1",
-                                                                 recent="3")
-            self.middle_filtered_task = self.filtered_progress.add_task("middle", oldest="e",
-                                                                        middle="e", recent="2")
-            self.recent_filtered_task = self.filtered_progress.add_task("recent", oldest="e", middle="e", recent="2")
+            self.oldest_filtered_task = self.filtered_progress.add_task("oldest", filtered_result="w")
+            self.middle_filtered_task = self.filtered_progress.add_task("middle", filtered_result="e")
+            self.recent_filtered_task = self.filtered_progress.add_task("recent", filtered_result="2")
+            # The entries of the first and second filtered row need to be stored, as they will be pushed further back.
+            # The entry of the last table will always be discarded, which is why it's not tracked.
+            #self.middle_entry: Table = None
+            #self.recent_entry: Table = None
+            self.middle_entry = "w"
+            self.recent_entry = "s"
             progress_table = Table.grid()
             progress_table.add_row(
-                Panel.fit(
-                    self.overall_progress, title="Press h for help", border_style="green", padding=(1, 1)
+                Panel(
+                    self.overall_progress, title="Processed", border_style="green", padding=(1, 1), expand=True,
+                    subtitle="Press h for help"
                 ),
                 Panel(
-                    self.filtered_progress, title="Filtered responses", border_style="red", padding=(0, 0), expand=True
+                    self.filtered_progress, title="Filtered responses", border_style="red", padding=(0, 0), expand=True,
                 )
             )
+            progress_table.expand = True
+            progress_table.columns[0].ratio = 5
+            progress_table.columns[1].ratio = 20
             self.live = Live(progress_table, auto_refresh=True, console=self.console)
 
     def update_status(self, stats):
@@ -269,6 +276,15 @@ class View:
         Updates the progress bar's values
         """
         self.overall_progress.update(self.overall_task, total_req=stats.total_req, processed=stats.processed())
+
+        self.filtered_progress.update(self.recent_filtered_task, filtered_result="r")
+        if self.recent_entry:
+            self.filtered_progress.update(self.middle_filtered_task, filtered_result=self.recent_entry)
+        if self.middle_entry:
+            self.filtered_progress.update(self.oldest_filtered_task, filtered_result=self.middle_entry)
+
+        self.recent_entry = "r"
+        self.middle_entry = "e"
 
     def _print_result_verbose(self, fuzz_result: FuzzResult, print_nres=True):
         txt_color = self.term.noColour
@@ -500,10 +516,10 @@ class View:
                 plugin_grid.add_row(f"  Plugin [i]{plugin_res.name}[/i]:", plugin_res.message)
 
         if fuzz_result.plugins_res:
-            self.console.rule(f"Response number {fuzz_result.result_number}", style="dim green")
+            self.console.rule(f"Response number {fuzz_result.result_number}:", style="dim green")
             self.console.print(grid, plugin_grid)
         else:
-            self.console.rule(f"Response number {fuzz_result.result_number}", style="dim green")
+            self.console.rule(f"Response number {fuzz_result.result_number}:", style="dim green")
             self.console.print(grid)
 
         if fuzz_result.exception:
