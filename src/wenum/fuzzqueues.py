@@ -339,11 +339,10 @@ class AutofilterQueue(FuzzQueue):
             redirect_string = ". Redirects will still be followed in the background."
         else:
             redirect_string = ""
-        colored_identifier = self.term.color_string(self.term.fgRed, identifier)
         fuzz_result.plugins_res.append(
             plugin_factory.create("plugin_from_finding", self.get_name(),
                                   f"Recurring response detected. Filtering out "
-                                  f"'{colored_identifier}'{redirect_string}", FuzzPlugin.INFO))
+                                  f"'[u]{identifier}[/u]'{redirect_string}", FuzzPlugin.INFO))
 
 
 class PluginQueue(FuzzListQueue):

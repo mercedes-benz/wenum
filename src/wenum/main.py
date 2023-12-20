@@ -38,7 +38,7 @@ def main():
         # parse command line
         options = Options()
         parsed_args = options.configure_parser().parse_args()
-        options.read_args(parsed_args)
+        options.read_args(parsed_args, console)
         session: FuzzSession = FuzzSession(options, console).compile()
 
         fuzzer = Fuzzer(session)

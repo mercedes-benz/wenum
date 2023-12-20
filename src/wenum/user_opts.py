@@ -4,6 +4,9 @@ import re
 import sys
 from typing import Optional
 from urllib.parse import urlparse
+
+import rich.console
+
 from wenum import __version__ as version
 
 from tomlkit import document, dumps, comment, TOMLDocument, load
@@ -181,7 +184,7 @@ class Options:
     def __str__(self):
         return str(vars(self))
 
-    def read_args(self, parsed_args: argparse.Namespace) -> None:
+    def read_args(self, parsed_args: argparse.Namespace, console: rich.console.Console) -> None:
         """Checks all options for their validity, parses and assigns them."""
 
         if parsed_args.config:
@@ -196,6 +199,7 @@ class Options:
 
         if parsed_args.colorless:
             self.colorless = parsed_args.colorless
+            console.no_color = True
 
         if parsed_args.quiet:
             self.quiet = parsed_args.quiet

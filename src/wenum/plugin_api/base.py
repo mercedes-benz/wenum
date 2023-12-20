@@ -96,7 +96,6 @@ class BasePlugin:
         Add some information to the result queue. It will be printed out for the user to see.
         Optionally specify severity
         """
-        message = f"Plugin {self.name}: " + message
         self.put_if_okay(plugin_factory.create("plugin_from_finding", self.name, message, severity))
 
     def add_exception_information(self, exception: str) -> None:

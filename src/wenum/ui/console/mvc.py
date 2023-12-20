@@ -562,20 +562,22 @@ class View:
                      str(fuzz_result.chars) + " B", fuzz_result.history.method, url_output + f"[link={link}]")
 
         # Add plugin results
-        #TODO "Plugin" messages from the core are added as Plugin blabla, that should be nicer
-        #TODO For better clarity, every second plugin should be visually marked e.g. styled dim
         if fuzz_result.plugins_res:
             plugin_grid = Table.grid(pad_edge=True, padding=(0, 1), collapse_padding=False)
-            plugin_grid.add_column("Plugin name", max_width=25, min_width=25, no_wrap=False, overflow="fold")
-            plugin_grid.add_column("Plugin message", no_wrap=False, overflow="fold")
+            plugin_grid.add_column("name", min_width=20, max_width=20, no_wrap=False, overflow="fold")
+            plugin_grid.add_column("message", no_wrap=False, overflow="fold")
+            # Plugin rows should iterate colors for easier visual distinction
+            color = True
             for plugin_res in fuzz_result.plugins_res:
                 if not plugin_res.is_visible() and not self.verbose:
                     continue
-                plugin_grid.add_row(f"  Plugin [i]{plugin_res.name}[/i]:", plugin_res.message)
+                plugin_grid.add_row(f"[i]{plugin_res.name}[/i]:", plugin_res.message,
+                                    style="orange3" if color else "deep_pink3")
+                color = not color
 
         if fuzz_result.plugins_res:
             self.console.rule(f"[dim]Response number {fuzz_result.result_number}:[/dim]", style="dim green")
-            self.console.print(grid, plugin_grid)
+            self.console.print(grid, plugin_grid, soft_wrap=True)
         else:
             self.console.rule(f"[dim]Response number {fuzz_result.result_number}:[/dim]", style="dim green")
             self.console.print(grid)
