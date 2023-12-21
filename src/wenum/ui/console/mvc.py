@@ -151,7 +151,7 @@ Filtered Requests: {(str(stats.filtered())[:8])}\n"""
             message += f"Requests/Sec.: {str(req_sec)[:8]}\n"
             eta = pending_requests / req_sec
             if eta > 60:
-                message += f"ET Left Min.: {str(eta / 60)[:8]}\n"
+                message += f"ET Left Min.: {str(eta / 60)[:8]}"
             else:
                 message += f"ET Left Sec.: {str(eta)[:8]}"
 
