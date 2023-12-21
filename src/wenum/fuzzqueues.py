@@ -171,12 +171,15 @@ class CLIPrinterQueue(FuzzQueue):
     def process(self, fuzz_result: FuzzResult):
         if fuzz_result.item_type == FuzzType.MESSAGE:
             self.session.console.print(fuzz_result.rlevel_desc)
-        else:
-            self.printer.print_result_new(fuzz_result)
+        elif not fuzz_result.discarded:
+            self.printer.print_result(fuzz_result)
+
+        # Progress bar
         if not self.session.options.quiet:
             self.printer.update_status(self.session.compiled_stats)
             if fuzz_result.discarded:
                 self.printer.update_filtered(fuzz_result)
+
         self.send(fuzz_result)
 
 

@@ -1,15 +1,14 @@
 import datetime
 import shutil
-import sys
 import time
 from collections import defaultdict
 import threading
 
 import rich.console
+from rich import box
 
 from wenum.factories.fuzzresfactory import resfactory
 
-from itertools import zip_longest
 
 from wenum.fuzzobjects import FuzzWordType, FuzzResult, FuzzStats
 from rich.live import Live
@@ -23,7 +22,6 @@ from .term import Term
 from wenum import __version__ as version
 from wenum.plugin_api.urlutils import parse_url
 import wenum.ui.console.kbhit as kbhit
-from .output import wrap_always_list
 from ...myqueues import FuzzQueue
 
 usage = """\r\n
@@ -230,9 +228,11 @@ class View:
     result_row_widths = [10, 8, 6, 8, 10, 6, shutil.get_terminal_size(fallback=(80, 25))[0] - 66]
     verbose_result_row_widths = [10, 10, 8, 8, 6, 9, 30, 30, shutil.get_terminal_size(fallback=(80, 25))[0] - 145]
 
-    # Static lists
+    # Static column lengths
     fuzzresult_row_widths: dict = {
-        "http_code": 3,
+        "response_time": 5,
+        "server": 12,
+        "http_code": 4,
         "lines": 6,
         "words": 8,
         "bytes": 10,
@@ -240,45 +240,57 @@ class View:
     }
 
     def __init__(self, session):
-        self.last_discarded_result = None
         self.verbose = session.options.verbose
-        self.term = Term(session)
         self.console: Console = session.console
-        # Keeps track of the line count of the print for discarded responses (to then overwrite these lines with the
-        # next print)
-        self.printed_temp_lines = 0
 
         # Progress bar
         self.next_task = self._get_next_task()
         if not session.options.quiet:
             # Processed responses
             self.overall_progress: Progress = Progress(
-                SpinnerColumn(),
-                TextColumn("{task.fields[processed]}", justify="center"),
-                TextColumn("/", justify="center"),
-                TextColumn("{task.fields[total_req]}", justify="center"), transient=True
+                SpinnerColumn(table_column=Column(justify="left", ratio=1)),
+                TextColumn("{task.fields[processed]}", justify="center", table_column=Column(justify="left", ratio=2)),
+                TextColumn("/", justify="center", table_column=Column(justify="center", ratio=1)),
+                TextColumn("{task.fields[total_req]}", justify="center", table_column=Column(justify="right", ratio=2)),
+                transient=True
             )
-            #TODO Conditional, add verbose info if option is set
+            filtered_columns = (TextColumn("{task.fields[http_code]}",
+                                           table_column=Column(min_width=self.fuzzresult_row_widths["http_code"],
+                                                               max_width=self.fuzzresult_row_widths["http_code"],
+                                                               no_wrap=True)),
+                                TextColumn("{task.fields[words]}",
+                                           table_column=Column(min_width=self.fuzzresult_row_widths["words"],
+                                                               max_width=self.fuzzresult_row_widths["words"],
+                                                               no_wrap=True)),
+                                TextColumn("{task.fields[lines]}",
+                                           table_column=Column(min_width=self.fuzzresult_row_widths["lines"],
+                                                               max_width=self.fuzzresult_row_widths["lines"],
+                                                               no_wrap=True)),
+                                TextColumn("{task.fields[bytes]}",
+                                           table_column=Column(min_width=self.fuzzresult_row_widths["bytes"],
+                                                               max_width=self.fuzzresult_row_widths["bytes"],
+                                                               no_wrap=True)),
+                                TextColumn("{task.fields[http_method]}",
+                                           table_column=Column(min_width=self.fuzzresult_row_widths["http_method"],
+                                                               max_width=self.fuzzresult_row_widths["http_method"],
+                                                               no_wrap=True)),
+                                TextColumn("{task.fields[endpoint]}",
+                                           table_column=Column(no_wrap=False, overflow="ellipsis")))
+            verbose_filtered_columns = (TextColumn("{task.fields[response_time]}",
+                                                   table_column=Column(
+                                                       min_width=self.fuzzresult_row_widths["response_time"],
+                                                       max_width=self.fuzzresult_row_widths["response_time"],
+                                                       no_wrap=True, overflow="crop")),
+                                        TextColumn("{task.fields[server]}",
+                                                   table_column=Column(
+                                                       min_width=self.fuzzresult_row_widths["server"],
+                                                       max_width=self.fuzzresult_row_widths["server"],
+                                                       no_wrap=True))
+                                        )
             # Filtered responses
-            self.filtered_progress: Progress = Progress(
-                TextColumn("{task.fields[http_code]}",
-                           table_column=Column(min_width=self.fuzzresult_row_widths["http_code"],
-                                               max_width=self.fuzzresult_row_widths["http_code"], no_wrap=True)),
-                TextColumn("{task.fields[words]}",
-                           table_column=Column(min_width=self.fuzzresult_row_widths["words"],
-                                               max_width=self.fuzzresult_row_widths["words"], no_wrap=True)),
-                TextColumn("{task.fields[lines]}",
-                           table_column=Column(min_width=self.fuzzresult_row_widths["lines"],
-                                               max_width=self.fuzzresult_row_widths["lines"], no_wrap=True)),
-                TextColumn("{task.fields[bytes]}",
-                           table_column=Column(min_width=self.fuzzresult_row_widths["bytes"],
-                                               max_width=self.fuzzresult_row_widths["bytes"], no_wrap=True)),
-                TextColumn("{task.fields[http_method]}",
-                           table_column=Column(min_width=self.fuzzresult_row_widths["http_method"],
-                                               max_width=self.fuzzresult_row_widths["http_method"], no_wrap=True)),
-                #TODO To save space, only print full URL if not the same as the option specified one. Otherwise, just path
-                TextColumn("{task.fields[endpoint]}", table_column=Column(no_wrap=True)),
-            )
+            self.filtered_progress: Progress = Progress()
+            self.filtered_progress.columns = verbose_filtered_columns + filtered_columns if self.verbose \
+                else filtered_columns
             self.overall_task = self.overall_progress.add_task("Processed", processed=0, total_req=0)
             self.oldest_filtered_task = self.filtered_progress.add_task("oldest", http_code="", words="",
                                                                         lines="", bytes="", http_method="", endpoint="")
@@ -316,7 +328,13 @@ class View:
         """
         Update the filtered bar's values with the provided discarded FuzzResult
         """
-        self.filtered_progress.update(next(self.next_task), http_code=str(fuzz_result.code), lines=str(fuzz_result.lines) + " L",
+        server = ""
+        if "Server" in fuzz_result.history.headers.response:
+            server = fuzz_result.history.headers.response["Server"]
+
+        self.filtered_progress.update(next(self.next_task), response_time=fuzz_result.timer, server=server,
+                                      http_code=str(fuzz_result.code),
+                                      lines=str(fuzz_result.lines) + " L",
                                       words=str(fuzz_result.words) + " W", bytes=str(fuzz_result.chars) + " B",
                                       http_method=fuzz_result.history.method, endpoint=fuzz_result.url)
 
@@ -335,226 +353,33 @@ class View:
             index += 1
             index = index % 3
 
-
-    def set_progress_bar(self, fuzz_result: FuzzResult, filter_task):
-        self.filtered_progress.update(filter_task, http_code=str(fuzz_result.code), lines=str(fuzz_result.lines) + " L",
-                                      words=str(fuzz_result.words) + " W", bytes=str(fuzz_result.chars) + " B",
-                                      http_method=fuzz_result.history.method, endpoint=fuzz_result.url)
-
-
-    def _print_result_verbose(self, fuzz_result: FuzzResult, print_nres=True):
-        txt_color = self.term.noColour
-
-        if fuzz_result.history.redirect_header:
-            location = fuzz_result.history.full_redirect_url
-            url_output = f"{fuzz_result.url} :right_arrow: {location}"
-        else:
-            url_output = fuzz_result.url
-            location = ""
-
-        server = ""
-        if "Server" in fuzz_result.history.headers.response:
-            server = fuzz_result.history.headers.response["Server"]
-
-        columns = [
-            ("%09d:" % fuzz_result.result_number if print_nres else " |_", txt_color),
-            ("%.3fs" % fuzz_result.timer, txt_color),
-            (
-                "%s" % str(fuzz_result.code) if not fuzz_result.exception else "XXX",
-                self.term.get_color(fuzz_result.code),
-            ),
-            ("%d L" % fuzz_result.lines, txt_color),
-            ("%d W" % fuzz_result.words, txt_color),
-            ("%d Ch" % fuzz_result.chars, txt_color),
-            (server, txt_color),
-            (location, txt_color),
-            (f'"{url_output}"' if not fuzz_result.exception else f'"{fuzz_result.url}"', txt_color),
-        ]
-
-        self.term.set_color(txt_color)
-        printed_lines = self._print_line(columns, self.verbose_result_row_widths)
-        if fuzz_result.discarded:
-            self.printed_temp_lines += printed_lines
-
-    def _print_header(self, columns, max_widths):
-        self.console.print("=" * (3 * len(max_widths) + sum(max_widths[:-1]) + 10))
-        self._print_line(columns, max_widths)
-        self.console.print("=" * (3 * len(max_widths) + sum(max_widths[:-1]) + 10))
-        self.console.print("")
-        pass
-
-    def _print_line(self, columns: list[tuple[str, str]], max_widths: list[int]) -> int:
-        """
-        Takes columns, which are tuples of message(0) and color_code(1), and a list of respective widths for
-        the columns, prints them and returns the amount of lines printed.
-        Function suitable any time there is a column separated line to be printed out. color_code(1) will
-        color the entire column.
-        Manually inserting ANSI color codes within message(0) will instead cause buggy behavior.
-        """
-
-        def wrap_columns(columns: list[tuple[str, str]], max_widths: list[int]) -> list[list[str]]:
-            """Takes all columns and wraps them depending on their respective max_width value. Returns a list
-            containing a list of the columns, whereas each inner list represents a full line.
-            E.g. simplified, if one row was [ ('123456', ''), ('abc', '') ], the max_widths [ 3, 3 ] may wrap it
-            to [ [ '123', 'abc' ], [ '456', '' ] ]"""
-            wrapped_columns = [
-                wrap_always_list(item[0], width) for item, width in zip(columns, max_widths)
-            ]
-            return [[substr or "" for substr in item] for item in zip_longest(*wrapped_columns)]
-
-        def print_columns(column: list[str], columns: list[tuple[str, str]]):
-            """Prints a line consisting of columns with the entries separated by a few whitespaces. Needs the
-            columns object to access the color code attributed to the column to be printed out"""
-            sys.stdout.write(
-                "   ".join(
-                    [
-                        color + str.ljust(str(item), width) + self.term.reset
-                        for (item, width, color) in zip(
-                        column, max_widths, [color[1] for color in columns]
-                    )
-                    ]
-                )
-            )
-
-        wrapped_columns = wrap_columns(columns, max_widths)
-
-        for line in wrapped_columns:
-            print_columns(line, columns)
-            sys.stdout.write("\r\n")
-
-        sys.stdout.flush()
-        return len(wrapped_columns)
-
-    def _print_result(self, fuzz_result: FuzzResult):
-        """
-        Function to print out the result by taking a FuzzResult. print_nres is a bool that indicates whether the
-        result number should be added to the row.
-        """
-        if fuzz_result.history.redirect_header:
-            location = fuzz_result.history.full_redirect_url
-            url_output = f"{fuzz_result.url} :right_arrow: {location}"
-        else:
-            url_output = fuzz_result.url
-        no_colour = self.term.noColour
-
-        # Each column consists of a tuple storing both the string and the associated color of the column
-        columns = [
-            ("%09d:" % fuzz_result.result_number, no_colour),
-            ("%s" % str(fuzz_result.code) if not fuzz_result.exception else "XXX",
-             self.term.get_color(fuzz_result.code)),
-            ("%d L" % fuzz_result.lines, no_colour),
-            ("%d W" % fuzz_result.words, no_colour),
-            ("%d Ch" % fuzz_result.chars, no_colour),
-            ('%s' % fuzz_result.history.method, no_colour),
-            (f'"{url_output}"' if not fuzz_result.exception
-             else f'"{fuzz_result.url}"', no_colour),
-        ]
-
-        self.term.set_color(no_colour)
-        printed_lines = self._print_line(columns, self.result_row_widths)
-        if fuzz_result.discarded:
-            self.printed_temp_lines += printed_lines
-
-    def header(self, summary):
+    def header(self, stats: FuzzStats):
         """
         Prints the wenum header
-        TODO Refactor, and utilize the rich library for this
+        TODO Display all options on startup
         """
-        exec_banner = """********************************************************\r
-* wenum {version} - A Web Fuzzer {align: <{width1}}*\r
-********************************************************\r\n""".format(
-            version=version, align=" ", width1=22 - len(version)
-        )
-        self.console.print(exec_banner)
-        if summary:
-            self.console.print(f"Target: {summary.url}")
-            if summary.wordlist_req > 0:
-                self.console.print(f"Total requests: {summary.wordlist_req}")
+        self.console.rule(f"wenum {version} - A Web Fuzzer")
+        if stats:
+            self.console.print(f"Target: {stats.url}")
+            if stats.wordlist_req > 0:
+                self.console.print(f"Requests in wordlist: {stats.wordlist_req}")
             else:
-                self.console.print(f"Total requests: <<unknown>>")
+                self.console.print(f"Requests in wordlist: <<unknown>>")
 
-        uncolored = self.term.noColour
+        grid = self.create_response_grid("white")
 
-        #TODO Server is pretty irrelevant, so only addition is C.Time? Is that ever important? Phase out verbose?
         if self.verbose:
-            columns = [
-                ("ID", uncolored),
-                ("C.Time", uncolored),
-                ("Response", uncolored),
-                ("Lines", uncolored),
-                ("Word", uncolored),
-                ("Chars", uncolored),
-                ("Server", uncolored),
-                ("Redirect", uncolored),
-                ("URL", uncolored),
-            ]
-
-            widths = self.verbose_result_row_widths
+            grid.add_row("Timer", "Server",
+                         "Code", "Lines", "Words", "Bytes", "Method", "URL")
         else:
-            columns = [
-                ("ID", uncolored),
-                ("Response", uncolored),
-                ("Lines", uncolored),
-                ("Word", uncolored),
-                ("Chars", uncolored),
-                ("Method", uncolored),
-                ("URL", uncolored),
-            ]
+            grid.add_row("Code", "Lines", "Words", "Bytes", "Method", "URL")
 
-            widths = self.result_row_widths
+        self.console.print(grid)
 
-        self._print_header(columns, widths)
-
-    def print_result(self, fuzz_result: FuzzResult):
-        """Print the result to CLI"""
-        if not fuzz_result.discarded:
-
-            # Print result
-            if self.verbose:
-                self.verbose_result_row_widths = [10, 10, 8, 8, 6, 9, 30, 30,
-                                                  shutil.get_terminal_size(fallback=(80, 25))[0] - 145]
-                self._print_result_verbose(fuzz_result)
-            else:
-                self.result_row_widths = [10, 8, 6, 8, 10, 6, shutil.get_terminal_size(fallback=(80, 25))[0] - 66]
-                self._print_result(fuzz_result)
-
-            # Print plugin results
-            if fuzz_result.plugins_res:
-                for plugin_res in fuzz_result.plugins_res:
-                    if not plugin_res.is_visible() and not self.verbose:
-                        continue
-                    self.console.print(f" |_  {plugin_res.message}")
-
-            if fuzz_result.exception:
-                self.console.print(f" |_ ERROR: {fuzz_result.exception}")
-        else:
-            self.last_discarded_result = fuzz_result
-
-    def print_result_new(self, fuzz_result: FuzzResult):
+    def print_result(self, fuzz_result: FuzzResult) -> None:
         """
-        @TODO Replace the original func with this
+        Prints the FuzzResult in its designated grid format
         """
-        if fuzz_result.discarded:
-            return
-        grid = Table.grid(pad_edge=True, padding=(0, 1), collapse_padding=False)
-        grid.add_column("HTTP Code", min_width=self.fuzzresult_row_widths["http_code"],
-                        max_width=self.fuzzresult_row_widths["http_code"], no_wrap=False, overflow="fold")
-        grid.add_column("Lines", min_width=self.fuzzresult_row_widths["lines"],
-                        max_width=self.fuzzresult_row_widths["lines"], no_wrap=False, overflow="fold", justify="right")
-        grid.add_column("Words", min_width=self.fuzzresult_row_widths["words"],
-                        max_width=self.fuzzresult_row_widths["words"], no_wrap=False, overflow="fold", justify="right")
-        grid.add_column("Bytes", min_width=self.fuzzresult_row_widths["bytes"],
-                        max_width=self.fuzzresult_row_widths["bytes"], no_wrap=False, overflow="fold", justify="right")
-        grid.add_column("HTTP Method", min_width=self.fuzzresult_row_widths["http_method"],
-                        max_width=self.fuzzresult_row_widths["http_method"], no_wrap=False, overflow="fold")
-        grid.add_column("URL", no_wrap=False, overflow="fold")
-
-        # Set colors
-        grid.columns[0].style = self.get_response_code_color(fuzz_result.code)
-        grid.columns[1].style = "magenta"
-        grid.columns[2].style = "cyan"
-        grid.columns[3].style = "yellow"
-        grid.columns[4].style = "slate_blue1"
 
         if fuzz_result.history.redirect_header:
             location = fuzz_result.history.full_redirect_url
@@ -564,8 +389,27 @@ class View:
             url_output = fuzz_result.url
             link = url_output
 
-        grid.add_row(str(fuzz_result.code), str(fuzz_result.lines) + " L", str(fuzz_result.words) + " W",
-                     str(fuzz_result.chars) + " B", fuzz_result.history.method, url_output + f"[link={link}]")
+        server = ""
+        if "Server" in fuzz_result.history.headers.response:
+            server = fuzz_result.history.headers.response["Server"]
+
+        if fuzz_result.exception:
+            response_code = "XXX"
+            response_code_color = "purple"
+        else:
+            response_code = fuzz_result.code
+            response_code_color = self.get_response_code_color(response_code)
+
+        grid = self.create_response_grid(response_code_color)
+
+        # Add fuzz_result contents
+        if self.verbose:
+            grid.add_row(str(fuzz_result.timer), str(server),
+                         str(response_code), str(fuzz_result.lines) + " L", str(fuzz_result.words) + " W",
+                         str(fuzz_result.chars) + " B", fuzz_result.history.method, url_output + f"[link={link}]")
+        else:
+            grid.add_row(str(response_code), str(fuzz_result.lines) + " L", str(fuzz_result.words) + " W",
+                         str(fuzz_result.chars) + " B", fuzz_result.history.method, url_output + f"[link={link}]")
 
         # Add plugin results
         if fuzz_result.plugins_res:
@@ -581,15 +425,53 @@ class View:
                                     style="orange3" if color else "deep_pink3")
                 color = not color
 
-        if fuzz_result.plugins_res:
             self.console.rule(f"[dim]Response number {fuzz_result.result_number}:[/dim]", style="dim green")
             self.console.print(grid, plugin_grid, soft_wrap=True)
         else:
             self.console.rule(f"[dim]Response number {fuzz_result.result_number}:[/dim]", style="dim green")
-            self.console.print(grid)
+            self.console.print(grid, soft_wrap=True)
 
+        # Add exception information
         if fuzz_result.exception:
             self.console.print(f" [b]ERROR[/b]: {fuzz_result.exception}")
+
+    def create_response_grid(self, response_code_color: str) -> rich.table.Table:
+        """
+        Creates the grid format with which to print the response metrics
+        """
+        grid = Table.grid(pad_edge=True, padding=(0, 1), collapse_padding=False)
+
+        if self.verbose:
+            grid.add_column("Response Time", min_width=self.fuzzresult_row_widths["response_time"],
+                            max_width=self.fuzzresult_row_widths["response_time"], no_wrap=False, overflow="crop")
+            grid.add_column("Server", min_width=self.fuzzresult_row_widths["server"],
+                            max_width=self.fuzzresult_row_widths["server"], no_wrap=False, overflow="fold")
+
+        grid.add_column("HTTP Code", min_width=self.fuzzresult_row_widths["http_code"],
+                        max_width=self.fuzzresult_row_widths["http_code"], no_wrap=False, overflow="fold")
+        grid.add_column("Lines", min_width=self.fuzzresult_row_widths["lines"],
+                        max_width=self.fuzzresult_row_widths["lines"], no_wrap=False, overflow="fold", justify="right")
+        grid.add_column("Words", min_width=self.fuzzresult_row_widths["words"],
+                        max_width=self.fuzzresult_row_widths["words"], no_wrap=False, overflow="fold", justify="right")
+        grid.add_column("Bytes", min_width=self.fuzzresult_row_widths["bytes"],
+                        max_width=self.fuzzresult_row_widths["bytes"], no_wrap=False, overflow="fold", justify="right")
+        grid.add_column("HTTP Method", min_width=self.fuzzresult_row_widths["http_method"],
+                        max_width=self.fuzzresult_row_widths["http_method"], no_wrap=False, overflow="fold")
+        grid.add_column("URL", no_wrap=False, overflow="fold")
+
+        # Set colors
+        code_column_index = 0
+        if self.verbose:
+            grid.columns[0].style = "pale_green1"
+            grid.columns[1].style = "sky_blue2"
+            code_column_index = 2
+        grid.columns[code_column_index].style = response_code_color
+        grid.columns[code_column_index + 1].style = "magenta"
+        grid.columns[code_column_index + 2].style = "cyan"
+        grid.columns[code_column_index + 3].style = "yellow"
+        grid.columns[code_column_index + 4].style = "slate_blue1"
+
+        return grid
 
     @staticmethod
     def get_response_code_color(code: int):
