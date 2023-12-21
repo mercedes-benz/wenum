@@ -600,7 +600,7 @@ class RedirectQueue(FuzzQueue):
                                                      target_url, method, from_plugin)
             fuzz_result.plugins_res.append(plugin_factory.create(
                 "plugin_from_finding", name=self.get_name(),
-                message=f"[blue]Following redirection[/blue] "
+                message=f"[u]Following redirection[/u] "
                         f"to {target_url}", severity=FuzzPlugin.INFO))
             self.send(backfeed)
 
