@@ -54,6 +54,11 @@ class HttpCache:
         return self._fuzz_result_from_cache(key, fuzz_result)
 
     def load_cache_dir(self, directory: str) -> None:
+        """
+        Method to load a cache dir into the runtime if option is set.
+        Will keep track of a separate cache than the core cache. Responses loaded into this should run through
+        all queues but the HttpQueue, which will check for this cache in specific
+        """
         if not os.path.isdir(directory):
             return
         cache_file = os.path.join(directory, "cache.json")
