@@ -153,7 +153,7 @@ class CLIPrinterQueue(FuzzQueue):
         self.process_discarded = True
 
     def pre_start(self):
-        self.printer.header(self.stats)
+        self.printer.header(self.stats, self.session)
         if not self.session.options.quiet:
             self.printer.live.start()
 

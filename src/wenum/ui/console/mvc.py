@@ -224,9 +224,6 @@ class View:
     """
     Class handling the CLI output
     """
-    # Result number, status code, lines, words, chars, method, url
-    result_row_widths = [10, 8, 6, 8, 10, 6, shutil.get_terminal_size(fallback=(80, 25))[0] - 66]
-    verbose_result_row_widths = [10, 10, 8, 8, 6, 9, 30, 30, shutil.get_terminal_size(fallback=(80, 25))[0] - 145]
 
     # Static column lengths
     fuzzresult_row_widths: dict = {
@@ -353,11 +350,13 @@ class View:
             index += 1
             index = index % 3
 
-    def header(self, stats: FuzzStats):
+    def header(self, stats: FuzzStats, session):
         """
         Prints the wenum header
         TODO Display all options on startup
         """
+        for i in session.options.get_all_opts():
+            self.console.print(i)
         self.console.rule(f"wenum {version} - A Web Fuzzer")
         if stats:
             self.console.print(f"Target: {stats.url}")

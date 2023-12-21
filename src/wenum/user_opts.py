@@ -139,9 +139,6 @@ class Options:
         self.filter: Optional[str] = None
         self.opt_name_filter: str = "filter"
 
-        self.pre_filter: Optional[str] = None
-        self.opt_name_pre_filter: str = "pre-filter"
-
         self.hard_filter: Optional[bool] = None
         self.opt_name_hard_filter: str = "hard-filter"
 
@@ -324,6 +321,61 @@ class Options:
         if parsed_args.cache_dir:
             self.cache_dir = parsed_args.cache_dir
 
+    def get_all_opts(self) -> list[tuple]:
+        """
+        Returns all option parameters in a list of tuples,
+        whereas tuple[0] is opt_name and tuple[1] is opt_value
+        """
+        all_opts = [
+            (self.opt_name_url, self.url),
+            (self.opt_name_wordlist, self.wordlist_list),
+            (self.opt_name_colorless, self.colorless),
+            (self.opt_name_quiet, self.quiet),
+            (self.opt_name_noninteractive, self.noninteractive),
+            (self.opt_name_verbose, self.verbose),
+            (self.opt_name_output, self.output),
+            (self.opt_name_output_format, self.output_format),
+            (self.opt_name_debug_log, self.debug_log),
+            (self.opt_name_proxy, self.proxy_list),
+            (self.opt_name_threads, self.threads),
+            (self.opt_name_plugin_threads, self.plugin_threads),
+            (self.opt_name_sleep, self.sleep),
+            (self.opt_name_location, self.location),
+            (self.opt_name_recursion, self.recursion),
+            (self.opt_name_plugin_recursion, self.plugin_recursion),
+            (self.opt_name_method, self.method),
+            (self.opt_name_data, self.data),
+            (self.opt_name_header, self.header_list),
+            (self.opt_name_cookie, self.cookie),
+            (self.opt_name_stop_error, self.stop_error),
+            (self.opt_name_hc, self.hc_list),
+            (self.opt_name_hw, self.hw_list),
+            (self.opt_name_hl, self.hl_list),
+            (self.opt_name_hs, self.hs_list),
+            (self.opt_name_hr, self.hr),
+            (self.opt_name_sc, self.sc_list),
+            (self.opt_name_sw, self.sw_list),
+            (self.opt_name_sl, self.sl_list),
+            (self.opt_name_ss, self.ss_list),
+            (self.opt_name_sr, self.sr),
+            (self.opt_name_filter, self.filter),
+            (self.opt_name_auto_filter, self.auto_filter),
+            (self.opt_name_dump_config, self.dump_config),
+            (self.opt_name_config, self.config),
+            (self.opt_name_hard_filter, self.hard_filter),
+            (self.opt_name_dry_run, self.dry_run),
+            (self.opt_name_limit_requests, self.limit_requests),
+            (self.opt_name_ip, self.ip),
+            (self.opt_name_request_timeout, self.request_timeout),
+            (self.opt_name_domain_scope, self.domain_scope),
+            (self.opt_name_plugins, self.plugins_list),
+            (self.opt_name_iterator, self.iterator),
+            (self.opt_name_version, self.version),
+            (self.opt_name_cache_dir, self.cache_dir),
+                    ]
+
+        return all_opts
+
     def export_config(self):
         """
         Exports the activated configuration (through CLI + optional config file) into a TOML file.
@@ -335,53 +387,13 @@ class Options:
         # Using tomlkit for writing, as tomllib does not provide a way to do so
         doc = document()
         doc.add(comment("All keys are named equal to the command line options."))
-        doc.add(comment("If you are unsure about the syntax of an option,"))
-        doc.add(comment("you can use the command line option to export the specified options to a config file"))
+        doc.add(comment("If you struggle creating the TOML by hand, "))
+        doc.add(comment(f"you can use the --{self.opt_name_dump_config} option of wenum"))
+        doc.add(comment("to export the specified options to a config file"))
         doc.add(comment("and use it as a reference."))
         doc.add(comment(""))
-        self.add_toml_if_exists(doc, self.opt_name_url, self.url)
-        self.add_toml_if_exists(doc, self.opt_name_wordlist, self.wordlist_list)
-        self.add_toml_if_exists(doc, self.opt_name_colorless, self.colorless)
-        self.add_toml_if_exists(doc, self.opt_name_quiet, self.quiet)
-        self.add_toml_if_exists(doc, self.opt_name_noninteractive, self.noninteractive)
-        self.add_toml_if_exists(doc, self.opt_name_verbose, self.verbose)
-        self.add_toml_if_exists(doc, self.opt_name_output, self.output)
-        self.add_toml_if_exists(doc, self.opt_name_output_format, self.output_format)
-        self.add_toml_if_exists(doc, self.opt_name_debug_log, self.debug_log)
-        self.add_toml_if_exists(doc, self.opt_name_proxy, self.proxy_list)
-        self.add_toml_if_exists(doc, self.opt_name_threads, self.threads)
-        self.add_toml_if_exists(doc, self.opt_name_plugin_threads, self.plugin_threads)
-        self.add_toml_if_exists(doc, self.opt_name_sleep, self.sleep)
-        self.add_toml_if_exists(doc, self.opt_name_location, self.location)
-        self.add_toml_if_exists(doc, self.opt_name_recursion, self.recursion)
-        self.add_toml_if_exists(doc, self.opt_name_plugin_recursion, self.plugin_recursion)
-        self.add_toml_if_exists(doc, self.opt_name_method, self.method)
-        self.add_toml_if_exists(doc, self.opt_name_data, self.data)
-        self.add_toml_if_exists(doc, self.opt_name_header, self.header_list)
-        self.add_toml_if_exists(doc, self.opt_name_cookie, self.cookie)
-        self.add_toml_if_exists(doc, self.opt_name_stop_error, self.stop_error)
-        self.add_toml_if_exists(doc, self.opt_name_hc, self.hc_list)
-        self.add_toml_if_exists(doc, self.opt_name_hw, self.hw_list)
-        self.add_toml_if_exists(doc, self.opt_name_hl, self.hl_list)
-        self.add_toml_if_exists(doc, self.opt_name_hs, self.hs_list)
-        self.add_toml_if_exists(doc, self.opt_name_hr, self.hr)
-        self.add_toml_if_exists(doc, self.opt_name_sc, self.sc_list)
-        self.add_toml_if_exists(doc, self.opt_name_sw, self.sw_list)
-        self.add_toml_if_exists(doc, self.opt_name_sl, self.sl_list)
-        self.add_toml_if_exists(doc, self.opt_name_ss, self.ss_list)
-        self.add_toml_if_exists(doc, self.opt_name_sr, self.sr)
-        self.add_toml_if_exists(doc, self.opt_name_filter, self.filter)
-        self.add_toml_if_exists(doc, self.opt_name_auto_filter, self.auto_filter)
-        self.add_toml_if_exists(doc, self.opt_name_hard_filter, self.hard_filter)
-        self.add_toml_if_exists(doc, self.opt_name_dry_run, self.dry_run)
-        self.add_toml_if_exists(doc, self.opt_name_limit_requests, self.limit_requests)
-        self.add_toml_if_exists(doc, self.opt_name_ip, self.ip)
-        self.add_toml_if_exists(doc, self.opt_name_request_timeout, self.request_timeout)
-        self.add_toml_if_exists(doc, self.opt_name_domain_scope, self.domain_scope)
-        self.add_toml_if_exists(doc, self.opt_name_plugins, self.plugins_list)
-        self.add_toml_if_exists(doc, self.opt_name_iterator, self.iterator)
-        self.add_toml_if_exists(doc, self.opt_name_version, self.version)
-        self.add_toml_if_exists(doc, self.opt_name_cache_dir, self.cache_dir)
+        for opt_name, opt_value in self.get_all_opts():
+            self.add_toml_if_exists(doc, opt_name, opt_value)
         try:
             with open(self.dump_config, "w") as file:
                 file.writelines(dumps(doc))
@@ -745,13 +757,15 @@ class Options:
                 raise FuzzExceptBadFile(f"Config export file can not be opened. Please ensure it is a valid path"
                                         f"and the permissions to the path are correct.")
 
-    @staticmethod
-    def add_toml_if_exists(doc: TOMLDocument, key: str, value):
+    def add_toml_if_exists(self, doc: TOMLDocument, key: str, value):
         """Convenience function to enable one-liners when building the TOML config."""
         if value:
             # For some reason, the sleep parameter would get converted to a float by default
             if isinstance(value, float):
                 value = int(value)
+            # Do not store these parameters in the config file, as they would lead to confusing behavior
+            if key == self.opt_name_dump_config or key == self.opt_name_config:
+                return
             doc.add(key, value)
 
     def configure_parser(self) -> argparse.ArgumentParser:
