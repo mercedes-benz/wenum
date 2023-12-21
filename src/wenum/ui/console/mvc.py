@@ -1,16 +1,13 @@
 import datetime
-import shutil
 import time
 from collections import defaultdict
 import threading
 
 import rich.console
-from rich import box
 from rich.columns import Columns
 from rich.text import Text
 
 from wenum.factories.fuzzresfactory import resfactory
-
 
 from wenum.fuzzobjects import FuzzWordType, FuzzResult, FuzzStats
 from rich.live import Live
@@ -18,23 +15,19 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
 from rich.table import Table, Column
 from rich.console import Console
-from rich.table import Row
 
-from .term import Term
 from wenum import __version__ as version
 from wenum.plugin_api.urlutils import parse_url
 import wenum.ui.console.kbhit as kbhit
 from ...myqueues import FuzzQueue
 
-usage = """\r\n
-Interactive keyboard commands:\r\n
+usage = """Interactive keyboard commands:\r\n
 h: Show this help
 
 p: Pause
 s: Show stats
 d: Show debug stats
-r: Show all seeds/recursions that have been queued
-"""
+r: Show all seeds/recursions that have been queued"""
 
 
 class SimpleEventDispatcher:
@@ -123,55 +116,26 @@ class Controller:
         self.view.dispatcher.subscribe(self.on_stats, "s")
         self.view.dispatcher.subscribe(self.on_seeds, "r")
         self.view.dispatcher.subscribe(self.on_debug, "d")
-        self.term = Term(fuzzer.session)
 
     def on_help(self, **event):
-        message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", usage)
-        self.printer_queue.put_important(message_fuzzresult)
+        self.fuzzer.session.console.rule("Usage", style="yellow")
+        self.fuzzer.session.console.print(usage)
+        self.fuzzer.session.console.rule(style="yellow")
 
     def on_pause(self, **event):
         self.__paused = not self.__paused
         if self.__paused:
             self.fuzzer.pause_job()
-            self.fuzzer.session.console.print()
-            message = self.term.color_string(self.term.fgYellow, "\nPausing requests. Already enqueued requests "
-                                                                 "may still get printed out during pause.")
-            message += "\nType h to see all options."
-            message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", message)
-            self.printer_queue.put_important(message_fuzzresult)
+            self.fuzzer.session.console.rule("'P' pressed - pausing requests.", style="yellow")
         else:
-            message = self.term.color_string(self.term.fgGreen, "Resuming execution...")
-            message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", message)
-            self.printer_queue.put_important(message_fuzzresult)
+            self.fuzzer.session.console.rule("Resuming execution...", style="yellow")
             self.fuzzer.resume_job()
 
     def on_stats(self, **event):
-        message = self.generate_stats()
-        message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", message)
-        self.printer_queue.put_important(message_fuzzresult)
-
-    def on_debug(self, **event):
-        message = self.generate_debug_stats()
-        message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", message)
-        self.printer_queue.put_important(message_fuzzresult)
-
-    def on_seeds(self, **event):
-        message_fuzzresult: FuzzResult = resfactory.create("fuzzres_from_message", self.generate_seed_message())
-        self.printer_queue.put_important(message_fuzzresult)
-
-    def generate_debug_stats(self):
-        message = "\n=============== Debug ===================\n"
-        stats = self.fuzzer.stats()
-        for k, v in list(stats.items()):
-            message += f"{k}: {v}\n"
-        message += "\n=========================================\n"
-        return message
-
-    def generate_stats(self):
         pending_requests = self.stats.total_req - self.stats.processed()
         pending_seeds = self.stats.pending_seeds()
         stats = self.stats
-        message = f"""\nRequests Per Seed: {str(stats.wordlist_req)}
+        message = f"""Requests Per Seed: {str(stats.wordlist_req)}
 Pending Requests: {str(pending_requests)}
 Pending Seeds: {str(pending_seeds)}\n"""
 
@@ -189,14 +153,29 @@ Filtered Requests: {(str(stats.filtered())[:8])}\n"""
             if eta > 60:
                 message += f"ET Left Min.: {str(eta / 60)[:8]}\n"
             else:
-                message += f"ET Left Sec.: {str(eta)[:8]}\n"
-        return message
+                message += f"ET Left Sec.: {str(eta)[:8]}"
 
-    def generate_seed_message(self):
+        self.fuzzer.session.console.rule("Runtime stats", style="yellow")
+        self.fuzzer.session.console.print(message)
+        self.fuzzer.session.console.rule(style="yellow")
+
+    def on_debug(self, **event):
+        """
+        Print some debug information
+        """
+        message = ""
+        stats = self.fuzzer.stats()
+        for key, value in list(stats.items()):
+            message += f"{key}: {value}\n"
+        message = message.rstrip("\n")
+        self.fuzzer.session.console.rule("Debug stats", style="yellow")
+        self.fuzzer.session.console.print(message)
+        self.fuzzer.session.console.rule(style="yellow")
+
+    def on_seeds(self, **event):
         """Print information about currently queued seeds"""
         seed_list_len = str(len(self.stats.seed_list))
-        colored_length = self.term.color_string(self.term.fgYellow, seed_list_len)
-        seed_message = f"In total, {colored_length} seeds have been generated. List of seeds:\n"
+        seed_message = f"In total, {seed_list_len} seeds have been generated. List of seeds:\n"
         colored_url_list = "[ "
         parsed_initial_url = parse_url(self.stats.url)
         for seed_url in self.stats.seed_list:
@@ -206,12 +185,12 @@ Filtered Requests: {(str(stats.filtered())[:8])}\n"""
             netloc = parsed_seed_url.netloc
             # Only color the scheme and netloc if they are different from the initial ones
             if scheme != parsed_initial_url.scheme:
-                colored_scheme = self.term.color_string(self.term.fgYellow, scheme)
+                colored_scheme = "[yellow]" + scheme + "[/yellow]"
                 seed_url.replace(parsed_seed_url.scheme, colored_scheme)
             if netloc != parsed_initial_url.netloc:
-                colored_netloc = self.term.color_string(self.term.fgYellow, netloc)
+                colored_netloc = "[yellow]" + netloc + "[/yellow]"
                 seed_url.replace(parsed_seed_url.netloc, colored_netloc)
-            colored_path = self.term.color_string(self.term.fgYellow, parsed_seed_url.path)
+            colored_path = "[yellow]" + parsed_seed_url.path + "[/yellow]"
             seed_url = seed_url.replace(parsed_seed_url.path, colored_path)
             # Imitating the look of a list when printed out. Reason for not simply using a list is because the terminal
             # does not properly handle the Colour codes when using lists
@@ -219,7 +198,9 @@ Filtered Requests: {(str(stats.filtered())[:8])}\n"""
 
         colored_url_list += "]"
         seed_message += colored_url_list
-        return seed_message
+        self.fuzzer.session.console.rule("Seed stats", style="yellow")
+        self.fuzzer.session.console.print(seed_message)
+        self.fuzzer.session.console.rule(style="yellow")
 
 
 class View:
@@ -232,7 +213,7 @@ class View:
         "response_time": 5,
         "server": 12,
         "http_code": 4,
-        "lines": 6,
+        "lines": 7,
         "words": 8,
         "size": 10,
         "http_method": 7,
@@ -360,7 +341,7 @@ class View:
         else:
             return Text("None", overflow="fold", style="dim")
 
-#        return Text(opt_value if opt_value else "None", overflow="fold")
+    #        return Text(opt_value if opt_value else "None", overflow="fold")
 
     def header(self, stats: FuzzStats, session):
         """

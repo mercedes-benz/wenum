@@ -15,7 +15,6 @@ import logging
 from .core import Fuzzer
 from .exception import FuzzException, FuzzExceptBadInstall
 from .ui.console.mvc import Controller, KeyPress
-from .ui.console.term import Term
 from .runtime_session import FuzzSession
 from wenum.user_opts import Options
 from rich.console import Console
@@ -51,8 +50,6 @@ def main():
             Controller(fuzzer, keypress)
             keypress.start()
 
-        term = Term(session)
-
         # Logging startup options on startup
         logger.info("Starting")
 
@@ -70,13 +67,9 @@ def main():
     except KeyboardInterrupt as e:
         fuzzer.session.compiled_stats.cancelled = True
         user_message = "Keyboard interrupt registered."
-        if term:
-            text = term.color_string(term.fgYellow, user_message)
-        else:
-            text = "Keyboard interrupt registered."
-        warnings.warn(text)
+        warnings.warn(user_message)
         logger.info(user_message)
-        exit_code = 130 # 128 + 2 for SIGINT
+        exit_code = 130  # 128 + 2 for SIGINT
     except NotImplementedError as e:
         fuzzer.session.compiled_stats.cancelled = True
         exception_message = "Fatal exception: Error importing wenum extensions: {}".format(str(e))

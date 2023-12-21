@@ -3,8 +3,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Optional
 
-from wenum.ui.console.term import Term
-
 if TYPE_CHECKING:
     from wenum.runtime_session import FuzzSession
     from queue import Queue
@@ -39,7 +37,6 @@ class BasePlugin:
         self.interrupt: Optional[Event] = None
         self.session: FuzzSession = session
         self.logger = logging.getLogger("debug_log")
-        self.term = Term(session)
 
         # check mandatory params, assign default values
         for name, default_value, required, description in self.parameters:

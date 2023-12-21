@@ -51,8 +51,6 @@ class Headers(BasePlugin):
                     header_value.lower() not in self.kbase[KBASE_KEY_REQ_UNCOMMON]
                     or KBASE_KEY_REQ_UNCOMMON not in self.kbase
             ):
-                colored_header_key = self.term.color_string(self.term.fgBlue, header_value)
-                colored_header_value = self.term.color_string(self.term.fgYellow, value)
                 self.add_information(f"New uncommon HTTP request header: "
                                      f"[u]{header_value}[/u]: [u]{value}[/u]")
                 self.kbase[KBASE_KEY_REQ_UNCOMMON].append(header_value.lower())
@@ -67,9 +65,6 @@ class Headers(BasePlugin):
                     header_value.lower() not in self.kbase[KBASE_KEY_RESP_UNCOMMON]
                     or KBASE_KEY_RESP_UNCOMMON not in self.kbase
             ):
-                colored_header_key = self.term.color_string(self.term.fgBlue, header_value)
-                colored_header_value = self.term.color_string(
-                    self.term.fgYellow, fuzz_result.history.headers.response[header_value])
                 self.add_information(f"New uncommon HTTP response header: "
                                      f"[u]{header_value}[/u]: [u]{header_value}[/u]")
                 self.kbase[KBASE_KEY_RESP_UNCOMMON].append(header_value.lower())

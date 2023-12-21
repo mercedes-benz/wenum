@@ -41,5 +41,5 @@ class WebserviceDescription(BasePlugin):
         # If the URL that has been found ends with one of the web service URLs
         if split_path[-1] in self.webservice_endpoint_list:
             if "<application" in fuzz_result.content:
-                self.add_information(f"{self.term.color_string(self.term.fgYellow, 'REST description discovered.')}"
+                self.add_information(f"[u]REST description discovered.[/u]"
                                      f" Inspect endpoint")

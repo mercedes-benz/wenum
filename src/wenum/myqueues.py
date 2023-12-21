@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING
 
 from typing import Optional
 
-from .ui.console.term import Term
-
 if TYPE_CHECKING:
     from .runtime_session import FuzzSession
 from abc import ABC, abstractmethod
@@ -75,7 +73,6 @@ class FuzzQueue(FuzzPriorityQueue, Thread, ABC):
         self.stats: FuzzStats = session.compiled_stats
         self.session: FuzzSession = session
         self.logger = logging.getLogger("debug_log")
-        self.term = Term(session)
         # Signals to the QueueManager that a stop event has been registered by the queue
         self.stopped: Event = Event()
         self.stopped.clear()
