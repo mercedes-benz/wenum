@@ -46,9 +46,15 @@ class SimpleEventDispatcher:
         self.publisher = defaultdict(list)
 
     def create_event(self, msg):
+        """
+        Create a listener for the provided keypress
+        """
         self.publisher[msg] = []
 
     def subscribe(self, func, msg, dynamic=False):
+        """
+        Bind the execution of a method (func) to the provided keypress (msg)
+        """
         if msg not in self.publisher and not dynamic:
             raise KeyError("subscribe. No such event: %s" % msg)
         else:

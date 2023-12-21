@@ -786,6 +786,10 @@ class HttpQueue(FuzzQueue):
 
         self.http_pool = session.http_pool
 
+        # Listening for keypress to pause execution
+        self.pause = Event()
+        self.pause.set()
+
         # Event signal dedicated to throttling the SeedQueue. This helps avoid the SeedQueue to run rampant and
         # create excessive amounts of objects before they can be processed. They occupy lots of RAM otherwise.
         self.receive_seed_queue = Event()
@@ -829,6 +833,8 @@ class HttpQueue(FuzzQueue):
         return [FuzzType.RESULT, FuzzType.BACKFEED]
 
     def process(self, fuzz_result: FuzzResult):
+        # Don't process as long as pause Event is set
+        self.pause.wait()
         # SeedQueue clears the event and waits for unblock if it sees too many items in HttpQueue queued.
         # If there aren't too many items already waiting, then allow SeedQueue to send more again.
         if self.qsize() <= (self.session.options.threads * 5):

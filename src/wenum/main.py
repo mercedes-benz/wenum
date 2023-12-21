@@ -85,6 +85,8 @@ def main():
         traceback.print_exc()
     finally:
         if fuzzer:
+            # When cancelling, unpause if currently paused
+            fuzzer.resume_job()
             fuzzer.qmanager.stop_queues()
         if session:
             _log_runtime_stats(logger, session.compiled_stats)
