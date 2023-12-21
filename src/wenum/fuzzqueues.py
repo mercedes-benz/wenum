@@ -496,7 +496,7 @@ class PluginExecutor(FuzzQueue):
                         if plugin.seed.backfeed_level >= requeue_limit:
                             fuzz_result.plugins_res.append(plugin_factory.create(
                                 "plugin_from_finding", name=plugin.name,
-                                message=f"Plugin {plugin.name}: This request has been requeued {requeue_limit} times. "
+                                message=f"This request has been requeued {requeue_limit} times. "
                                         f"Will not enqueue an additional request to {plugin.seed.url}",
                                 severity=FuzzPlugin.INFO))
                             continue
@@ -536,14 +536,14 @@ class PluginExecutor(FuzzQueue):
                 multiple = "s" if plugin_dict["queued_requests"] > 1 else ""
                 fuzz_result.plugins_res.append(plugin_factory.create(
                     "plugin_from_finding", name=plugin_name,
-                    message=f"Plugin {plugin_name}: Enqueued [u]{plugin_dict['queued_requests']} request{multiple}[/u]",
+                    message=f"Enqueued [u]{plugin_dict['queued_requests']} request{multiple}[/u]",
                     severity=FuzzPlugin.INFO))
             # Only if the plugin queued a seed at all
             if plugin_dict["queued_seeds"]:
                 multiple = "s" if plugin_dict["queued_seeds"] > 1 else ""
                 fuzz_result.plugins_res.append(plugin_factory.create(
                     "plugin_from_finding", name=plugin_name,
-                    message=f"Plugin {plugin_name}: Enqueued [u]{plugin_dict['queued_seeds']} seed{multiple}[/u]",
+                    message=f"Enqueued [u]{plugin_dict['queued_seeds']} seed{multiple}[/u]",
                     severity=FuzzPlugin.INFO))
 
 

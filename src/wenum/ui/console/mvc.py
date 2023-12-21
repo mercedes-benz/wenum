@@ -6,6 +6,8 @@ import threading
 
 import rich.console
 from rich import box
+from rich.columns import Columns
+from rich.text import Text
 
 from wenum.factories.fuzzresfactory import resfactory
 
@@ -232,7 +234,7 @@ class View:
         "http_code": 4,
         "lines": 6,
         "words": 8,
-        "bytes": 10,
+        "size": 10,
         "http_method": 7,
     }
 
@@ -263,9 +265,9 @@ class View:
                                            table_column=Column(min_width=self.fuzzresult_row_widths["lines"],
                                                                max_width=self.fuzzresult_row_widths["lines"],
                                                                no_wrap=True)),
-                                TextColumn("{task.fields[bytes]}",
-                                           table_column=Column(min_width=self.fuzzresult_row_widths["bytes"],
-                                                               max_width=self.fuzzresult_row_widths["bytes"],
+                                TextColumn("{task.fields[size]}",
+                                           table_column=Column(min_width=self.fuzzresult_row_widths["size"],
+                                                               max_width=self.fuzzresult_row_widths["size"],
                                                                no_wrap=True)),
                                 TextColumn("{task.fields[http_method]}",
                                            table_column=Column(min_width=self.fuzzresult_row_widths["http_method"],
@@ -290,11 +292,11 @@ class View:
                 else filtered_columns
             self.overall_task = self.overall_progress.add_task("Processed", processed=0, total_req=0)
             self.oldest_filtered_task = self.filtered_progress.add_task("oldest", http_code="", words="",
-                                                                        lines="", bytes="", http_method="", endpoint="")
+                                                                        lines="", size="", http_method="", endpoint="")
             self.middle_filtered_task = self.filtered_progress.add_task("middle", http_code="", words="",
-                                                                        lines="", bytes="", http_method="", endpoint="")
+                                                                        lines="", size="", http_method="", endpoint="")
             self.recent_filtered_task = self.filtered_progress.add_task("recent", http_code="", words="",
-                                                                        lines="", bytes="", http_method="", endpoint="")
+                                                                        lines="", size="", http_method="", endpoint="")
 
             progress_table = Table.grid()
             if session.options.noninteractive:
@@ -332,7 +334,7 @@ class View:
         self.filtered_progress.update(next(self.next_task), response_time=fuzz_result.timer, server=server,
                                       http_code=str(fuzz_result.code),
                                       lines=str(fuzz_result.lines) + " L",
-                                      words=str(fuzz_result.words) + " W", bytes=str(fuzz_result.chars) + " B",
+                                      words=str(fuzz_result.words) + " W", size=str(fuzz_result.chars) + " B",
                                       http_method=fuzz_result.history.method, endpoint=fuzz_result.url)
 
     def _get_next_task(self):
@@ -350,28 +352,37 @@ class View:
             index += 1
             index = index % 3
 
+    @staticmethod
+    def get_opt_value(opt_value):
+        """Returns the opt value if it exists, and the string None if not."""
+        if opt_value:
+            return Text(f"{opt_value}", overflow="fold", style="green")
+        else:
+            return Text("None", overflow="fold", style="dim")
+
+#        return Text(opt_value if opt_value else "None", overflow="fold")
+
     def header(self, stats: FuzzStats, session):
         """
         Prints the wenum header
-        TODO Display all options on startup
         """
-        for i in session.options.get_all_opts():
-            self.console.print(i)
         self.console.rule(f"wenum {version} - A Web Fuzzer")
-        if stats:
-            self.console.print(f"Target: {stats.url}")
-            if stats.wordlist_req > 0:
-                self.console.print(f"Requests in wordlist: {stats.wordlist_req}")
-            else:
-                self.console.print(f"Requests in wordlist: <<unknown>>")
+
+        option_panels = []
+        for option_tuple in session.options.get_all_opts():
+            option_panels.append(Panel(self.get_opt_value(option_tuple[1]),
+                                       expand=True, width=30, title=option_tuple[0]))
+
+        self.console.print(Columns(option_panels, title="Startup options", expand=True, equal=True),
+                           overflow="crop", no_wrap=False)
 
         grid = self.create_response_grid("white")
 
         if self.verbose:
             grid.add_row("Timer", "Server",
-                         "Code", "Lines", "Words", "Bytes", "Method", "URL")
+                         "Code", "Lines", "Words", "Size", "Method", "URL")
         else:
-            grid.add_row("Code", "Lines", "Words", "Bytes", "Method", "URL")
+            grid.add_row("Code", "Lines", "Words", "Size", "Method", "URL")
 
         self.console.print(grid)
 
@@ -452,8 +463,8 @@ class View:
                         max_width=self.fuzzresult_row_widths["lines"], no_wrap=False, overflow="fold", justify="right")
         grid.add_column("Words", min_width=self.fuzzresult_row_widths["words"],
                         max_width=self.fuzzresult_row_widths["words"], no_wrap=False, overflow="fold", justify="right")
-        grid.add_column("Bytes", min_width=self.fuzzresult_row_widths["bytes"],
-                        max_width=self.fuzzresult_row_widths["bytes"], no_wrap=False, overflow="fold", justify="right")
+        grid.add_column("Size", min_width=self.fuzzresult_row_widths["size"],
+                        max_width=self.fuzzresult_row_widths["size"], no_wrap=False, overflow="fold", justify="right")
         grid.add_column("HTTP Method", min_width=self.fuzzresult_row_widths["http_method"],
                         max_width=self.fuzzresult_row_widths["http_method"], no_wrap=False, overflow="fold")
         grid.add_column("URL", no_wrap=False, overflow="fold")
