@@ -374,11 +374,9 @@ class View:
 
         if fuzz_result.history.redirect_header:
             location = fuzz_result.history.full_redirect_url
-            link = location
-            url_output = f"{fuzz_result.url} :right_arrow: {location}"
+            url_output = f"[link={fuzz_result.url}]{fuzz_result.url}[/link] :right_arrow: [link={location}]{location}[/link]"
         else:
-            url_output = fuzz_result.url
-            link = url_output
+            url_output = f"[link={fuzz_result.url}]{fuzz_result.url}[/link]"
 
         server = ""
         if "Server" in fuzz_result.history.headers.response:
@@ -397,10 +395,10 @@ class View:
         if self.verbose:
             grid.add_row(str(fuzz_result.timer), str(server),
                          str(response_code), str(fuzz_result.lines) + " L", str(fuzz_result.words) + " W",
-                         str(fuzz_result.chars) + " B", fuzz_result.history.method, url_output + f"[link={link}]")
+                         str(fuzz_result.chars) + " B", fuzz_result.history.method, url_output)
         else:
             grid.add_row(str(response_code), str(fuzz_result.lines) + " L", str(fuzz_result.words) + " W",
-                         str(fuzz_result.chars) + " B", fuzz_result.history.method, url_output + f"[link={link}]")
+                         str(fuzz_result.chars) + " B", fuzz_result.history.method, url_output)
 
         # Add plugin results
         if fuzz_result.plugins_res:
