@@ -1,6 +1,7 @@
 venv/
 wenum.ini
 wenum-config.toml
+src/wenum/plugins/scripts/debug_test.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

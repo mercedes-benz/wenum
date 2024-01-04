@@ -315,13 +315,13 @@ class FuzzError(FuzzItem):
 class FuzzResult(FuzzItem):
     newid = itertools.count(0)
 
-    def __init__(self, history=None, exception=None, track_id=True):
+    def __init__(self, history=None, exception=None):
         FuzzItem.__init__(self, FuzzType.RESULT)
         self.history: FuzzRequest = history
 
         self.exception = exception
         self.rlevel_desc: str = ""
-        self.result_number: int = next(FuzzResult.newid) if track_id else 0
+        self.result_number: int = next(FuzzResult.newid)
 
         self.chars: int = 0
         self.lines: int = 0

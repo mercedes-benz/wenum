@@ -410,7 +410,7 @@ class PluginExecutor(FuzzQueue):
         # Queue for storing the results of each plugin
         plugins_res_queue = Queue()
         # Keeps track of the amount of requests queued by each plugin for the request
-        queued_dict = {}
+        queued_dict: dict[dict[str, int]] = {}
         # Keeps track of all the plugins signal for completion
         plugin_signal_dict: dict = {}
         for plugin in self.active_plugins:
@@ -472,13 +472,20 @@ class PluginExecutor(FuzzQueue):
         Plugin results are polled from plugins_res_queue. Every plugin gets processed. Information gets appended
         to the fuzzresult on which the plugins ran, backfeed and seed objects are created if appropriate
         """
+        # A URL could theoretically cause further backfeeds to be created indefinitely. Taking 15 as an arbitrary
+        # value to avoid infinite backfeeds
+        requeue_limit = 15
+        # dict containing the plugin names and lists of urls that they wanted to generate which exceeded the limit
+        limit_exceeded_urls: dict[str, list[str]] = {}
+
         # Every loop processes a single output of the plugins. One plugin can therefore trigger n loops by creating
         # n outputs, e.g. messages or new requests
         while not plugins_res_queue.empty():
             plugin: FuzzPlugin = plugins_res_queue.get()
             if plugin.exception:
-                if Facade().settings.get("general", "cancel_on_plugin_except") == "1":
+                if self.session.options.stop_error:
                     self._throw(plugin.exception)
+
                 fuzz_result.plugins_res.append(plugin)
             # If it's a message type simply append to the results
             elif plugin.message and plugin.is_visible():
@@ -486,48 +493,45 @@ class PluginExecutor(FuzzQueue):
             # If it has a seed (BACKFEED/SEED) and goes over http
             elif plugin.seed and not self.session.options.dry_run:
                 in_scope = fuzz_result.history.check_in_scope(plugin.seed.history.url, self.session.options.domain_scope)
-                if in_scope:
-                    if plugin.seed.item_type == FuzzType.BACKFEED:
-                        cache_type = "processed"
-                        cached = self.cache.check_cache(plugin.seed.url, cache_type=cache_type, update=False)
-                        if cached:
-                            continue
-                        requeue_limit = 15
-                        if plugin.seed.backfeed_level >= requeue_limit:
-                            fuzz_result.plugins_res.append(plugin_factory.create(
-                                "plugin_from_finding", name=plugin.name,
-                                message=f"This request has been requeued {requeue_limit} times. "
-                                        f"Will not enqueue an additional request to {plugin.seed.url}",
-                                severity=FuzzPlugin.INFO))
-                            continue
-
-                        queued_dict[plugin.name]["queued_requests"] += 1
-                    elif plugin.seed.item_type == FuzzType.SEED:
-                        cache_type = "recursion"
-                        cached = self.cache.check_cache(plugin.seed.url, cache_type=cache_type, update=False)
-                        if cached:
-                            continue
-                        # For SEED Plugin objects, the rlevel needs to be checked as well
-                        if fuzz_result.plugin_rlevel >= self.max_plugin_rlevel:
-                            continue
-                        # If the URL is deemed a false positive, don't throw a recursion
-                        elif RecursiveQueue.false_positive_hit(seed=plugin.seed, session=self.session, logger=self.logger):
-                            continue
-                        queued_dict[plugin.name]["queued_seeds"] += 1
-                    else:
-                        warnings.warn(f"Invalid seed type detected: {plugin.seed.item_type}")
+                if not in_scope:
+                    continue
+                if plugin.seed.item_type == FuzzType.BACKFEED:
+                    cache_type = "processed"
+                    cached = self.cache.check_cache(plugin.seed.url, cache_type=cache_type, update=False)
+                    if cached:
                         continue
-                    # Debugging information, prints out individual requests enqueued by each plugin
-                    # fuzz_result.plugins_res.append(plugin_factory.create(
-                    #    "plugin_from_finding", name=plugin.name,
-                    #    message=f"Plugin {plugin.name}: Enqueued {plugin.seed.url}",
-                    #    severity=FuzzPlugin.INFO))
+                    if plugin.seed.backfeed_level >= requeue_limit:
+                        limit_exceeded_urls.setdefault(plugin.name, []).append(
+                            f"[link={plugin.seed.url}]{plugin.seed.url}[/link]")
+                        continue
 
-                    # Double-checking the cache. The previous cache checks help avoid extensive checks if it is
-                    # in the cache already, but a cache check right before sending the seed is necessary
-                    # to reduce race conditions (to fully prevent, cache needs to have threadlocks).
-                    if not self.cache.check_cache(plugin.seed.history.url, cache_type=cache_type, update=True):
-                        self.send(plugin.seed)
+                    queued_dict[plugin.name]["queued_requests"] += 1
+                elif plugin.seed.item_type == FuzzType.SEED:
+                    cache_type = "recursion"
+                    cached = self.cache.check_cache(plugin.seed.url, cache_type=cache_type, update=False)
+                    if cached:
+                        continue
+                    # For SEED Plugin objects, the rlevel needs to be checked as well
+                    if fuzz_result.plugin_rlevel >= self.max_plugin_rlevel:
+                        continue
+                    # If the URL is deemed a false positive, don't throw a recursion
+                    elif RecursiveQueue.false_positive_hit(seed=plugin.seed, session=self.session, logger=self.logger):
+                        continue
+                    queued_dict[plugin.name]["queued_seeds"] += 1
+                else:
+                    warnings.warn(f"Invalid seed type detected: {plugin.seed.item_type}")
+                    continue
+                # Debugging information, prints out individual requests enqueued by each plugin
+                # fuzz_result.plugins_res.append(plugin_factory.create(
+                #    "plugin_from_finding", name=plugin.name,
+                #    message=f"Plugin {plugin.name}: Enqueued {plugin.seed.url}",
+                #    severity=FuzzPlugin.INFO))
+
+                # Double-checking the cache. The previous cache checks help avoid extensive checks if it is
+                # in the cache already, but a cache check right before sending the seed is necessary
+                # to reduce race conditions (to fully prevent, cache needs to have threadlocks).
+                if not self.cache.check_cache(plugin.seed.history.url, cache_type=cache_type, update=True):
+                    self.send(plugin.seed)
             plugins_res_queue.task_done()
         # After all the individual results have been processed, print the amount of requests queued by each plugin
         for plugin_name, plugin_dict in queued_dict.items():
@@ -545,6 +549,18 @@ class PluginExecutor(FuzzQueue):
                     "plugin_from_finding", name=plugin_name,
                     message=f"Enqueued [u]{plugin_dict['queued_seeds']} seed{multiple}[/u]",
                     severity=FuzzPlugin.INFO))
+        # Print the URLs that have not been requeued due to the limit
+        if limit_exceeded_urls:
+            output_string = ""
+            for plugin_name, url_list in limit_exceeded_urls.items():
+                output_string += f"{plugin_name}:" + "\n" + str(url_list)
+
+            fuzz_result.plugins_res.append(plugin_factory.create(
+                "plugin_from_finding", name=self.name,
+                message=f"The following plugins intended to queue URLs that exceed the limit of 15 in a chain. "
+                        f"To avoid infinite re-queueing, the listed URLs have not been queued again.\n"
+                        f"{output_string}",
+                severity=FuzzPlugin.INFO))
 
 
 class RedirectQueue(FuzzQueue):
