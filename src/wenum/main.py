@@ -31,7 +31,6 @@ def main():
     session: Optional[FuzzSession] = None
     logger = logging.getLogger("debug_log")
     console = Console()
-    term = None
     exit_code = 0
 
     try:

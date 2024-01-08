@@ -113,7 +113,7 @@ class Fuzzer:
 
     def __next__(self):
         """
-        This function is called by the for loop in the main function when going over it
+        This function is called by the for loop in the main function
         """
         # http://bugs.python.org/issue1360
         fuzz_item: FuzzItem = self.last_queue.get()
@@ -137,9 +137,17 @@ class Fuzzer:
         )
 
     def pause_job(self):
+        """
+        Clear the event signal to stop sending requests
+        """
+        self.qmanager["printer_cli"].pause.clear()
         self.qmanager["transport_queue"].pause.clear()
 
     def resume_job(self):
+        """
+        Set the event signal to resume sending requests
+        """
+        self.qmanager["printer_cli"].pause.set()
         self.qmanager["transport_queue"].pause.set()
 
 

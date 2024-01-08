@@ -148,14 +148,18 @@ class CLIPrinterQueue(FuzzQueue):
 
     def __init__(self, session: FuzzSession):
         super().__init__(session)
-        self.printer = View(self.session)
+        # Listening for keypress to pause execution
+        self.pause = Event()
+        self.pause.set()
+
+        self.cli = View(self.session)
         # Processes discarded results to print them to the progress bar
         self.process_discarded = True
 
     def pre_start(self):
-        self.printer.header(self.stats, self.session)
+        self.cli.header(self.stats, self.session)
         if not self.session.options.quiet:
-            self.printer.live.start()
+            self.cli.live.start()
 
     def items_to_process(self):
         return [FuzzType.RESULT, FuzzType.MESSAGE]
@@ -164,21 +168,22 @@ class CLIPrinterQueue(FuzzQueue):
         return "CLIPrinterQueue"
 
     def cancel(self):
-        self.printer.footer(self.stats)
+        self.cli.footer(self.stats)
         if not self.session.options.quiet:
-            self.printer.live.stop()
+            self.cli.live.stop()
 
     def process(self, fuzz_result: FuzzResult):
+        self.pause.wait()
         if fuzz_result.item_type == FuzzType.MESSAGE:
             self.session.console.print(fuzz_result.rlevel_desc)
         elif not fuzz_result.discarded:
-            self.printer.print_result(fuzz_result)
+            self.cli.print_result(fuzz_result)
 
         # Progress bar
         if not self.session.options.quiet:
-            self.printer.update_status(self.session.compiled_stats)
+            self.cli.update_status(self.session.compiled_stats)
             if fuzz_result.discarded:
-                self.printer.update_filtered(fuzz_result)
+                self.cli.update_filtered(fuzz_result)
 
         self.send(fuzz_result)
 
