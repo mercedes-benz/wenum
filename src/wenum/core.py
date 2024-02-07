@@ -43,7 +43,7 @@ class Fuzzer:
         self.last_queue: FuzzPriorityQueue = FuzzPriorityQueue()
         self.logger = logging.getLogger("debug_log")
 
-        self.qmanager.add("seed_queue", SeedQueue(session))
+        self.qmanager.add("seed_queue", SeedQueue(session, session.options.extensions))
 
         if session.options.dry_run:
             self.qmanager.add("transport_queue", DryRunQueue(session))

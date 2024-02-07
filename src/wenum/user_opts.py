@@ -178,6 +178,9 @@ class Options:
         self.cache_dir: Optional[str] = None
         self.opt_name_cache_dir: str = "cache-dir"
 
+        self.extensions: list[str] = []
+        self.opt_name_extensions: str = "ext"
+
     def __str__(self):
         return str(vars(self))
 
@@ -321,6 +324,9 @@ class Options:
         if parsed_args.cache_dir:
             self.cache_dir = parsed_args.cache_dir
 
+        if parsed_args.ext:
+            self.extensions = flatten_list(parsed_args.ext)
+
     def get_all_opts(self) -> list[tuple]:
         """
         Returns all option parameters in a list of tuples,
@@ -372,6 +378,7 @@ class Options:
             (self.opt_name_iterator, self.iterator),
             (self.opt_name_version, self.version),
             (self.opt_name_cache_dir, self.cache_dir),
+            (self.opt_name_extensions, self.extensions),
                     ]
 
         return all_opts
@@ -546,6 +553,9 @@ class Options:
 
         if self.opt_name_cache_dir in toml_dict:
             self.cache_dir = self.pop_toml_string(toml_dict, self.opt_name_cache_dir)
+
+        if self.opt_name_extensions in toml_dict:
+            self.extensions += self.pop_toml_list_str(toml_dict, self.opt_name_extensions)
 
         # If any keys are left
         if toml_dict:
@@ -757,6 +767,13 @@ class Options:
                 raise FuzzExceptBadFile(f"Config export file can not be opened. Please ensure it is a valid path"
                                         f"and the permissions to the path are correct.")
 
+        if self.extensions:
+            for extension in self.extensions:
+                ext = extension.split(",")
+                for e in ext:
+                    if not e.startswith("."):
+                        raise FuzzExceptBadOptions(f"Extension {e} does not start with a dot. Please ensure that it is a valid file extension.")
+
     def add_toml_if_exists(self, doc: TOMLDocument, key: str, value):
         """Convenience function to enable one-liners when building the TOML config."""
         if value:
@@ -849,6 +866,9 @@ class Options:
                                                  f"multiple wordlists. (default: {default_iterator})",
                                             choices=["product", "zip", "chain"])
 
+        request_building_group.add_argument("-e", f"--{self.opt_name_extensions}", action="append",
+                                            help="Specify extensions to be appended to the wordlist items e.g. \".aspx,.asmx\"", nargs="*")
+
         filter_group = parser.add_argument_group("Filter options")
         filter_group.add_argument(f"--{self.opt_name_hc}", action="append",
                                   help=f"Hide responses matching the supplied codes "
@@ -927,3 +947,4 @@ class Options:
             split_header = header.split(":", maxsplit=1)
             header_dict[split_header[0]] = split_header[1].strip()
         return header_dict
+

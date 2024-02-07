@@ -13,7 +13,7 @@ import traceback
 import logging
 
 from .core import Fuzzer
-from .exception import FuzzException, FuzzExceptBadInstall
+from .exception import FuzzException
 from .ui.console.mvc import Controller, KeyPress
 from .runtime_session import FuzzSession
 from wenum.user_opts import Options
