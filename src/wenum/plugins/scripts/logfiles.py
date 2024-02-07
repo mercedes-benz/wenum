@@ -47,7 +47,7 @@ class Logfiles(BasePlugin, DiscoveryPluginMixin):
 
         current_date = start_date
         while current_date < end_date:
-            # YYYY-MM-DD.log, YYYY/MM/DD.log, YYYY_MM_DD.log
+            # YYYY-MM-DD.log, YYYYMMDD.log, YYYY_MM_DD.log
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%Y-%m-%d") + ".log")
             self.queue_url(url)
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%Y%m%d") + ".log")
@@ -55,7 +55,7 @@ class Logfiles(BasePlugin, DiscoveryPluginMixin):
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%Y_%m_%d") + ".log")
             self.queue_url(url)
 
-            # YYYY-MM-DD.txt, YYYY/MM/DD.txt, YYYY_MM_DD.txt
+            # YYYY-MM-DD.txt, YYYYMMDD.txt, YYYY_MM_DD.txt
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%Y-%m-%d") + ".txt")
             self.queue_url(url)
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%Y%m%d") + ".txt")
@@ -63,7 +63,7 @@ class Logfiles(BasePlugin, DiscoveryPluginMixin):
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%Y_%m_%d") + ".txt")
             self.queue_url(url)
 
-            # DD-MM-YYYY.log, DD/MM/YYYY.log, DD_MM_YYYY.log
+            # DD-MM-YYYY.log, DDMMYYYY.log, DD_MM_YYYY.log
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%d-%m-%Y") + ".log")
             self.queue_url(url)
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%d%m%Y") + ".log")
@@ -71,7 +71,7 @@ class Logfiles(BasePlugin, DiscoveryPluginMixin):
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%d_%m_%Y") + ".log")
             self.queue_url(url)
 
-            # DD-MM-YYYY.txt, DD/MM/YYYY.txt, DD_MM_YYYY.txt
+            # DD-MM-YYYY.txt, DDMMYYYY.txt, DD_MM_YYYY.txt
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%d-%m-%Y") + ".txt")
             self.queue_url(url)
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%d%m%Y") + ".txt")
@@ -79,7 +79,7 @@ class Logfiles(BasePlugin, DiscoveryPluginMixin):
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%d_%m_%Y") + ".txt")
             self.queue_url(url)
 
-            # MM-DD-YYYY.log, MM/DD/YYYY.log, MM_DD_YYYY.log
+            # MM-DD-YYYY.log, MMDDYYYY.log, MM_DD_YYYY.log
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%m-%d-%Y") + ".log")
             self.queue_url(url)
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%m%d%Y") + ".log")
@@ -87,7 +87,7 @@ class Logfiles(BasePlugin, DiscoveryPluginMixin):
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%m_%d_%Y") + ".log")
             self.queue_url(url)
 
-            # MM-DD-YYYY.txt, MM/DD/YYYY.txt, MM_DD_YYYY.txt
+            # MM-DD-YYYY.txt, MMDDYYYY.txt, MM_DD_YYYY.txt
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%m-%d-%Y") + ".txt")
             self.queue_url(url)
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%m%d%Y") + ".txt")
@@ -96,7 +96,7 @@ class Logfiles(BasePlugin, DiscoveryPluginMixin):
             self.queue_url(url)
 
             # now do the same as above but append _log to the file name
-            # YYYY-MM-DD.log, YYYY/MM/DD.log, YYYY_MM_DD.log
+            # YYYY-MM-DD.log, YYYYMMDD.log, YYYY_MM_DD.log
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%Y-%m-%d") + "_log.log")
             self.queue_url(url)
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%Y%m%d") + "_log.log")
@@ -104,7 +104,7 @@ class Logfiles(BasePlugin, DiscoveryPluginMixin):
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%Y_%m_%d") + "_log.log")
             self.queue_url(url)
 
-            # YYYY-MM-DD.txt, YYYY/MM/DD.txt, YYYY_MM_DD.txt
+            # YYYY-MM-DD.txt, YYYYMMDD.txt, YYYY_MM_DD.txt
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%Y-%m-%d") + "_log.txt")
             self.queue_url(url)
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%Y%m%d") + "_log.txt")
@@ -112,7 +112,7 @@ class Logfiles(BasePlugin, DiscoveryPluginMixin):
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%Y_%m_%d") + "_log.txt")
             self.queue_url(url)
 
-            # DD-MM-YYYY.log, DD/MM/YYYY.log, DD_MM_YYYY.log
+            # DD-MM-YYYY.log, DDMMYYYY.log, DD_MM_YYYY.log
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%d-%m-%Y") + "_log.log")
             self.queue_url(url)
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%d%m%Y") + "_log.log")
@@ -120,7 +120,7 @@ class Logfiles(BasePlugin, DiscoveryPluginMixin):
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%d_%m_%Y") + "_log.log")
             self.queue_url(url)
 
-            # DD-MM-YYYY.txt, DD/MM/YYYY.txt, DD_MM_YYYY.txt
+            # DD-MM-YYYY.txt, DDMMYYYY.txt, DD_MM_YYYY.txt
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%d-%m-%Y") + "_log.txt")
             self.queue_url(url)
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%d%m%Y") + "_log.txt")
@@ -128,7 +128,7 @@ class Logfiles(BasePlugin, DiscoveryPluginMixin):
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%d_%m_%Y") + "_log.txt")
             self.queue_url(url)
 
-            # MM-DD-YYYY.log, MM/DD/YYYY.log, MM_DD_YYYY.log
+            # MM-DD-YYYY.log, MMDDYYYY.log, MM_DD_YYYY.log
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%m-%d-%Y") + "_log.log")
             self.queue_url(url)
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%m%d%Y") + "_log.log")
@@ -136,7 +136,7 @@ class Logfiles(BasePlugin, DiscoveryPluginMixin):
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%m_%d_%Y") + "_log.log")
             self.queue_url(url)
 
-            # MM-DD-YYYY.txt, MM/DD/YYYY.txt, MM_DD_YYYY.txt
+            # MM-DD-YYYY.txt, MMDDYYYY.txt, MM_DD_YYYY.txt
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%m-%d-%Y") + "_log.txt")
             self.queue_url(url)
             url = urljoin(fuzz_result.url + "/", current_date.strftime("%m%d%Y") + "_log.txt")
