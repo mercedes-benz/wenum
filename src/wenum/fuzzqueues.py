@@ -42,8 +42,15 @@ class SeedQueue(FuzzQueue):
     Queue used by default, handles reading payloads from wordlists
     """
 
-    def __init__(self, session: FuzzSession):
+    def __init__(self, session: FuzzSession, extensions: list[str]):
         super().__init__(session)
+
+        self.extensions = []
+
+        for extension in extensions:
+            ext = extension.split(",")
+            for e in ext:
+                self.extensions.append(e.strip())
 
     def get_name(self):
         return "SeedQueue"
@@ -128,6 +135,16 @@ class SeedQueue(FuzzQueue):
                 if not self.session.cache.check_cache(fuzz_result.url):
                     self.stats.pending_fuzz.inc()
                     self.send(fuzz_result)
+
+                # generate additional requests for the extensions
+                for extension in self.extensions:
+                    fuzz_word_ext = (FuzzWord(fuzz_word[0][0] + extension, FuzzWordType.WORD),)
+                    fuzz_res_ext = self.get_fuzz_res(fuzz_word_ext)
+
+                    if not self.session.cache.check_cache(fuzz_res_ext.url):
+                        self.stats.pending_fuzz.inc()
+                        self.send(fuzz_res_ext)
+
                 fuzz_word = next(self.session.compiled_iterator)
         except StopIteration:
             pass
@@ -882,3 +899,4 @@ class HttpQueue(FuzzQueue):
                     self.send(fuzz_result)
         self.logger.debug("__read_http_results stopped")
         self.thread_cancelled.set()
+
