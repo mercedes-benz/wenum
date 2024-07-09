@@ -59,6 +59,11 @@ class SeedQueue(FuzzQueue):
         return [FuzzType.STARTSEED, FuzzType.SEED]
 
     def send(self, item):
+        if self.session.options.limit_requests:
+            if self.session.http_pool.queued_requests > self.session.options.limit_requests:
+                self.session.compiled_stats.cancelled = True
+                self.queue_discard.put(item)
+                return
         if item and item.discarded:
             self.queue_discard.put(item)
         else:

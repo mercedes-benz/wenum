@@ -107,6 +107,9 @@ class BasePlugin:
         Enqueue a new full URL. It will be processed by PluginExecutor, and if it is valid
         (not already in cache + in scope) will be queued to be sent by wenum
         """
+        if self.session.options.limit_requests and self.session.http_pool.queued_requests > \
+                self.session.options.limit_requests:
+            return
         self.put_if_okay(plugin_factory.create(
                 "backfeed_plugin", self.name, self.base_fuzz_res, url, method))
 
