@@ -76,6 +76,10 @@ class FuzzQueue(FuzzPriorityQueue, Thread, ABC):
         # Signals to the QueueManager that a stop event has been registered by the queue
         self.stopped: Event = Event()
         self.stopped.clear()
+
+        # Signals to the QueueManager that the queue has finished processing all items
+        self.ended: Event = Event()
+        self.ended.clear()
         # Event after which the queue will end once registered
         self.close: Event = Event()
 
@@ -269,7 +273,10 @@ class MonitorQueue(FuzzQueue):
                     self.send(item)
 
                 if item.item_type == FuzzType.ENDSEED:
-                    self.stats.pending_seeds.dec()
+                    # Only dec pending seeds if not already ended
+                    if not self.ended.is_set():
+                        self.ended.set()
+                        self.stats.pending_seeds.dec()
                 elif item.item_type == FuzzType.RESULT:
                     self.stats.processed.inc()
                     self.stats.pending_fuzz.dec()
@@ -277,7 +284,7 @@ class MonitorQueue(FuzzQueue):
                         self.stats.filtered.inc()
 
                 # If no requests are left, trigger the ending routine
-                if self.stats.pending_fuzz() == 0 and self.stats.pending_seeds() == 0:
+                if self.stats.pending_fuzz() <= 0 and self.stats.pending_seeds() <= 0:
                     self.send_important(FuzzItem(FuzzType.STOP))
                     self.logger.debug("MonitorQueue - No remaining requests left. Sending a stop item")
                 self.task_done()
