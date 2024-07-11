@@ -13,7 +13,7 @@ import traceback
 import logging
 
 from .core import Fuzzer
-from .exception import FuzzException
+from .exception import FuzzException, RequestLimitReached
 from .ui.console.mvc import Controller, KeyPress
 from .runtime_session import FuzzSession
 from wenum.user_opts import Options
@@ -55,6 +55,12 @@ def main():
         # This loop causes the main loop of wenum to execute
         for res in fuzzer:
             pass
+    except RequestLimitReached as e:
+        if fuzzer:
+            fuzzer.session.compiled_stats.cancelled = True
+        warnings.warn("Request limit reached")
+        exit_code = 0
+
 
     except FuzzException as e:
         if fuzzer:

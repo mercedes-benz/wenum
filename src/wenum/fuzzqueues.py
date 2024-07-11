@@ -27,7 +27,7 @@ from .myqueues import FuzzQueue, FuzzListQueue
 from .exception import (
     FuzzExceptInternalError,
     FuzzExceptBadOptions,
-    FuzzExceptPluginLoadError,
+    FuzzExceptPluginLoadError, RequestLimitReached,
 )
 from .filters.base_filter import BaseFilter
 from .filters.complexfilter import FuzzResFilter
@@ -59,12 +59,6 @@ class SeedQueue(FuzzQueue):
         return [FuzzType.STARTSEED, FuzzType.SEED]
 
     def send(self, item):
-        if self.session.options.limit_requests:
-            if self.session.http_pool.queued_requests > self.session.options.limit_requests:
-                self.session.compiled_stats.cancelled = True  # makes send_dictionary stop generating requests
-                self.queue_discard.put(item)
-                self.end_seed()
-                return
         if item and item.discarded:
             self.queue_discard.put(item)
         else:
@@ -899,8 +893,12 @@ class HttpQueue(FuzzQueue):
             if requeue:
                 self.http_pool.enqueue(fuzz_result)
             else:
-                if fuzz_result.exception and self.session.options.stop_error:
-                    self._throw(fuzz_result.exception)
+                if fuzz_result.exception:
+                    if self.session.options.stop_error and not isinstance(fuzz_result.exception, RequestLimitReached):
+                        self._throw(fuzz_result.exception)
+                    else:
+                        self.logger.debug(f"Exception occurred: {fuzz_result.exception}")
+                        self.send(fuzz_result)
                 else:
                     self.send(fuzz_result)
         self.logger.debug("__read_http_results stopped")

@@ -207,8 +207,7 @@ class FuzzQueue(FuzzPriorityQueue, Thread, ABC):
                         self.send_unimportant_within_seed(item)
                     self.task_done()
                     continue
-
-                if item.item_type in self.items_to_process():
+                if (not hasattr(item, 'exception') or item.exception is None) and item.item_type in self.items_to_process():
                     self.process(item)
                 # Send the item without processing
                 else:

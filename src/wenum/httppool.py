@@ -19,7 +19,7 @@ from queue import Queue
 import datetime
 import pytz as pytz
 
-from .exception import FuzzExceptBadOptions, FuzzExceptNetError
+from .exception import FuzzExceptBadOptions, FuzzExceptNetError, RequestLimitReached
 from .fuzzobjects import FuzzResult, FuzzItem, FuzzType
 
 from .factories.reqresp_factory import ReqRespRequestFactory
@@ -156,6 +156,13 @@ class HttpPool:
             time.sleep(self.sleep)
 
         with self.mutex_stats:
+            if self.session.options.limit_requests and self.queued_requests > self.session.options.limit_requests:
+                self.session.compiled_stats.cancelled = True  # stops generation new requests
+                res = FuzzItem(FuzzType.RESULT)
+                res.discarded = True
+                res.exception = RequestLimitReached("Request limit reached.")
+                self.result_queue.put((self.base_result_priority, res, False))
+                return
             self.queued_requests += 1
         self.request_queue.put(fuzz_result)
 

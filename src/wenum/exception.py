@@ -62,3 +62,7 @@ class FuzzExceptPluginError(FuzzException):
 
 class FuzzExceptNetError(FuzzException):
     pass
+
+
+class RequestLimitReached(FuzzException):
+    pass
