@@ -13,7 +13,7 @@ import traceback
 import logging
 
 from .core import Fuzzer
-from .exception import FuzzException, RequestLimitReached
+from .exception import FuzzException, FuzzHangError, RequestLimitReached
 from .ui.console.mvc import Controller, KeyPress
 from .runtime_session import FuzzSession
 from wenum.user_opts import Options
@@ -60,8 +60,11 @@ def main():
             fuzzer.session.compiled_stats.cancelled = True
         warnings.warn("Request limit reached")
         exit_code = 0
-
-
+    except FuzzHangError as e:
+        if fuzzer:
+            fuzzer.session.compiled_stats.cancelled = True
+        warnings.warn("Fuzzer hung. probably finished.")
+        exit_code = 0
     except FuzzException as e:
         if fuzzer:
             fuzzer.session.compiled_stats.cancelled = True
