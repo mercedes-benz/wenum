@@ -7,12 +7,14 @@ from typing import TYPE_CHECKING
 
 from typing import Optional
 
+from .exception import FuzzHangError
+
 if TYPE_CHECKING:
     from .runtime_session import FuzzSession
 from abc import ABC, abstractmethod
 
 from queue import PriorityQueue
-from threading import Thread, Event
+from threading import Lock, Thread, Event, Timer
 from .fuzzobjects import FuzzError, FuzzType, FuzzItem, FuzzStats
 
 
@@ -239,6 +241,8 @@ class MonitorQueue(FuzzQueue):
     def __init__(self, session, queue_out):
         super().__init__(session, queue_out)
         self.process_discarded = True
+        self.hang_timer = Timer(60, self._throw, args=[FuzzHangError("Queue hang detected. Stopping runtime")])
+        self.mutex_timer = Lock()
 
     def get_name(self):
         return "MonitorQueue"
@@ -250,13 +254,21 @@ class MonitorQueue(FuzzQueue):
         self.logger.error(f"Exception thrown: {exception_message}")
         self.queue_out.put_important(FuzzError(exception_message))
 
+    def reset_timer(self):
+        with self.mutex_timer:
+            self.hang_timer.cancel()
+            self.hang_timer = Timer(60, self._throw, args=[FuzzHangError("Queue hang detected. Stopping runtime")])
+            self.hang_timer.start()
+
     def run(self):
 
         while 1:
             item = self.get()
+            self.reset_timer()
 
             try:
                 if item.item_type == FuzzType.STOP:
+                    self.hang_timer.cancel()
                     self.logger.debug(f"MonitorQueue: Stopping")
                     self.stopped.set()
                     self.close.wait()

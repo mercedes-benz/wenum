@@ -66,3 +66,7 @@ class FuzzExceptNetError(FuzzException):
 
 class RequestLimitReached(FuzzException):
     pass
+
+
+class FuzzHangError(FuzzException):
+    pass
