@@ -140,14 +140,28 @@ class Links(BasePlugin, DiscoveryPluginMixin):
 
         # file path
         new_link = urljoin(fuzz_result.url, link_url)
+        split_path = parsed_link.path.split("/")
 
         if not self.regex_param or (
             self.regex_param and self.regex_param.search(new_link) is not None
         ):
+            links = set()
+            links.add(new_link)
+            if extension in [".js", ".json"]:
+                # try each directory
+                for i in range(1, len(split_path)-1):
+                    newpath = "/".join(split_path[:i]) + "/" + filename
+                    links.add(urljoin(fuzz_result.url, newpath))
+                # the other way around (remove directories from the start)
+                for i in range(len(split_path)-1, 0, -1):
+                    newpath = "/".join(split_path[i:-1]) + "/" + filename
+                    links.add(urljoin(fuzz_result.url, newpath))
             if extension in head_extensions:
-                self.queue_url(new_link, method="HEAD")
+                for link in links:
+                    self.queue_url(link, method="HEAD")
             else:
-                self.queue_url(new_link)
+                for link in links:
+                    self.queue_url(link)
 
     def from_domain(self, parsed_link):
         # Returns True if it is a relative path

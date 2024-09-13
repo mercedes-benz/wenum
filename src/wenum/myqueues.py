@@ -241,7 +241,7 @@ class MonitorQueue(FuzzQueue):
     def __init__(self, session, queue_out):
         super().__init__(session, queue_out)
         self.process_discarded = True
-        self.hang_timer = Timer(60, self._throw, args=[FuzzHangError("Queue hang detected. Stopping runtime")])
+        self.hang_timer = None
         self.mutex_timer = Lock()
 
     def get_name(self):
@@ -256,7 +256,8 @@ class MonitorQueue(FuzzQueue):
 
     def reset_timer(self):
         with self.mutex_timer:
-            self.hang_timer.cancel()
+            if self.hang_timer is not None:
+                self.hang_timer.cancel()
             self.hang_timer = Timer(60, self._throw, args=[FuzzHangError("Queue hang detected. Stopping runtime")])
             self.hang_timer.start()
 
